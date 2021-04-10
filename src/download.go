@@ -50,8 +50,8 @@ func (wc WriteCounter) PrintProgress() {
 }
 
 func downloadProject(project respGitlabExport, dirToSaveFile string) error {
-	tmpFile := dirToSaveFile + "/" + project.Name + ".tar.gz.tmp"
-	finalFile := dirToSaveFile + "/" + project.Name + ".tar.gz"
+	tmpFile := dirToSaveFile + string(os.PathSeparator) + project.Name + ".tar.gz.tmp"
+	finalFile := dirToSaveFile + string(os.PathSeparator) + project.Name + ".tar.gz"
 	out, err := os.Create(tmpFile)
 	if err != nil {
 		return err

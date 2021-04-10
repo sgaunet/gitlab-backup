@@ -12,8 +12,8 @@ builds:
     dir: src
     goos:
       - linux
-      # - windows
-      # - darwin
+      - windows
+      - darwin
     hooks:
       post:
         - upx "{{ .Path }}"

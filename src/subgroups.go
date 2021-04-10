@@ -62,7 +62,7 @@ func getSubgroupsLst(groupID int) (res []gitlabResponseSubgroups, err error) {
 		res = append(res, value)
 		recursiveGroups, err := getSubgroupsLst(value.Id)
 		if err != nil {
-			fmt.Printf("Got an error when trying to get the subgroups of %d (%s)\n", err.Error())
+			fmt.Printf("Got an error when trying to get the subgroups of %d (%s)\n", value.Id, err.Error())
 		} else {
 			for _, newGroup := range recursiveGroups {
 				res = append(res, newGroup)

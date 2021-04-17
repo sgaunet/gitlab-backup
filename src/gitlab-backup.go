@@ -17,12 +17,10 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/sgaunet/gitlab-backup/gitlabProject"
 )
@@ -66,7 +64,7 @@ func main() {
 		} else {
 			for _, project := range projects {
 				wg.Add(1)
-				saveProjectOnDisk(project, dirpath, &wg)
+				project.SaveProjectOnDisk(dirpath, &wg)
 			}
 		}
 	}
@@ -76,34 +74,9 @@ func main() {
 			fmt.Println(err.Error())
 		}
 		wg.Add(1)
-		go saveProjectOnDisk(project, dirpath, &wg)
+		go project.SaveProjectOnDisk(dirpath, &wg)
 	}
 	wg.Wait()
-}
-
-func saveProjectOnDisk(project gitlabProject.GitlabProject, dirpath string, wg *sync.WaitGroup) (err error) {
-	defer wg.Done()
-	statuscode := 0
-	// fmt.Println("\tAsk export for project", project.Name)
-	for statuscode != 202 {
-		fmt.Printf("%s : Ask gitlab to export a backup\n", project.Name)
-		statuscode, err = askExportForProject(project.Id)
-		if err != nil {
-			fmt.Println(err.Error())
-			return err
-		}
-		time.Sleep(20 * time.Second)
-	}
-	fmt.Printf("%s : Gitlab is creating the archive\n", project.Name)
-	gitlabExport, err := waitForExport(project.Id)
-	if err != nil {
-		fmt.Printf("%s: Export failed, reason: %s\n", project.Name, err.Error())
-		return errors.New("Failed ...")
-	}
-	fmt.Printf("%s : Gitlab has created the archive, download is beginning\n", project.Name)
-	downloadProject(gitlabExport, dirpath)
-	fmt.Printf("%s : Succesfully exported\n", project.Name)
-	return nil
 }
 
 func getEveryProjectsOfGroup(gid int) (res []gitlabProject.GitlabProject, err error) {

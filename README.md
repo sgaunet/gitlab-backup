@@ -5,10 +5,21 @@ I'm an ops, not a dev, the code will be improved soon.
 
 # Usage
 
+
+To download every projects of a group :
+
 ```
 export GITLAB_TOKEN="...."
 export GITLAB_URI="https://your-gitlab-uri"  # Optional, default https://gitlab.com
 gitlab-backup -gid <main_group_id> [-o <path_to_save_archives>]
+```
+
+To download a single backup porject :
+
+```
+export GITLAB_TOKEN="...."
+export GITLAB_URI="https://your-gitlab-uri"  # Optional, default https://gitlab.com
+gitlab-backup -pid <project_id> [-o <path_to_save_archives>]
 ```
 
 

@@ -27,11 +27,13 @@ import (
 
 func main() {
 	var gid int        // Gitlab Group ID parent to backup
+	var pid int        // Gitlab Project ID to backup
 	var dirpath string // path to save archives
 	var wg sync.WaitGroup
 
 	// Parameters treatment
 	flag.IntVar(&gid, "gid", 0, "Gitlab Group ID parent to backup")
+	flag.IntVar(&pid, "pid", 0, "Gitlab Project ID to backup")
 	flag.StringVar(&dirpath, "o", ".", "Path to save archives")
 	flag.Parse()
 
@@ -40,8 +42,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if gid == 0 {
-		fmt.Println("Parameter gid is mandatory")
+	if gid == 0 && pid == 0 {
+		fmt.Println("Parameter gid or pid is mandatory")
 		os.Exit(1)
 	}
 
@@ -54,23 +56,34 @@ func main() {
 		os.Setenv("GITLAB_URI", "https://gitlab.com")
 	}
 
-	projects, err := getEveryProjectsOfGroup(gid)
-	if err != nil {
-		fmt.Println("Error:", err.Error())
-		os.Exit(1)
-	} else {
-		for _, project := range projects {
-			//wg.Add(1)
-			saveProjectOnDisk(project, dirpath, &wg)
+	if gid != 0 {
+		projects, err := getEveryProjectsOfGroup(gid)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		} else {
+			for _, project := range projects {
+				wg.Add(1)
+				saveProjectOnDisk(project, dirpath, &wg)
+			}
 		}
 	}
-	//wg.Wait()
+	if pid != 0 {
+		fmt.Println("pid option")
+		project := gitlabResponseProjects{
+			Id:   pid,
+			Name: "toto",
+		}
+		wg.Add(1)
+		saveProjectOnDisk(project, dirpath, &wg)
+	}
+	wg.Wait()
 }
 
 func saveProjectOnDisk(project gitlabResponseProjects, dirpath string, wg *sync.WaitGroup) (err error) {
-	//defer wg.Done()
+	defer wg.Done()
 	statuscode := 0
-	fmt.Println("\tAsk export for project", project.Name)
+	// fmt.Println("\tAsk export for project", project.Name)
 	for statuscode != 202 {
 		statuscode, err = askExportForProject(project.Id)
 		if err != nil {
@@ -81,7 +94,7 @@ func saveProjectOnDisk(project gitlabResponseProjects, dirpath string, wg *sync.
 	}
 	gitlabExport, err := waitForExport(project.Id)
 	if err != nil {
-		fmt.Println("Export failed for ", project.Name)
+		fmt.Printf("Export failed for %s (%s)\n", project.Name, err.Error())
 		return errors.New("Failed ...")
 	}
 	downloadProject(gitlabExport, dirpath)

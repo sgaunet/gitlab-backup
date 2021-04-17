@@ -21,33 +21,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
-
-	"github.com/dustin/go-humanize"
 )
-
-// WriteCounter counts the number of bytes written to it. It implements to the io.Writer interface
-// and we can pass this into io.TeeReader() which will report progress on each write cycle.
-type WriteCounter struct {
-	Total uint64
-}
-
-func (wc *WriteCounter) Write(p []byte) (int, error) {
-	n := len(p)
-	wc.Total += uint64(n)
-	wc.PrintProgress()
-	return n, nil
-}
-
-func (wc WriteCounter) PrintProgress() {
-	// Clear the line by using a character return to go back to the start and remove
-	// the remaining characters by filling it with spaces
-	fmt.Printf("\r%s", strings.Repeat(" ", 35))
-
-	// Return again and print current status of download
-	// We use the humanize package to print the bytes in a meaningful way (e.g. 10 MB)
-	fmt.Printf("\rDownloading... %s complete", humanize.Bytes(wc.Total))
-}
 
 func downloadProject(project respGitlabExport, dirToSaveFile string) error {
 	tmpFile := dirToSaveFile + string(os.PathSeparator) + project.Name + ".tar.gz.tmp"
@@ -70,16 +44,13 @@ func downloadProject(project respGitlabExport, dirToSaveFile string) error {
 		return err
 	}
 
-	fmt.Printf("Downloading %s\n", project.Name)
-	// Create our progress reporter and pass it to be used alongside our writer
-	counter := &WriteCounter{}
-	if _, err = io.Copy(out, io.TeeReader(resp.Body, counter)); err != nil {
+	// fmt.Println("Taille: ", resp.ContentLength)
+	// fmt.Printf("Downloading %s\n", project.Name)
+
+	if _, err = io.Copy(out, resp.Body); err != nil {
 		out.Close()
 		return err
 	}
-
-	// The progress use the same line so print a new line once it's finished downloading
-	fmt.Print("\n")
 	out.Close()
 
 	if err = os.Rename(tmpFile, finalFile); err != nil {

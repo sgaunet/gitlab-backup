@@ -24,6 +24,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/sgaunet/gitlab-backup/gitlabProject"
 )
 
 // Part of the response of GITLAB API to export a project
@@ -66,7 +68,7 @@ func waitForExport(projectID int) (gitlabExport respGitlabExport, err error) {
 		case "none":
 			return gitlabExport, errors.New("Project not exported")
 		default:
-			fmt.Printf("\tWait for export of project %s to be finished\n", gitlabExport.Name)
+			fmt.Printf("%s : Wait after gitlab for the export\n", gitlabExport.Name)
 		}
 		time.Sleep(20 * time.Second)
 	}
@@ -91,4 +93,29 @@ func getStatusExport(projectID int) (res respGitlabExport, err error) {
 	}
 	err = json.Unmarshal(body, &res)
 	return res, nil
+}
+
+func getProjectsLst(groupID int) (res []gitlabProject.GitlabProject, err error) {
+	url := fmt.Sprintf("%s/api/v4/groups/%d/projects", os.Getenv("GITLAB_URI"), groupID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return res, err
+	}
+	req.Header.Set("PRIVATE-TOKEN", os.Getenv("GITLAB_TOKEN"))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return res, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return res, err
+	}
+
+	if err := json.Unmarshal(body, &res); err != nil {
+		return res, err
+	}
+
+	return res, err
 }

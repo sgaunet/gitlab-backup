@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package gitlabProject
 
 import (
 	"encoding/json"
@@ -24,13 +24,13 @@ import (
 	"os"
 )
 
-type gitlabResponseProjects struct {
+type GitlabProject struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
 }
 
-func getProjectsLst(groupID int) (res []gitlabResponseProjects, err error) {
-	url := fmt.Sprintf("%s/api/v4/groups/%d/projects", os.Getenv("GITLAB_URI"), groupID)
+func New(projectID int) (res GitlabProject, err error) {
+	url := fmt.Sprintf("%s/api/v4/projects/%d", os.Getenv("GITLAB_URI"), projectID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return res, err

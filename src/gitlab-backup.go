@@ -22,6 +22,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/sgaunet/gitlab-backup/gitlabGroup"
 	"github.com/sgaunet/gitlab-backup/gitlabProject"
 )
 
@@ -57,7 +58,8 @@ func main() {
 	}
 
 	if gid != 0 {
-		projects, err := getEveryProjectsOfGroup(gid)
+		group, err := gitlabGroup.New(gid)
+		projects, err := group.GetEveryProjectsOfGroup()
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
@@ -77,35 +79,4 @@ func main() {
 		go project.SaveProjectOnDisk(dirpath, &wg)
 	}
 	wg.Wait()
-}
-
-func getEveryProjectsOfGroup(gid int) (res []gitlabProject.GitlabProject, err error) {
-	subgroups, err := getSubgroupsLst(gid)
-	if err != nil {
-		fmt.Printf("Got error when listing subgroups of %d (%s)\n", gid, err.Error())
-		os.Exit(1)
-	}
-	for _, group := range subgroups {
-		//fmt.Println("ID =>", v.Id)
-		projects, err := getProjectsLst(group.Id)
-		if err != nil {
-			fmt.Printf("Got error when listing projects of %d (%s)\n", group.Id, err.Error())
-		} else {
-			for _, project := range projects {
-				fmt.Println("project ID:", project.Name)
-				res = append(res, project)
-			}
-		}
-	}
-
-	projects, err := getProjectsLst(gid)
-	if err != nil {
-		fmt.Printf("Got error when listing projects of %d (%s)\n", gid, err.Error())
-	} else {
-		for _, project := range projects {
-			fmt.Println("project:", project.Name)
-			res = append(res, project)
-		}
-	}
-	return res, err
 }

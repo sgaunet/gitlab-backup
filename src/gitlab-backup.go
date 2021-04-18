@@ -31,15 +31,22 @@ func main() {
 	var pid int        // Gitlab Project ID to backup
 	var dirpath string // path to save archives
 	var wg sync.WaitGroup
+	var paralellTreatment int
 
 	// Parameters treatment
 	flag.IntVar(&gid, "gid", 0, "Gitlab Group ID parent to backup")
 	flag.IntVar(&pid, "pid", 0, "Gitlab Project ID to backup")
+	flag.IntVar(&paralellTreatment, "p", 5, "Number of projects to treat in parallel")
 	flag.StringVar(&dirpath, "o", ".", "Path to save archives")
 	flag.Parse()
 
 	if stat, err := os.Stat(dirpath); err != nil || !stat.IsDir() {
 		fmt.Printf("%s is not a directory\n", dirpath)
+		os.Exit(1)
+	}
+
+	if gid != 0 && paralellTreatment <= 0 {
+		fmt.Println("Value incorrect for option -p (should be greater than 0)")
 		os.Exit(1)
 	}
 
@@ -64,9 +71,15 @@ func main() {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		} else {
-			for _, project := range projects {
+			cpt := 0
+			for project, _ := range projects {
+				if cpt == paralellTreatment {
+					wg.Wait()
+					cpt = 0
+				}
 				wg.Add(1)
-				project.SaveProjectOnDisk(dirpath, &wg)
+				go projects[project].SaveProjectOnDisk(dirpath, &wg)
+				cpt++
 			}
 		}
 	}

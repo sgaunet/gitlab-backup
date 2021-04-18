@@ -1,6 +1,14 @@
 package gitlabProject
 
-type GitlabProject struct {
+import "sync"
+
+type GitlabProject interface {
+	SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (err error)
+	GetName() string
+	GetID() int
+}
+
+type gitlabProject struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
 }

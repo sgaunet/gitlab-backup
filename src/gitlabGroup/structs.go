@@ -16,12 +16,21 @@
 
 package gitlabGroup
 
-type gitlabResponseSubgroups struct {
-	Id      int    `json:"id"`
-	Web_url string `json:"web_url"`
+import "github.com/sgaunet/gitlab-backup/gitlabProject"
+
+type GitlabGroup interface {
+	GetProjectsLst() (res []gitlabProject.GitlabProject, err error)
+	GetEveryProjectsOfGroup() (res []gitlabProject.GitlabProject, err error)
+	GetSubgroupsLst() (res []GitlabGroup, err error)
+	GetID() int
 }
 
-type GitlabGroup struct {
+type gitlabGroup struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type respGitlabProject struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
 }

@@ -28,7 +28,8 @@ import (
 	"time"
 )
 
-func New(projectID int) (res GitlabProject, err error) {
+func New(projectID int) (res gitlabProject, err error) {
+	var project respGitlabExport
 	url := fmt.Sprintf("%s/api/v4/projects/%d", os.Getenv("GITLAB_URI"), projectID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -46,14 +47,14 @@ func New(projectID int) (res GitlabProject, err error) {
 		return res, err
 	}
 
-	if err := json.Unmarshal(body, &res); err != nil {
+	if err := json.Unmarshal(body, &project); err != nil {
 		return res, err
 	}
 
-	return res, err
+	return gitlabProject{Id: project.Id, Name: project.Name}, err
 }
 
-func (p *GitlabProject) askExportForProject() (int, error) {
+func (p gitlabProject) askExportForProject() (int, error) {
 	url := fmt.Sprintf("%s/api/v4/projects/%d/export", os.Getenv("GITLAB_URI"), p.Id)
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
@@ -74,7 +75,7 @@ func (p *GitlabProject) askExportForProject() (int, error) {
 	return resp.StatusCode, nil
 }
 
-func (p *GitlabProject) waitForExport() (gitlabExport respGitlabExport, err error) {
+func (p gitlabProject) waitForExport() (gitlabExport respGitlabExport, err error) {
 	for gitlabExport.ExportStatus != "finished" {
 		// TODO : Set a timeout to avoid to wait forever
 		gitlabExport, err = p.getStatusExport()
@@ -93,7 +94,7 @@ func (p *GitlabProject) waitForExport() (gitlabExport respGitlabExport, err erro
 	return gitlabExport, nil
 }
 
-func (p *GitlabProject) getStatusExport() (res respGitlabExport, err error) {
+func (p gitlabProject) getStatusExport() (res respGitlabExport, err error) {
 	url := fmt.Sprintf("%s/api/v4/projects/%d/export", os.Getenv("GITLAB_URI"), p.Id)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -113,7 +114,7 @@ func (p *GitlabProject) getStatusExport() (res respGitlabExport, err error) {
 	return res, nil
 }
 
-func (p *GitlabProject) downloadProject(dirToSaveFile string) error {
+func (p gitlabProject) downloadProject(dirToSaveFile string) error {
 	tmpFile := dirToSaveFile + string(os.PathSeparator) + p.Name + ".tar.gz.tmp"
 	finalFile := dirToSaveFile + string(os.PathSeparator) + p.Name + ".tar.gz"
 	out, err := os.Create(tmpFile)
@@ -149,7 +150,7 @@ func (p *GitlabProject) downloadProject(dirToSaveFile string) error {
 	return nil
 }
 
-func (p *GitlabProject) SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (err error) {
+func (p gitlabProject) SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (err error) {
 	defer wg.Done()
 	statuscode := 0
 	// fmt.Println("\tAsk export for project", project.Name)
@@ -172,4 +173,12 @@ func (p *GitlabProject) SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (e
 	p.downloadProject(dirpath)
 	fmt.Printf("%s : Succesfully exported\n", p.Name)
 	return nil
+}
+
+func (p gitlabProject) GetID() int {
+	return p.Id
+}
+
+func (p gitlabProject) GetName() string {
+	return p.Name
 }

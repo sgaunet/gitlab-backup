@@ -19,31 +19,18 @@ package gitlabGroup
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 
 	"github.com/sgaunet/gitlab-backup/gitlabProject"
+	"github.com/sgaunet/gitlab-backup/gitlabRequest"
 )
 
 func New(groupID int) (res gitlabGroup, err error) {
-	url := fmt.Sprintf("%s/api/v4/groups/%d", os.Getenv("GITLAB_URI"), groupID)
-	req, err := http.NewRequest("GET", url, nil)
+	url := fmt.Sprintf("groups/%d", groupID)
+	_, body, err := gitlabRequest.Request(url)
 	if err != nil {
 		return res, err
 	}
-	req.Header.Set("PRIVATE-TOKEN", os.Getenv("GITLAB_TOKEN"))
-	client := &http.Client{}
-	resp, err := client.Do(req)
-
-	if err != nil {
-		return res, err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return res, err
-	}
-
 	if err := json.Unmarshal(body, &res); err != nil {
 		return res, err
 	}
@@ -56,26 +43,11 @@ func (g gitlabGroup) GetID() int {
 }
 
 func (g gitlabGroup) GetSubgroupsLst() (res []gitlabGroup, err error) {
-	url := fmt.Sprintf("%s/api/v4/groups/%d/subgroups", os.Getenv("GITLAB_URI"), g.Id)
-	//fmt.Println(url)
-	req, err := http.NewRequest("GET", url, nil)
+	url := fmt.Sprintf("groups/%d/subgroups", g.Id)
+	_, body, err := gitlabRequest.Request(url)
 	if err != nil {
 		return res, err
 	}
-	req.Header.Set("PRIVATE-TOKEN", os.Getenv("GITLAB_TOKEN"))
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-
-	if err != nil {
-		return res, err
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return res, err
-	}
-
 	var jsonResponse []gitlabGroup
 	if err := json.Unmarshal(body, &jsonResponse); err != nil {
 		return res, err
@@ -133,23 +105,11 @@ func (g gitlabGroup) GetEveryProjectsOfGroup() (res []gitlabProject.GitlabProjec
 
 func (g gitlabGroup) GetProjectsLst() (res []gitlabProject.GitlabProject, err error) {
 	var respGitlab []respGitlabProject
-	url := fmt.Sprintf("%s/api/v4/groups/%d/projects", os.Getenv("GITLAB_URI"), g.Id)
-	req, err := http.NewRequest("GET", url, nil)
+	url := fmt.Sprintf("groups/%d/projects", g.Id)
+	_, body, err := gitlabRequest.Request(url)
 	if err != nil {
 		return res, err
 	}
-	req.Header.Set("PRIVATE-TOKEN", os.Getenv("GITLAB_TOKEN"))
-	client := &http.Client{}
-	resp, err := client.Do(req)
-
-	if err != nil {
-		return res, err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return res, err
-	}
-
 	if err := json.Unmarshal(body, &respGitlab); err != nil {
 		return res, err
 	}

@@ -26,36 +26,25 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/sgaunet/gitlab-backup/gitlabRequest"
 )
 
 func New(projectID int) (res gitlabProject, err error) {
 	var project respGitlabExport
-	url := fmt.Sprintf("%s/api/v4/projects/%d", os.Getenv("GITLAB_URI"), projectID)
-	req, err := http.NewRequest("GET", url, nil)
+	url := fmt.Sprintf("projects/%d", projectID)
+	_, body, err := gitlabRequest.Request(url)
 	if err != nil {
 		return res, err
 	}
-	req.Header.Set("PRIVATE-TOKEN", os.Getenv("GITLAB_TOKEN"))
-	client := &http.Client{}
-	resp, err := client.Do(req)
-
-	if err != nil {
-		return res, err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return res, err
-	}
-
 	if err := json.Unmarshal(body, &project); err != nil {
 		return res, err
 	}
-
 	return gitlabProject{Id: project.Id, Name: project.Name}, err
 }
 
 func (p gitlabProject) askExportForProject() (int, error) {
-	url := fmt.Sprintf("%s/api/v4/projects/%d/export", os.Getenv("GITLAB_URI"), p.Id)
+	url := fmt.Sprintf("%s/api/%s/projects/%d/export", os.Getenv("GITLAB_URI"), gitlabRequest.GitlabApiVersion, p.Id)
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return 0, err
@@ -95,18 +84,8 @@ func (p gitlabProject) waitForExport() (gitlabExport respGitlabExport, err error
 }
 
 func (p gitlabProject) getStatusExport() (res respGitlabExport, err error) {
-	url := fmt.Sprintf("%s/api/v4/projects/%d/export", os.Getenv("GITLAB_URI"), p.Id)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return res, err
-	}
-	req.Header.Set("PRIVATE-TOKEN", os.Getenv("GITLAB_TOKEN"))
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return res, err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
+	url := fmt.Sprintf("projects/%d/export", p.Id)
+	_, body, err := gitlabRequest.Request(url)
 	if err != nil {
 		return res, err
 	}
@@ -122,7 +101,7 @@ func (p gitlabProject) downloadProject(dirToSaveFile string) error {
 		return err
 	}
 
-	url := fmt.Sprintf("%s/api/v4/projects/%d/export/download", os.Getenv("GITLAB_URI"), p.Id)
+	url := fmt.Sprintf("%s/api/%s/projects/%d/export/download", os.Getenv("GITLAB_URI"), gitlabRequest.GitlabApiVersion, p.Id)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err

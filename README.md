@@ -1,6 +1,6 @@
 # gitlab-backup
 
-This project is for backup gitlab projects. Projects are actually saved one by one. 
+This project is for backup gitlab projects.
 I'm an ops, not a dev, the code will be improved soon.
 
 # Usage
@@ -65,3 +65,9 @@ When the status is finished, download the backup:
 ```
 curl --header "PRIVATE-TOKEN: $GITLAB_TOKEN" --remote-header-name --remote-name https://gitlab.com/api/v4/projects/**id_of_project**/export/download
 ```
+
+# Docker Image
+
+The Docker image is sgaunet/gitlab-backup:version
+
+There is a docker-compose.yml file example. 

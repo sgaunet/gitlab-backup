@@ -1,4 +1,4 @@
-FROM sgaunet/gitlab-backup:0.1.1 AS gitlab-backup
+FROM sgaunet/gitlab-backup:0.2 AS gitlab-backup
 
 FROM alpine:3.13.3
 LABEL description="Backup gitlab projects to a S3"

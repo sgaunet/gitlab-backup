@@ -1,30 +1,31 @@
-# This is an example goreleaser.yaml file with some sane defaults.
-# Make sure to check the documentation at http://goreleaser.com
 before:
   hooks:
     # You may remove this if you don't use go modules.
-    #- go mod download
+    - go get
     # you may remove this if you don't need go generate
     #- go generate ./...
 builds:
   - env:
       - CGO_ENABLED=0
-    dir: src
-    id: gitlab-backup
+    ldflags:
+      - -X main.version={{.Version}}
     goos:
       - linux
       - windows
       - darwin
     goarch:
-      - 386
       - amd64
       - arm
       - arm64
+    goarm:
+      - 6
+      - 7
+    dir: src
     hooks:
       post:
         - upx "{{ .Path }}"
 archives:
-  - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+  - name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
     replacements:
       darwin: Darwin
       linux: Linux
@@ -44,6 +45,7 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+
 
 dockers:
   # You can have multiple Docker images.

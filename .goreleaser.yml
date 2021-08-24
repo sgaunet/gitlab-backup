@@ -1,7 +1,7 @@
 before:
   hooks:
     # You may remove this if you don't use go modules.
-    - go get
+    #- go get
     # you may remove this if you don't need go generate
     #- go generate ./...
 builds:
@@ -61,7 +61,7 @@ dockers:
     - "sgaunet/gitlab-backup:latest"
     - "sgaunet/gitlab-backup:{{ .Tag }}"
     #- "sgaunet/gitlab-backup:v{{ .Major }}"
-    # build_flag_templates:
+    build_flag_templates:
     #   - "--pull"
     #   - "--label=org.label-schema.build-date={{.Date}}" 
     #   - "--label=org.label-schema.name={{ .ProjectName }}"
@@ -72,6 +72,7 @@ dockers:
     #   - "--label=org.label-schema.version={{ .Version }}"
     #   - "--label=org.label-schema.schema-version=1.0"
     #   - "--build-arg=BIN={{ .ProjectName }}"
+      - "--build-arg=VERSION={{ .Version }}"
 
     # Skips the docker push. Could be useful if you also do draft releases.
     # If set to auto, the release will not be pushed to the docker repository

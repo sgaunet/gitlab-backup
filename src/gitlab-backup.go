@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"sync"
 
@@ -52,6 +53,12 @@ func initTrace(debugLevel string) {
 	}
 }
 
+var version string = "development"
+
+func printVersion() {
+	fmt.Println(version)
+}
+
 func main() {
 	var gid int        // Gitlab Group ID parent to backup
 	var pid int        // Gitlab Project ID to backup
@@ -59,6 +66,7 @@ func main() {
 	var debugLevel string
 	var wg sync.WaitGroup
 	var paralellTreatment int
+	var vOption bool
 
 	// Parameters treatment
 	flag.IntVar(&gid, "gid", 0, "Gitlab Group ID parent to backup")
@@ -66,7 +74,13 @@ func main() {
 	flag.IntVar(&paralellTreatment, "p", 5, "Number of projects to treat in parallel")
 	flag.StringVar(&dirpath, "o", ".", "Path to save archives")
 	flag.StringVar(&debugLevel, "d", "info", "debuglevel : debug/info/warn/error")
+	flag.BoolVar(&vOption, "v", false, "Get version")
 	flag.Parse()
+
+	if vOption {
+		printVersion()
+		os.Exit(0)
+	}
 
 	initTrace(debugLevel)
 	log.Debugf("gid=%d\n", gid)

@@ -1,6 +1,7 @@
 FROM golang:1.16.4-alpine AS builder
 LABEL stage=builder
 
+ARG VERSION
 # ARG GITLAB_TOKEN
 # ARG USERNAME
 
@@ -17,7 +18,7 @@ COPY src/go.mod /go/src/gitlab-backup/
 
 WORKDIR /go/src/gitlab-backup/src
 RUN go get && \
-    CGO_ENABLED=0 GOOS=linux go build #-a gitlab-backup
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-X main.version=$VERSION" .
 
 RUN upx /go/src/gitlab-backup/src/gitlab-backup
 ##################################################################

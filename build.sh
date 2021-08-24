@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-docker build . -t sgaunet/gitlab-backup:latest
+docker build --build-arg VERSION=development . -t sgaunet/gitlab-backup:latest
 rc=$?
 
 if [ "$rc" != "0" ]

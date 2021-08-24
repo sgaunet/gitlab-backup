@@ -23,6 +23,7 @@ import (
 
 	"github.com/sgaunet/gitlab-backup/gitlabProject"
 	"github.com/sgaunet/gitlab-backup/gitlabRequest"
+	log "github.com/sirupsen/logrus"
 )
 
 func New(groupID int) (res gitlabGroup, err error) {
@@ -32,8 +33,12 @@ func New(groupID int) (res gitlabGroup, err error) {
 		return res, err
 	}
 	if err := json.Unmarshal(body, &res); err != nil {
+		log.Debugf("body=%s\n", body)
 		return res, err
 	}
+
+	log.Debugf("body=%s\n", body)
+	//res.Id=groupID
 
 	return res, err
 }
@@ -55,13 +60,13 @@ func (g gitlabGroup) GetSubgroupsLst() (res []gitlabGroup, err error) {
 
 	// Loop for every subgroups
 	for _, value := range jsonResponse {
-		fmt.Printf("Subgroup %d\n", value.GetID())
+		log.Infof("Subgroup %d\n", value.GetID())
 		subgroup, _ := New(value.GetID())
 		//getProjectsLst(value.Id)
 		res = append(res, value)
 		recursiveGroups, err := subgroup.GetSubgroupsLst()
 		if err != nil {
-			fmt.Printf("Got an error when trying to get the subgroups of %d (%s)\n", value.Id, err.Error())
+			log.Warnf("Got an error when trying to get the subgroups of %d (%s)\n", value.Id, err.Error())
 		} else {
 			for _, newGroup := range recursiveGroups {
 				res = append(res, newGroup)
@@ -75,17 +80,17 @@ func (g gitlabGroup) GetSubgroupsLst() (res []gitlabGroup, err error) {
 func (g gitlabGroup) GetEveryProjectsOfGroup() (res []gitlabProject.GitlabProject, err error) {
 	subgroups, err := g.GetSubgroupsLst()
 	if err != nil {
-		fmt.Printf("Got error when listing subgroups of %d (%s)\n", g.Id, err.Error())
+		log.Errorf("Got error when listing subgroups of %d (%s)\n", g.Id, err.Error())
 		os.Exit(1)
 	}
 	for _, group := range subgroups {
 		//fmt.Println("ID =>", v.Id)
 		projects, err := group.GetProjectsLst()
 		if err != nil {
-			fmt.Printf("Got error when listing projects of %d (%s)\n", g.Id, err.Error())
+			log.Errorf("Got error when listing projects of %d (%s)\n", g.Id, err.Error())
 		} else {
 			for _, project := range projects {
-				fmt.Println("Project :", project.GetName())
+				log.Infoln("Project :", project.GetName())
 				res = append(res, project)
 			}
 		}
@@ -93,10 +98,10 @@ func (g gitlabGroup) GetEveryProjectsOfGroup() (res []gitlabProject.GitlabProjec
 
 	projects, err := g.GetProjectsLst()
 	if err != nil {
-		fmt.Printf("Got error when listing projects of %d (%s)\n", g.Id, err.Error())
+		log.Errorf("Got error when listing projects of %d (%s)\n", g.Id, err.Error())
 	} else {
 		for _, project := range projects {
-			fmt.Println("Project:", project.GetName())
+			log.Infoln("Project:", project.GetName())
 			res = append(res, project)
 		}
 	}
@@ -117,7 +122,7 @@ func (g gitlabGroup) GetProjectsLst() (res []gitlabProject.GitlabProject, err er
 	for _, project := range respGitlab {
 		gProject, err := gitlabProject.New(project.Id)
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Errorln(err.Error())
 		} else {
 			res = append(res, gProject)
 		}

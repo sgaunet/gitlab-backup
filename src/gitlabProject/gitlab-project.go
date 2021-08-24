@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/sgaunet/gitlab-backup/gitlabRequest"
+	log "github.com/sirupsen/logrus"
 )
 
 func New(projectID int) (res gitlabProject, err error) {
@@ -76,7 +77,7 @@ func (p gitlabProject) waitForExport() (gitlabExport respGitlabExport, err error
 		case "none":
 			return gitlabExport, errors.New("Project not exported")
 		default:
-			fmt.Printf("%s : Wait after gitlab for the export\n", gitlabExport.Name)
+			log.Infof("%s : Wait after gitlab for the export\n", gitlabExport.Name)
 		}
 		time.Sleep(20 * time.Second)
 	}
@@ -134,7 +135,7 @@ func (p gitlabProject) SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (er
 	statuscode := 0
 	// fmt.Println("\tAsk export for project", project.Name)
 	for statuscode != 202 {
-		fmt.Printf("%s : Ask gitlab to export a backup\n", p.Name)
+		log.Infof("%s : Ask gitlab to export a backup\n", p.Name)
 		statuscode, err = p.askExportForProject()
 		if err != nil {
 			fmt.Println(err.Error())
@@ -142,15 +143,15 @@ func (p gitlabProject) SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (er
 		}
 		time.Sleep(20 * time.Second)
 	}
-	fmt.Printf("%s : Gitlab is creating the archive\n", p.Name)
+	log.Infof("%s : Gitlab is creating the archive\n", p.Name)
 	_, err = p.waitForExport()
 	if err != nil {
-		fmt.Printf("%s: Export failed, reason: %s\n", p.Name, err.Error())
+		log.Infof("%s: Export failed, reason: %s\n", p.Name, err.Error())
 		return errors.New("Failed ...")
 	}
-	fmt.Printf("%s : Gitlab has created the archive, download is beginning\n", p.Name)
+	log.Infof("%s : Gitlab has created the archive, download is beginning\n", p.Name)
 	p.downloadProject(dirpath)
-	fmt.Printf("%s : Succesfully exported\n", p.Name)
+	log.Infof("%s : Succesfully exported\n", p.Name)
 	return nil
 }
 

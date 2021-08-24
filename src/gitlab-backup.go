@@ -18,18 +18,45 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"sync"
 
 	"github.com/sgaunet/gitlab-backup/gitlabGroup"
 	"github.com/sgaunet/gitlab-backup/gitlabProject"
+	log "github.com/sirupsen/logrus"
 )
+
+func initTrace(debugLevel string) {
+	// Log as JSON instead of the default ASCII formatter.
+	//log.SetFormatter(&log.JSONFormatter{})
+	// log.SetFormatter(&log.TextFormatter{
+	// 	DisableColors: true,
+	// 	FullTimestamp: true,
+	// })
+
+	// Output to stdout instead of the default stderr
+	// Can be any io.Writer, see below for File example
+	log.SetOutput(os.Stdout)
+
+	switch debugLevel {
+	case "info":
+		log.SetLevel(log.InfoLevel)
+	case "warn":
+		log.SetLevel(log.WarnLevel)
+	case "error":
+		log.SetLevel(log.ErrorLevel)
+	case "debug":
+		log.SetLevel(log.DebugLevel)
+	default:
+		log.SetLevel(log.DebugLevel)
+	}
+}
 
 func main() {
 	var gid int        // Gitlab Group ID parent to backup
 	var pid int        // Gitlab Project ID to backup
 	var dirpath string // path to save archives
+	var debugLevel string
 	var wg sync.WaitGroup
 	var paralellTreatment int
 
@@ -38,25 +65,32 @@ func main() {
 	flag.IntVar(&pid, "pid", 0, "Gitlab Project ID to backup")
 	flag.IntVar(&paralellTreatment, "p", 5, "Number of projects to treat in parallel")
 	flag.StringVar(&dirpath, "o", ".", "Path to save archives")
+	flag.StringVar(&debugLevel, "d", "info", "debuglevel : debug/info/warn/error")
 	flag.Parse()
 
+	initTrace(debugLevel)
+	log.Debugf("gid=%d\n", gid)
+	log.Debugf("pid=%d\n", pid)
+	log.Debugf("parallellTreatment=%d\n", paralellTreatment)
+	log.Debugf("dirpath=%s\n", dirpath)
+
 	if stat, err := os.Stat(dirpath); err != nil || !stat.IsDir() {
-		fmt.Printf("%s is not a directory\n", dirpath)
+		log.Errorf("%s is not a directory\n", dirpath)
 		os.Exit(1)
 	}
 
 	if gid != 0 && paralellTreatment <= 0 {
-		fmt.Println("Value incorrect for option -p (should be greater than 0)")
+		log.Errorln("Value incorrect for option -p (should be greater than 0)")
 		os.Exit(1)
 	}
 
 	if gid == 0 && pid == 0 {
-		fmt.Println("Parameter gid or pid is mandatory")
+		log.Errorln("Parameter gid or pid is mandatory")
 		os.Exit(1)
 	}
 
 	if len(os.Getenv("GITLAB_TOKEN")) == 0 {
-		fmt.Println("Set GITLAN_TOKEN environment variable")
+		log.Errorln("Set GITLAB_TOKEN environment variable")
 		os.Exit(1)
 	}
 
@@ -64,11 +98,14 @@ func main() {
 		os.Setenv("GITLAB_URI", "https://gitlab.com")
 	}
 
+	log.Debugf("GITLAB_TOKEN=%s\n", os.Getenv("GITLAB_TOKEN"))
+	log.Debugf("GITLAB_URI=%s\n", os.Getenv("GITLAB_URI"))
+
 	if gid != 0 {
 		group, err := gitlabGroup.New(gid)
 		projects, err := group.GetEveryProjectsOfGroup()
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Errorln(err.Error())
 			os.Exit(1)
 		} else {
 			cpt := 0
@@ -86,7 +123,7 @@ func main() {
 	if pid != 0 {
 		project, err := gitlabProject.New(pid)
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Errorln(err.Error())
 		}
 		wg.Add(1)
 		go project.SaveProjectOnDisk(dirpath, &wg)

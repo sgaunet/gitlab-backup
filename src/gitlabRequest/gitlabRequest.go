@@ -5,12 +5,15 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const GitlabApiVersion = "v4"
 
 func Request(uri string) (resp *http.Response, body []byte, err error) {
 	url := fmt.Sprintf("%s/api/%s/%s", os.Getenv("GITLAB_URI"), GitlabApiVersion, uri)
+	log.Debugf("url: %s\n", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, nil, err
@@ -19,6 +22,7 @@ func Request(uri string) (resp *http.Response, body []byte, err error) {
 	client := &http.Client{}
 	resp, err = client.Do(req)
 
+	log.Debugf("body: %v\n", body)
 	if err != nil {
 		return nil, nil, err
 	}

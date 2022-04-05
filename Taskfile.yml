@@ -1,0 +1,24 @@
+# https://taskfile.dev
+version: '3'
+vars:
+  BINFILE: gitlab-backup
+
+tasks:
+  default:
+    cmds:
+      #- echo "{{.GREETING}}"
+      - go build .
+      - upx {{.BINFILE}}
+    # silent: true
+    method: checksum
+    generates:
+      - "{{.BINFILE}}"
+
+  snapshot:
+    cmds:
+      - GITLAB_TOKEN="" goreleaser --rm-dist --snapshot
+    
+  release:
+    cmds:
+      - GITLAB_TOKEN="" goreleaser --rm-dist
+    

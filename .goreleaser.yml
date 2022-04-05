@@ -1,7 +1,8 @@
+project_name: "gitlab-backup"
 before:
   hooks:
     # You may remove this if you don't use go modules.
-    #- go get
+    - go get
     # you may remove this if you don't need go generate
     #- go generate ./...
 builds:
@@ -11,19 +12,31 @@ builds:
       - -X main.version={{.Version}}
     goos:
       - linux
-      - windows
       - darwin
     goarch:
       - amd64
       - arm
       - arm64
     goarm:
-      - 6
-      - 7
-    dir: src
+      - "6"
+      - "7"
     hooks:
       post:
         - upx "{{ .Path }}"
+  - env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -X main.version={{.Version}}
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "6"
+      - "7"
+    id: win
 archives:
   - name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
     replacements:
@@ -48,39 +61,80 @@ changelog:
 
 
 dockers:
-  # You can have multiple Docker images.
-  -
-    # GOOS of the built binaries/packages that should be used.
+  # https://goreleaser.com/customization/docker/
+  - use: buildx
     goos: linux
-    ids:
-    - gitlab-backup
-    # GOARCH of the built binaries/packages that should be used.
     goarch: amd64
-    # Templates of the Docker image names.
     image_templates:
-    - "sgaunet/gitlab-backup:latest"
-    - "sgaunet/gitlab-backup:{{ .Tag }}"
-    #- "sgaunet/gitlab-backup:v{{ .Major }}"
+      - "sgaunet/{{ .ProjectName }}:{{ .Version }}-amd64"
+      - "sgaunet/{{ .ProjectName }}:latest-amd64"
     build_flag_templates:
-    #   - "--pull"
-    #   - "--label=org.label-schema.build-date={{.Date}}" 
-    #   - "--label=org.label-schema.name={{ .ProjectName }}"
-    #   - "--label=org.label-schema.url='{{ .GitURL }}'" 
-    #   - "--label=org.label-schema.vcs-ref={{ .ShortCommit }}"
-    #   - "--label=org.label-schema.vcs-url='{{ .GitURL }}'" 
-    #   - "--label=org.label-schema.vendor='hack_and_sla.sh'" 
-    #   - "--label=org.label-schema.version={{ .Version }}"
-    #   - "--label=org.label-schema.schema-version=1.0"
-    #   - "--build-arg=BIN={{ .ProjectName }}"
-      - "--build-arg=VERSION={{ .Version }}"
-
-    # Skips the docker push. Could be useful if you also do draft releases.
-    # If set to auto, the release will not be pushed to the docker repository
-    # in case there is an indicator for prerelease in the tag e.g. v1.0.0-rc1
-    # Defaults to false.
-    #skip_push: false
-
-    # Path to the Dockerfile (from the project root).
-    dockerfile: Dockerfile
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
     extra_files:
-    - src
+    - resources
+
+  - use: buildx
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "sgaunet/{{ .ProjectName }}:{{ .Version }}-arm64v8"
+      - "sgaunet/{{ .ProjectName }}:latest-arm64v8"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    extra_files:
+    - resources
+
+  - use: buildx
+    goos: linux
+    goarch: arm
+    goarm: "6"
+    image_templates:
+      - "sgaunet/{{ .ProjectName }}:{{ .Version }}-armv6"
+      - "sgaunet/{{ .ProjectName }}:latest-armv6"
+    build_flag_templates:
+      - "--platform=linux/arm/v6"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    extra_files:
+    - resources
+
+  - use: buildx
+    goos: linux
+    goarch: arm
+    goarm: "7"
+    image_templates:
+      - "sgaunet/{{ .ProjectName }}:{{ .Version }}-armv7"
+      - "sgaunet/{{ .ProjectName }}:latest-armv7"
+    build_flag_templates:
+      - "--platform=linux/arm/v7"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    extra_files:
+    - resources
+
+docker_manifests:
+  # https://goreleaser.com/customization/docker_manifest/
+  - name_template: sgaunet/{{ .ProjectName }}:{{ .Version }}
+    image_templates:
+      - sgaunet/{{ .ProjectName }}:{{ .Version }}-amd64
+      - sgaunet/{{ .ProjectName }}:{{ .Version }}-arm64v8
+      - sgaunet/{{ .ProjectName }}:{{ .Version }}-armv6
+      - sgaunet/{{ .ProjectName }}:{{ .Version }}-armv7
+  - name_template: sgaunet/{{ .ProjectName }}:latest
+    image_templates:
+      - sgaunet/{{ .ProjectName }}:latest-amd64
+      - sgaunet/{{ .ProjectName }}:latest-arm64v8
+      - sgaunet/{{ .ProjectName }}:latest-armv6
+      - sgaunet/{{ .ProjectName }}:latest-armv7

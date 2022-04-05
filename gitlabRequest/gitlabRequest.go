@@ -22,7 +22,6 @@ func Request(uri string) (resp *http.Response, body []byte, err error) {
 	client := &http.Client{}
 	resp, err = client.Do(req)
 
-	log.Debugf("body: %v\n", body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -30,6 +29,7 @@ func Request(uri string) (resp *http.Response, body []byte, err error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	log.Debugf("body: %v\n", string(body))
 
 	return resp, body, err
 }

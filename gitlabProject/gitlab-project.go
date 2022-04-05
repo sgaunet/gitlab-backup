@@ -57,10 +57,12 @@ func (p gitlabProject) askExportForProject() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	_, err = ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return 0, err
 	}
+
+	log.Debugf(string(body))
 	// 202 means that gitlab has accepted request
 	return resp.StatusCode, nil
 }

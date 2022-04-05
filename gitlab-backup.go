@@ -71,7 +71,7 @@ func main() {
 	// Parameters treatment
 	flag.IntVar(&gid, "gid", 0, "Gitlab Group ID parent to backup")
 	flag.IntVar(&pid, "pid", 0, "Gitlab Project ID to backup")
-	flag.IntVar(&paralellTreatment, "p", 5, "Number of projects to treat in parallel")
+	flag.IntVar(&paralellTreatment, "p", 2, "Number of projects to treat in parallel")
 	flag.StringVar(&dirpath, "o", ".", "Path to save archives")
 	flag.StringVar(&debugLevel, "d", "info", "debuglevel : debug/info/warn/error")
 	flag.BoolVar(&vOption, "v", false, "Get version")

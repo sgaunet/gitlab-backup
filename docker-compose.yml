@@ -2,12 +2,18 @@ version: '3.2'
 
 services:
     gitlab-backup:
-        image: sgaunet/gitlab-backup:latest
+        image: sgaunet/gitlab-backup:latest-amd64
         environment:
-            - GITLAB_TOKEN=XXXXXXXXXXXXXXXX
+            - GITLAB_TOKEN=XXXXXXXXXXXXXXXXX
         volumes:
             - /tmp/data:/data
         command: 
-            - "bash"
-            - "-c"
-            - "gitlab-backup -gid XXXXXX -o /data -p 1"
+            - gitlab-backup
+            - -gid
+            - "XXXXXX"
+            # - -pid
+            # - "XXXXXXX"
+            - -o
+            - /data
+            # - -d
+            # - debug

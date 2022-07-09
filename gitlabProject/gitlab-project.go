@@ -152,8 +152,13 @@ func (p gitlabProject) SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (er
 		return errors.New("Failed ...")
 	}
 	log.Infof("%s : Gitlab has created the archive, download is beginning\n", p.Name)
-	p.downloadProject(dirpath)
+	err = p.downloadProject(dirpath)
+	if err != nil {
+		log.Errorln(err.Error())
+		return err
+	}
 	log.Infof("%s : Succesfully exported\n", p.Name)
+
 	return nil
 }
 

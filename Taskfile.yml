@@ -14,6 +14,13 @@ tasks:
     generates:
       - "{{.BINFILE}}"
 
+  image:
+    deps:
+      - default
+    cmds:
+      - docker build --no-cache --build-arg VERSION=development . -t sgaunet/gitlab-backup:latest
+      - docker push sgaunet/gitlab-backup:latest
+
   snapshot:
     cmds:
       - GITLAB_TOKEN="" goreleaser --rm-dist --snapshot

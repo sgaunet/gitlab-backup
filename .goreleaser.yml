@@ -138,3 +138,14 @@ docker_manifests:
       - sgaunet/{{ .ProjectName }}:latest-arm64v8
       - sgaunet/{{ .ProjectName }}:latest-armv6
       - sgaunet/{{ .ProjectName }}:latest-armv7
+
+
+brews:
+  - homepage: 'https://github.com/sgaunet/homebrew-tools'
+    folder: Formula
+    commit_author:
+      name: sgaunet
+      email: sgaunet@gmail.com
+    tap:
+      owner: sgaunet
+      name: homebrew-tools

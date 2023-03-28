@@ -77,7 +77,7 @@ func (p gitlabProject) waitForExport() (gitlabExport respGitlabExport, err error
 		//fmt.Println(gitlabExport.Name, gitlabExport.ExportStatus)
 		switch gitlabExport.ExportStatus {
 		case "none":
-			return gitlabExport, errors.New("Project not exported")
+			return gitlabExport, errors.New("project not exported")
 		default:
 			log.Infof("%s : Wait after gitlab for the export\n", gitlabExport.Name)
 		}
@@ -93,7 +93,7 @@ func (p gitlabProject) getStatusExport() (res respGitlabExport, err error) {
 		return res, err
 	}
 	err = json.Unmarshal(body, &res)
-	return res, nil
+	return res, err
 }
 
 func (p gitlabProject) downloadProject(dirToSaveFile string) error {

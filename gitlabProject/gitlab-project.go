@@ -98,7 +98,7 @@ func (p gitlabProject) getStatusExport() (res respGitlabExport, err error) {
 
 func (p gitlabProject) downloadProject(dirToSaveFile string) error {
 	tmpFile := dirToSaveFile + string(os.PathSeparator) + p.Name + ".tar.gz.tmp"
-	finalFile := dirToSaveFile + string(os.PathSeparator) + p.Name + ".tar.gz"
+	finalFile := fmt.Sprintf("%s%s%s-%d.tar.gz", dirToSaveFile, string(os.PathSeparator), p.Name, p.Id)
 	out, err := os.Create(tmpFile)
 	if err != nil {
 		return err
@@ -148,8 +148,8 @@ func (p gitlabProject) SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (er
 	log.Infof("%s : Gitlab is creating the archive\n", p.Name)
 	_, err = p.waitForExport()
 	if err != nil {
-		log.Infof("%s: Export failed, reason: %s\n", p.Name, err.Error())
-		return errors.New("Failed ...")
+		log.Errorf("%s: Export failed, reason: %s\n", p.Name, err.Error())
+		return fmt.Errorf("failed to export project %s (%s)", p.Name, err.Error())
 	}
 	log.Infof("%s : Gitlab has created the archive, download is beginning\n", p.Name)
 	err = p.downloadProject(dirpath)

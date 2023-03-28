@@ -117,13 +117,17 @@ func main() {
 
 	if gid != 0 {
 		group, err := gitlabGroup.New(gid)
+		if err != nil {
+			log.Errorln(err.Error())
+			os.Exit(1)
+		}
 		projects, err := group.GetEveryProjectsOfGroup()
 		if err != nil {
 			log.Errorln(err.Error())
 			os.Exit(1)
 		} else {
 			cpt := 0
-			for project, _ := range projects {
+			for project := range projects {
 				if cpt == paralellTreatment {
 					wg.Wait()
 					cpt = 0

@@ -99,11 +99,6 @@ func (p gitlabProject) getStatusExport() (res respGitlabExport, err error) {
 func (p gitlabProject) downloadProject(dirToSaveFile string) error {
 	tmpFile := dirToSaveFile + string(os.PathSeparator) + p.Name + ".tar.gz.tmp"
 	finalFile := fmt.Sprintf("%s%s%s-%d.tar.gz", dirToSaveFile, string(os.PathSeparator), p.Name, p.Id)
-	out, err := os.Create(tmpFile)
-	if err != nil {
-		return err
-	}
-
 	url := fmt.Sprintf("%s/api/%s/projects/%d/export/download", os.Getenv("GITLAB_URI"), gitlabRequest.GitlabApiVersion, p.Id)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -116,16 +111,25 @@ func (p gitlabProject) downloadProject(dirToSaveFile string) error {
 	if err != nil {
 		return err
 	}
+	// fmt.Println(resp.StatusCode)
+	if resp.StatusCode != 200 {
+		errMsg, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		return fmt.Errorf("error while downloading the project (%s)", string(errMsg))
+	}
 
 	// fmt.Println("Taille: ", resp.ContentLength)
 	// fmt.Printf("Downloading %s\n", project.Name)
-
-	if _, err = io.Copy(out, resp.Body); err != nil {
-		out.Close()
+	out, err := os.Create(tmpFile)
+	if err != nil {
 		return err
 	}
-	out.Close()
-
+	defer out.Close()
+	if _, err = io.Copy(out, resp.Body); err != nil {
+		return err
+	}
 	if err = os.Rename(tmpFile, finalFile); err != nil {
 		return err
 	}
@@ -143,7 +147,7 @@ func (p gitlabProject) SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (er
 			fmt.Println(err.Error())
 			return err
 		}
-		time.Sleep(20 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 	log.Infof("%s : Gitlab is creating the archive\n", p.Name)
 	_, err = p.waitForExport()

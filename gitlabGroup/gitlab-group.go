@@ -90,8 +90,12 @@ func (g gitlabGroup) GetEveryProjectsOfGroup() (res []gitlabProject.GitlabProjec
 			log.Errorf("Got error when listing projects of %d (%s)\n", g.Id, err.Error())
 		} else {
 			for _, project := range projects {
-				log.Infoln("Project :", project.GetName())
-				res = append(res, project)
+				if project.IsArchived() {
+					log.Warnf("Project %s is archived\n", project.GetName())
+				} else {
+					log.Infoln("Project :", project.GetName())
+					res = append(res, project)
+				}
 			}
 		}
 	}

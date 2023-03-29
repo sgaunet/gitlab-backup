@@ -128,23 +128,31 @@ func main() {
 		} else {
 			cpt := 0
 			for project := range projects {
-				if cpt == paralellTreatment {
-					wg.Wait()
-					cpt = 0
+				if projects[project].IsArchived() {
+					log.Warningln("Project", projects[project].GetName(), "is archived, skip it")
+				} else {
+					if cpt == paralellTreatment {
+						wg.Wait()
+						cpt = 0
+					}
+					wg.Add(1)
+					go projects[project].SaveProjectOnDisk(dirpath, &wg)
+					cpt++
 				}
-				wg.Add(1)
-				go projects[project].SaveProjectOnDisk(dirpath, &wg)
-				cpt++
 			}
 		}
 	}
 	if pid != 0 {
 		project, err := gitlabProject.New(pid)
-		if err != nil {
-			log.Errorln(err.Error())
+		if project.IsArchived() {
+			log.Warningln("Project", project.GetName(), "is archived, skip it")
+		} else {
+			if err != nil {
+				log.Errorln(err.Error())
+			}
+			wg.Add(1)
+			go project.SaveProjectOnDisk(dirpath, &wg)
 		}
-		wg.Add(1)
-		go project.SaveProjectOnDisk(dirpath, &wg)
 	}
 	wg.Wait()
 }

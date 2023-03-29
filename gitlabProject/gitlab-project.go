@@ -32,16 +32,15 @@ import (
 )
 
 func New(projectID int) (res gitlabProject, err error) {
-	var project respGitlabExport
 	url := fmt.Sprintf("projects/%d", projectID)
 	_, body, err := gitlabRequest.Request(url)
 	if err != nil {
 		return res, err
 	}
-	if err := json.Unmarshal(body, &project); err != nil {
+	if err := json.Unmarshal(body, &res); err != nil {
 		return res, err
 	}
-	return gitlabProject{Id: project.Id, Name: project.Name}, err
+	return res, err
 }
 
 func (p gitlabProject) askExportForProject() (int, error) {
@@ -117,7 +116,7 @@ func (p gitlabProject) downloadProject(dirToSaveFile string) error {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		return fmt.Errorf("error while downloading the project (%s)", string(errMsg))
+		return fmt.Errorf("error while downloading the project %s (%s)", p.Name, string(errMsg))
 	}
 
 	// fmt.Println("Taille: ", resp.ContentLength)
@@ -172,4 +171,8 @@ func (p gitlabProject) GetID() int {
 
 func (p gitlabProject) GetName() string {
 	return p.Name
+}
+
+func (p gitlabProject) IsArchived() bool {
+	return p.Archived
 }

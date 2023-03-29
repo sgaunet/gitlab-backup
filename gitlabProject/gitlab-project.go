@@ -147,6 +147,7 @@ func (p gitlabProject) SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (er
 			fmt.Println(err.Error())
 			return err
 		}
+		time.Sleep(5 * time.Second)
 	}
 	log.Infof("%s : Gitlab is creating the archive\n", p.Name)
 	_, err = p.waitForExport()

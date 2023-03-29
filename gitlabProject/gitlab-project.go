@@ -81,7 +81,7 @@ func (p gitlabProject) waitForExport() (gitlabExport respGitlabExport, err error
 		default:
 			log.Infof("%s : Wait after gitlab for the export\n", gitlabExport.Name)
 		}
-		time.Sleep(20 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 	return gitlabExport, nil
 }
@@ -147,7 +147,6 @@ func (p gitlabProject) SaveProjectOnDisk(dirpath string, wg *sync.WaitGroup) (er
 			fmt.Println(err.Error())
 			return err
 		}
-		time.Sleep(10 * time.Second)
 	}
 	log.Infof("%s : Gitlab is creating the archive\n", p.Name)
 	_, err = p.waitForExport()

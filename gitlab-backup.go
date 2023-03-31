@@ -17,13 +17,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/sgaunet/gitlab-backup/gitlabGroup"
 	"github.com/sgaunet/gitlab-backup/gitlabProject"
+	"github.com/sgaunet/ratelimit"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -81,6 +84,8 @@ func main() {
 		printVersion()
 		os.Exit(0)
 	}
+	ctx := context.Background()
+	r, _ := ratelimit.New(ctx, 60*time.Second, 1)
 
 	initTrace(debugLevel)
 	log.Debugf("gid=%d\n", gid)
@@ -136,6 +141,7 @@ func main() {
 						cpt = 0
 					}
 					wg.Add(1)
+					r.WaitIfLimitReached()
 					go projects[project].SaveProjectOnDisk(dirpath, &wg)
 					cpt++
 				}

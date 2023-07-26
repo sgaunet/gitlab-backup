@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sgaunet/gitlab-backup/gitlabProject"
-	"github.com/sgaunet/gitlab-backup/gitlabRequest"
+	"github.com/sgaunet/gitlab-backup/pkg/gitlabProject"
+	"github.com/sgaunet/gitlab-backup/pkg/gitlabRequest"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -68,12 +68,9 @@ func (g gitlabGroup) GetSubgroupsLst() (res []gitlabGroup, err error) {
 		if err != nil {
 			log.Warnf("Got an error when trying to get the subgroups of %d (%s)\n", value.Id, err.Error())
 		} else {
-			for _, newGroup := range recursiveGroups {
-				res = append(res, newGroup)
-			}
+			res = append(res, recursiveGroups...)
 		}
 	}
-
 	return res, err
 }
 

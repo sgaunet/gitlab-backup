@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sgaunet/gitlab-backup/gitlabRequest"
+	"github.com/sgaunet/gitlab-backup/pkg/gitlabRequest"
 	log "github.com/sirupsen/logrus"
 )
 

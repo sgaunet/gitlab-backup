@@ -16,7 +16,7 @@
 
 package gitlabGroup
 
-import "github.com/sgaunet/gitlab-backup/gitlabProject"
+import "github.com/sgaunet/gitlab-backup/pkg/gitlabProject"
 
 type GitlabGroup interface {
 	GetProjectsLst() (res []gitlabProject.GitlabProject, err error)

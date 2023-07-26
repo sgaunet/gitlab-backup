@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sgaunet/gitlab-backup/gitlabGroup"
-	"github.com/sgaunet/gitlab-backup/gitlabProject"
+	"github.com/sgaunet/gitlab-backup/pkg/gitlabGroup"
+	"github.com/sgaunet/gitlab-backup/pkg/gitlabProject"
 	"github.com/sgaunet/ratelimit"
 	log "github.com/sirupsen/logrus"
 )

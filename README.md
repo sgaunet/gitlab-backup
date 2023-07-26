@@ -70,4 +70,4 @@ curl --header "PRIVATE-TOKEN: $GITLAB_TOKEN" --remote-header-name --remote-name 
 
 The Docker image is sgaunet/gitlab-backup:version
 
-There is a docker-compose.yml file example. 
+There is a docker-compose.yml file example in deployment/docker folder. 

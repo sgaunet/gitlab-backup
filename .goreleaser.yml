@@ -2,12 +2,13 @@ project_name: "gitlab-backup"
 before:
   hooks:
     # You may remove this if you don't use go modules.
-    - go get
+    - go mod download
     # you may remove this if you don't need go generate
     #- go generate ./...
 builds:
   - env:
       - CGO_ENABLED=0
+    dir: cmd
     ldflags:
       - -X main.version={{.Version}}
     goos:
@@ -25,6 +26,7 @@ builds:
         - upx "{{ .Path }}"
   - env:
       - CGO_ENABLED=0
+    dir: cmd
     ldflags:
       - -X main.version={{.Version}}
     goos:
@@ -37,6 +39,7 @@ builds:
       - "6"
       - "7"
     id: win
+
 archives:
   - name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
     replacements:
@@ -48,17 +51,20 @@ archives:
     format_overrides:
     - goos: windows
       format: zip
+
+
 checksum:
   name_template: 'checksums.txt'
+
 snapshot:
   name_template: "{{ .Tag }}"
+
 changelog:
   sort: asc
   filters:
     exclude:
       - '^docs:'
       - '^test:'
-
 
 dockers:
   # https://goreleaser.com/customization/docker/

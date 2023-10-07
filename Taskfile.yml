@@ -6,13 +6,7 @@ vars:
 tasks:
   default:
     cmds:
-      #- echo "{{.GREETING}}"
       - CGO_ENABLED=0 go build cmd/*.go
-      - upx {{.BINFILE}}
-    # silent: true
-    method: checksum
-    generates:
-      - "{{.BINFILE}}"
 
   image:
     deps:
@@ -20,6 +14,11 @@ tasks:
     cmds:
       - docker build --no-cache --build-arg VERSION=development . -t sgaunet/gitlab-backup:latest
       - docker push sgaunet/gitlab-backup:latest
+
+  doc:
+    cmds:
+      - echo http://localhost:6060 
+      - godoc -http=:6060
 
   snapshot:
     cmds:

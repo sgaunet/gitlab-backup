@@ -14,22 +14,6 @@ builds:
     goos:
       - linux
       - darwin
-    goarch:
-      - amd64
-      - arm
-      - arm64
-    goarm:
-      - "6"
-      - "7"
-    hooks:
-      post:
-        - upx "{{ .Path }}"
-  - env:
-      - CGO_ENABLED=0
-    dir: cmd
-    ldflags:
-      - -X main.version={{.Version}}
-    goos:
       - windows
     goarch:
       - amd64
@@ -38,7 +22,6 @@ builds:
     goarm:
       - "6"
       - "7"
-    id: win
 
 archives:
   - name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'

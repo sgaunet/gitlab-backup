@@ -28,8 +28,9 @@ type GitlabGroup struct {
 }
 
 // GetSubgroupsLst returns the list of subgroups of the group
-func (s *GitlabService) GetSubgroupsLst(groupID int) (res []GitlabGroup, err error) {
-	url := fmt.Sprintf("groups/%d/subgroups", groupID)
+func (g *GitlabGroup) GetSubgroupsLst() (res []GitlabGroup, err error) {
+	s := NewGitlabService()
+	url := fmt.Sprintf("groups/%d/subgroups", g.Id)
 	resp, err := s.Get(url)
 	if err != nil {
 		return res, err
@@ -45,13 +46,13 @@ func (s *GitlabService) GetSubgroupsLst(groupID int) (res []GitlabGroup, err err
 	}
 	// Loop for every subgroups
 	for _, value := range jsonResponse {
-		s.log.Info("Get subgroup list", "subgroup", value.Id)
+		log.Info("Get subgroup list", "subgroup", value.Id)
 		subgroup, err := s.GetGroup(value.Id)
 		if err != nil {
 			return res, err
 		}
 		res = append(res, value)
-		recursiveGroups, err := s.GetSubgroupsLst(subgroup.Id)
+		recursiveGroups, err := subgroup.GetSubgroupsLst()
 		if err != nil {
 			return res, err
 		}
@@ -61,24 +62,24 @@ func (s *GitlabService) GetSubgroupsLst(groupID int) (res []GitlabGroup, err err
 }
 
 // GetEveryProjectsOfGroup returns the list of every projects of the group and subgroups
-func (s *GitlabService) GetEveryProjectsOfGroup(groupID int) (res []GitlabProject, err error) {
-	subgroups, err := s.GetSubgroupsLst(groupID)
+func (g *GitlabGroup) GetEveryProjectsOfGroup() (res []GitlabProject, err error) {
+	subgroups, err := g.GetSubgroupsLst()
 	if err != nil {
-		return res, fmt.Errorf("got error when listing subgroups of %d (%s)", groupID, err.Error())
+		return res, fmt.Errorf("got error when listing subgroups of %d (%s)", g.Id, err.Error())
 	}
 	for _, group := range subgroups {
-		projects, err := s.GetProjectsLst(group.Id)
+		projects, err := group.GetProjectsLst()
 		if err != nil {
 			return res, fmt.Errorf("got error when listing projects of %d (%s)", group.Id, err.Error())
 		}
 		for _, project := range projects {
 			if !project.Archived {
-				s.log.Info("GetEveryProjectsOfGroup", "projectName", project.Name)
+				log.Info("GetEveryProjectsOfGroup", "projectName", project.Name)
 				res = append(res, project)
 			}
 		}
 	}
-	projects, err := s.GetProjectsLst(groupID)
+	projects, err := g.GetProjectsLst()
 	if err != nil {
 		return res, err
 	}
@@ -87,9 +88,10 @@ func (s *GitlabService) GetEveryProjectsOfGroup(groupID int) (res []GitlabProjec
 }
 
 // GetProjectsLst returns the list of projects of the group
-func (s *GitlabService) GetProjectsLst(groupID int) (res []GitlabProject, err error) {
+func (g *GitlabGroup) GetProjectsLst() (res []GitlabProject, err error) {
 	var respGitlab []GitlabProject
-	url := fmt.Sprintf("groups/%d/projects", groupID)
+	s := NewGitlabService()
+	url := fmt.Sprintf("groups/%d/projects", g.Id)
 	resp, err := s.Get(url)
 	if err != nil {
 		return res, err

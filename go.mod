@@ -3,6 +3,7 @@ module github.com/sgaunet/gitlab-backup
 go 1.21
 
 require (
+	github.com/go-andiamo/splitter v1.2.5
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/minio/minio-go/v7 v7.0.63
 	github.com/sgaunet/dsn/v2 v2.0.2
@@ -24,9 +25,9 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/rs/xid v1.5.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	golang.org/x/crypto v0.13.0 // indirect
-	golang.org/x/net v0.15.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/net v0.16.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 // indirect

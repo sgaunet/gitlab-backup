@@ -1,12 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
 	"os"
-
-	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/sgaunet/gitlab-backup/pkg/config"
 )
 
 func initTrace(debugLevel string) *slog.Logger {
@@ -26,8 +22,7 @@ func initTrace(debugLevel string) *slog.Logger {
 	case "error":
 		handlerOptions.Level = slog.LevelError
 	default:
-		handlerOptions.Level = slog.LevelDebug
-		handlerOptions.AddSource = true
+		handlerOptions.Level = slog.LevelInfo
 	}
 
 	handler := slog.NewTextHandler(os.Stdout, handlerOptions)
@@ -36,21 +31,21 @@ func initTrace(debugLevel string) *slog.Logger {
 	return logger
 }
 
-func printConfiguration(c *config.Config) {
-	if len(c.S3cfg.AccessKey) != 0 {
-		c.S3cfg.AccessKey = "*****"
-	}
-	if len(c.S3cfg.SecretKey) != 0 {
-		c.S3cfg.SecretKey = "*****"
-	}
-	if len(c.GitlabToken) != 0 {
-		c.GitlabToken = "*****"
-	}
-	fmt.Println("Actual configuration (yaml format):")
-	fmt.Println("---------------------------------")
-	fmt.Println(c)
-	fmt.Println("---------------------------------")
-	fmt.Println("Configuration can be done with environment variables:")
-	f := cleanenv.Usage(c, nil)
-	f()
-}
+// func printConfiguration(c *config.Config) {
+// 	if len(c.S3cfg.AccessKey) != 0 {
+// 		c.S3cfg.AccessKey = "*****"
+// 	}
+// 	if len(c.S3cfg.SecretKey) != 0 {
+// 		c.S3cfg.SecretKey = "*****"
+// 	}
+// 	if len(c.GitlabToken) != 0 {
+// 		c.GitlabToken = "*****"
+// 	}
+// 	fmt.Println("Actual configuration (yaml format):")
+// 	fmt.Println("---------------------------------")
+// 	fmt.Println(c)
+// 	fmt.Println("---------------------------------")
+// 	fmt.Println("Configuration can be done with environment variables:")
+// 	f := cleanenv.Usage(c, nil)
+// 	f()
+// }

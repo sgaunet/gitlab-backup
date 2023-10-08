@@ -5,26 +5,46 @@ vars:
 
 tasks:
   default:
+    desc: "List tasks"
+    cmds:
+      - task -a
+
+  update-crt:
+    desc: "Update the crt file"
+    cmds:
+      - cp /etc/ssl/certs/ca-certificates.crt resources/etc/ssl/certs/ca-certificates.crt
+
+  build:
+    desc: "Build the binary"
     cmds:
       - CGO_ENABLED=0 go build cmd/*.go
 
   image:
+    desc: "Build/push the docker image"
     deps:
-      - default
+      - build
+      - update-crt
     cmds:
       - docker build --no-cache --build-arg VERSION=development . -t sgaunet/gitlab-backup:latest
       - docker push sgaunet/gitlab-backup:latest
 
   doc:
+    desc: "Start godoc server"
     cmds:
       - echo http://localhost:6060 
       - godoc -http=:6060
 
   snapshot:
+    desc: "Create a snapshot release"
+    deps:
+      - update-crt
     cmds:
       - GITLAB_TOKEN="" goreleaser --rm-dist --snapshot
     
   release:
+    desc: "Create a release"
+    deps:
+      - update-crt
     cmds:
       - GITLAB_TOKEN="" goreleaser --rm-dist
     

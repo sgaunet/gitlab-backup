@@ -6,4 +6,4 @@ COPY gitlab-backup .
 COPY "resources" /
 USER gitlab-backup
 
-VOLUME [ "/data" ]
+VOLUME [ "/data", "/tmp" ]

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/sgaunet/gitlab-backup/pkg/hooks"
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,14 +19,14 @@ type S3Config struct {
 }
 
 type Config struct {
-	DebugLevel      string   `yaml:"debuglevel" env:"DEBUGLEVEL" env-default:"info"`
-	GitlabGroupID   int      `yaml:"gitlabGroupID" env:"GITLABGROUPID" env-default:"0"`
-	GitlabProjectID int      `yaml:"gitlabProjectID" env:"GITLABPROJECTID" env-default:"0"`
-	GitlabToken     string   `env:"GITLAB_TOKEN" env-required`
-	GitlabURI       string   `env:"GITLAB_URI" env-default:"https://gitlab.com"`
-	LocalPath       string   `yaml:"localpath" env:"LOCALPATH" env-default:""`
-	TmpDir          string   `yaml:"tmpdir" env:"TMPDIR" env-default:"/tmp"`
-	S3cfg           S3Config `yaml:"s3cfg"`
+	GitlabGroupID   int         `yaml:"gitlabGroupID" env:"GITLABGROUPID" env-default:"0"`
+	GitlabProjectID int         `yaml:"gitlabProjectID" env:"GITLABPROJECTID" env-default:"0"`
+	GitlabToken     string      `env:"GITLAB_TOKEN" env-required`
+	GitlabURI       string      `env:"GITLAB_URI" env-default:"https://gitlab.com"`
+	LocalPath       string      `yaml:"localpath" env:"LOCALPATH" env-default:""`
+	TmpDir          string      `yaml:"tmpdir" env:"TMPDIR" env-default:"/tmp"`
+	Hooks           hooks.Hooks `yaml:"hooks"`
+	S3cfg           S3Config    `yaml:"s3cfg"`
 }
 
 func NewConfigFromFile(filePath string) (*Config, error) {
@@ -65,4 +66,9 @@ func (c *Config) String() string {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
 	return string(cyaml)
+}
+
+func (c *Config) Usage() {
+	f := cleanenv.Usage(c, nil)
+	f()
 }

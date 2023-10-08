@@ -11,6 +11,8 @@ import (
 
 const GitlabApiEndpoint = "https://gitlab.com/api/v4"
 
+var log Logger
+
 type Logger interface {
 	Debug(msg string, args ...any)
 	Warn(msg string, args ...any)
@@ -19,24 +21,27 @@ type Logger interface {
 }
 
 type GitlabService struct {
-	log               Logger
 	gitlabApiEndpoint string
 	token             string
 	httpClient        *http.Client
 }
 
+func init() {
+	log = slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
 // NewRequest returns a new GitlabService
-func NewService() *GitlabService {
-	return &GitlabService{
+func NewGitlabService() *GitlabService {
+	gs := &GitlabService{
 		gitlabApiEndpoint: GitlabApiEndpoint,
 		token:             os.Getenv("GITLAB_TOKEN"),
 		httpClient:        &http.Client{},
-		log:               slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
+	return gs
 }
 
-func (r *GitlabService) SetLogger(log Logger) {
-	r.log = log
+func (r *GitlabService) SetLogger(l Logger) {
+	log = l
 }
 
 // SetGitlabEndpoint sets the Gitlab API endpoint
@@ -83,6 +88,24 @@ func (r *GitlabService) Post(path string) (*http.Response, error) {
 // GetGroup returns the gitlab group from the given ID
 func (s *GitlabService) GetGroup(groupID int) (res GitlabGroup, err error) {
 	url := fmt.Sprintf("groups/%d", groupID)
+	resp, err := s.Get(url)
+	if err != nil {
+		return res, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return res, err
+	}
+	if err := json.Unmarshal(body, &res); err != nil {
+		return res, err
+	}
+	return res, err
+}
+
+// GetProject returns informations of the project that matches the given ID
+func (s *GitlabService) GetProject(projectID int) (res GitlabProject, err error) {
+	url := fmt.Sprintf("projects/%d", projectID)
 	resp, err := s.Get(url)
 	if err != nil {
 		return res, err

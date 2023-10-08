@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -33,19 +32,15 @@ func TestGitlabService_SetGitlabEndpoint(t *testing.T) {
 	// get request
 	client := ts.Client()
 
-	r := gitlab.NewService()
+	r := gitlab.NewGitlabService()
 	r.SetHttpClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
 	resp, err := r.Get("groups")
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err.Error())
 	}
 	defer resp.Body.Close()
-	// body, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
 }
 
 func TestGitlabService_CheckTokenInHeader(t *testing.T) {
@@ -66,19 +61,19 @@ func TestGitlabService_CheckTokenInHeader(t *testing.T) {
 	// get request
 	client := ts.Client()
 
-	r := gitlab.NewService()
+	r := gitlab.NewGitlabService()
 	r.SetHttpClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	r.SetToken("test")
 	// retrieve groups
 	resp, err := r.Get("groups")
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err.Error())
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err.Error())
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
@@ -110,18 +105,18 @@ func TestGitlabService_CheckTokenInHeaderFromEnvVar(t *testing.T) {
 	// get request
 	client := ts.Client()
 
-	r := gitlab.NewService()
+	r := gitlab.NewGitlabService()
 	r.SetHttpClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
 	resp, err := r.Get("groups")
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err.Error())
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err.Error())
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
@@ -144,18 +139,18 @@ func TestGitlabService_CheckPost(t *testing.T) {
 	// get request
 	client := ts.Client()
 
-	r := gitlab.NewService()
+	r := gitlab.NewGitlabService()
 	r.SetHttpClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
 	resp, err := r.Post("groups")
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err.Error())
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err.Error())
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
@@ -192,7 +187,7 @@ func TestGitlabService_GetGroup(t *testing.T) {
 	// get request
 	client := ts.Client()
 
-	r := gitlab.NewService()
+	r := gitlab.NewGitlabService()
 	r.SetHttpClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
@@ -221,7 +216,7 @@ func TestGitlabService_GetGroupGetID(t *testing.T) {
 	// get request
 	client := ts.Client()
 
-	r := gitlab.NewService()
+	r := gitlab.NewGitlabService()
 	r.SetHttpClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
@@ -255,7 +250,7 @@ func TestGitlabService_GetProjectGetID(t *testing.T) {
 	// get request
 	client := ts.Client()
 
-	r := gitlab.NewService()
+	r := gitlab.NewGitlabService()
 	r.SetHttpClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
@@ -275,5 +270,4 @@ func TestGitlabService_GetProjectGetID(t *testing.T) {
 	if p.ExportStatus != "finished" {
 		t.Errorf("expected export status %s, got %s", "finished", p.ExportStatus)
 	}
-
 }

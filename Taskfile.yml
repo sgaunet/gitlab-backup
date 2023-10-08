@@ -39,12 +39,12 @@ tasks:
     deps:
       - update-crt
     cmds:
-      - GITLAB_TOKEN="" goreleaser --rm-dist --snapshot
+      - GITLAB_TOKEN="" goreleaser --clean --snapshot
     
   release:
     desc: "Create a release"
     deps:
       - update-crt
     cmds:
-      - GITLAB_TOKEN="" goreleaser --rm-dist
+      - GITLAB_TOKEN="" goreleaser --clean
     

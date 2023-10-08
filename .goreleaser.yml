@@ -126,6 +126,6 @@ brews:
     commit_author:
       name: sgaunet
       email: sgaunet@gmail.com
-    tap:
+    repository:
       owner: sgaunet
       name: homebrew-tools

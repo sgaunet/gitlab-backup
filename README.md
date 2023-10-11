@@ -1,73 +1,95 @@
 # gitlab-backup
 
-This project is for backup gitlab projects.
-I'm an ops, not a dev, the code will be improved soon.
+This tool can be used to export project or every projects of a gitlab group. It uses the API of gitlab to get an archive of exported project.
 
-# Usage
+Two options to save the exported projects:
 
+* local folder
+* s3
 
-To download every projects of a group :
+There is also the possibility to specify pre/post backup hooks.
 
-```
-export GITLAB_TOKEN="...."
-export GITLAB_URI="https://your-gitlab-uri"  # Optional, default https://gitlab.com
-gitlab-backup -gid <main_group_id> [-o <path_to_save_archives>]
-```
-
-To download a single backup porject :
-
-```
-export GITLAB_TOKEN="...."
-export GITLAB_URI="https://your-gitlab-uri"  # Optional, default https://gitlab.com
-gitlab-backup -pid <project_id> [-o <path_to_save_archives>]
-```
+# Usage by configuration file
 
 
-# Build
+Example: 
 
-```
-cd src
-go build . -o gitlab-backup
-```
-
-# Test
-
-Not yet.
-
-# Gitlab API examples
-
-Get the list of subgroups:
-
-```
-curl --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/groups/**id_of_group**/subgroups
+```yaml
+# debuglevel: "info"
+gitlabGroupID: XXXX
+gitlabProjectID: YYYY
+localpath: "/backup"
+gitlabtoken: 
+# gitlaburi: https://gitlab.com
+# tmpdir: /tmp
+hooks:
+    prebackup: ""
+    postbackup: ""
+s3cfg:
+  endpoint: "http://localhost:9090"
+  bucketName: "ephemeralfiles"
+  bucketPath: "test"
+  region: "us-east-1"
+  accesskey: ""
+  secretkey: ""
 ```
 
-Get the list of projects of a group:
+**parameters of the configuration file can be override by environment variable**
+
+Launch the program: `gitlab-backup -c configuration.yaml`
+
+# Usage by environment variable
 
 ```
-curl --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/groups/**id_of_group**/projects
+  AWS_ACCESS_KEY_ID string
+  AWS_SECRET_ACCESS_KEY string
+  GITLABGROUPID int
+         (default "0")
+  GITLABPROJECTID int
+         (default "0")
+  GITLAB_TOKEN string
+  GITLAB_URI string
+         (default "https://gitlab.com")
+  LOCALPATH string
+         (default "")
+  POSTBACKUP string
+         (default "")
+  PREBACKUP string
+         (default "")
+  S3BUCKETNAME string
+         (default "")
+  S3BUCKETPATH string
+         (default "")
+  S3ENDPOINT string
+         (default "")
+  S3REGION string
+         (default "")
+  TMPDIR string
+         (default "/tmp")
 ```
 
-Ask an export:
+# Development
 
+This project is using :
+
+* golang
+* [task for development](https://taskfile.dev/#/)
+* docker
+* [docker buildx](https://github.com/docker/buildx)
+* docker manifest
+* [goreleaser](https://goreleaser.com/)
+
+Use task to compile/create release...
+
+```bash
+$ task
+task: [default] task -a
+task: Available tasks for this project:
+* build:            Build the binary
+* default:          List tasks
+* doc:              Start godoc server
+* image:            Build/push the docker image
+* release:          Create a release
+* snapshot:         Create a snapshot release
+* update-crt:       Update the crt file
 ```
-curl --request POST --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/projects/**id_of_project**/export
-```
-
-Get the status of the export:
-
-```
-curl --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/projects/**id_of_project**/export
-```
-
-When the status is finished, download the backup:
-
-```
-curl --header "PRIVATE-TOKEN: $GITLAB_TOKEN" --remote-header-name --remote-name https://gitlab.com/api/v4/projects/**id_of_project**/export/download
-```
-
-# Docker Image
-
-The Docker image is sgaunet/gitlab-backup:version
-
-There is a docker-compose.yml file example in deployment/docker folder. 

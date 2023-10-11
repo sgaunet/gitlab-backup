@@ -51,7 +51,7 @@ func NewApp(configFile string) (*App, error) {
 		gitlabService: gitlab.NewGitlabService(),
 		log:           slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
-	app.gitlabService.SetLogger(app.log)
+	gitlab.SetLogger(app.log)
 	if cfg.IsS3ConfigValid() {
 		app.storage, err = s3storage.NewS3Storage(cfg.S3cfg.Region, cfg.S3cfg.Endpoint, cfg.S3cfg.BucketName, cfg.S3cfg.BucketPath)
 		if err != nil {
@@ -71,7 +71,7 @@ func NewApp(configFile string) (*App, error) {
 
 func (a *App) SetLogger(l Logger) {
 	a.log = l
-	a.gitlabService.SetLogger(a.log)
+	gitlab.SetLogger(l)
 
 }
 
@@ -157,21 +157,20 @@ func (a *App) ExportProject(projectID int) error {
 }
 
 func (a *App) StoreArchive(archiveFilePath string) error {
-	f, err := os.Open(archiveFilePath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	// get file size
-	fi, err := f.Stat()
-	if err != nil {
-		return err
-	}
-	err = a.storage.SaveFile(context.TODO(), f, filepath.Base(archiveFilePath), fi.Size())
-	if err != nil {
-		os.Remove(archiveFilePath)
-		return err
-	}
+	// f, err := os.Open(archiveFilePath)
+	// if err != nil {
+	// 	return err
+	// }
+	// defer f.Close()
+	// // get file size
+	// fi, err := f.Stat()
+	// if err != nil {
+	// 	return err
+	// }
+	err := a.storage.SaveFile(context.TODO(), archiveFilePath, filepath.Base(archiveFilePath))
 	os.Remove(archiveFilePath)
+	if err != nil {
+		return err
+	}
 	return nil
 }

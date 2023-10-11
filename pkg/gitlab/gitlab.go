@@ -40,7 +40,7 @@ func NewGitlabService() *GitlabService {
 	return gs
 }
 
-func (r *GitlabService) SetLogger(l Logger) {
+func SetLogger(l Logger) {
 	log = l
 }
 

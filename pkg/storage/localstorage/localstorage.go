@@ -16,7 +16,13 @@ func NewLocalStorage(dirpath string) *LocalStorage {
 	}
 }
 
-func (s *LocalStorage) SaveFile(ctx context.Context, src io.Reader, dstFilename string, fileSize int64) error {
+func (s *LocalStorage) SaveFile(ctx context.Context, archiveFilePath string, dstFilename string) error {
+	src, err := os.Open(archiveFilePath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
 	// save file in localstorage
 	fDst, err := os.Create(s.dirpath + "/" + dstFilename)
 	if err != nil {

@@ -48,7 +48,7 @@ func NewConfigFromEnv() (*Config, error) {
 }
 
 func (c *Config) IsS3ConfigValid() bool {
-	return len(c.S3cfg.Endpoint) > 0 && len(c.S3cfg.BucketPath) > 0 && len(c.S3cfg.Region) > 0
+	return len(c.S3cfg.BucketPath) > 0 && len(c.S3cfg.Region) > 0
 }
 
 func (c *Config) IsLocalConfigValid() bool {

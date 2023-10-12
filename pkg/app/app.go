@@ -111,10 +111,14 @@ func (a *App) ExportGroup() error {
 	}
 	for project := range projects {
 		r.WaitIfLimitReached()
-		err = a.ExportProject(projects[project].Id)
-		if err != nil {
-			returnErr = 1
-			continue
+		if !projects[project].Archived {
+			err = a.ExportProject(projects[project].Id)
+			if err != nil {
+				returnErr = 1
+				continue
+			}
+		} else {
+			a.log.Info("project is archived, skip", "project name", projects[project].Name)
 		}
 	}
 	if returnErr != 0 {

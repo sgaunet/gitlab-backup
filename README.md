@@ -68,6 +68,13 @@ Launch the program: `gitlab-backup -c configuration.yaml`
          (default "/tmp")
 ```
 
+# Extended project
+
+[Another project can be used to encrypt archives of exported project and send them to s3. It's gitlab-backup2s3](https://github.com/sgaunet/gitlab-backup2s3) which is using two softwares:
+
+* gitlab-backup (this project)
+* [gocrypt](https://github.com/sgaunet/gocrypt)
+
 # Development
 
 This project is using :

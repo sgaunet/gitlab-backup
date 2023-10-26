@@ -114,6 +114,7 @@ func (a *App) ExportGroup() error {
 		if !projects[project].Archived {
 			err = a.ExportProject(projects[project].Id)
 			if err != nil {
+				a.log.Error("error occured during backup", "project name", projects[project].Name, "error", err.Error())
 				returnErr = 1
 				continue
 			}

@@ -36,7 +36,7 @@ func TestGitlabService_SetGitlabEndpoint(t *testing.T) {
 	r.SetHttpClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
-	resp, err := r.Get("groups")
+	resp, err := r.Get(fmt.Sprintf("%s/groups", ts.URL))
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -66,7 +66,7 @@ func TestGitlabService_CheckTokenInHeader(t *testing.T) {
 	r.SetGitlabEndpoint(ts.URL)
 	r.SetToken("test")
 	// retrieve groups
-	resp, err := r.Get("groups")
+	resp, err := r.Get(fmt.Sprintf("%s/groups", ts.URL))
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -109,7 +109,7 @@ func TestGitlabService_CheckTokenInHeaderFromEnvVar(t *testing.T) {
 	r.SetHttpClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
-	resp, err := r.Get("groups")
+	resp, err := r.Get(fmt.Sprintf("%s/groups", ts.URL))
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -143,7 +143,7 @@ func TestGitlabService_CheckPost(t *testing.T) {
 	r.SetHttpClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
-	resp, err := r.Post("groups")
+	resp, err := r.Post(fmt.Sprintf("%s/groups", ts.URL))
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -269,5 +269,22 @@ func TestGitlabService_GetProjectGetID(t *testing.T) {
 	}
 	if p.ExportStatus != "finished" {
 		t.Errorf("expected export status %s, got %s", "finished", p.ExportStatus)
+	}
+}
+
+func TestGetNextLink(t *testing.T) {
+	value := "<https://gitlab.com/api/v4/groups/111/subgroups?id=111&order_by=id&owned=false&page=1&pagination=keyset&per_page=20&sort=asc&statistics=false&with_custom_attributes=false>; rel=\"first\", <https://gitlab.com/api/v4/groups/111/subgroups?id=111&order_by=id&owned=false&page=1&pagination=keyset&per_page=20&sort=asc&statistics=false&with_custom_attributes=false>; rel=\"last\""
+	res := gitlab.GetNextLink(value)
+	if res != "" {
+		t.Error("expected empty string, got ", res)
+	}
+}
+
+func TestGetNextLink2(t *testing.T) {
+	expected := "https://gitlab.com/api/v4/groups/111/projects?id=111&include_ancestor_groups=false&include_subgroups=false&order_by=id&owned=false&page=2&pagination=keyset&per_page=20&simple=false&sort=asc&starred=false&with_custom_attributes=false&with_issues_enabled=false&with_merge_requests_enabled=false&with_security_reports=false&with_shared=true"
+	value := "<https://gitlab.com/api/v4/groups/111/projects?id=111&include_ancestor_groups=false&include_subgroups=false&order_by=id&owned=false&page=2&pagination=keyset&per_page=20&simple=false&sort=asc&starred=false&with_custom_attributes=false&with_issues_enabled=false&with_merge_requests_enabled=false&with_security_reports=false&with_shared=true>; rel=\"next\", <https://gitlab.com/api/v4/groups/111/projects?id=111&include_ancestor_groups=false&include_subgroups=false&order_by=id&owned=false&page=1&pagination=keyset&per_page=20&simple=false&sort=asc&starred=false&with_custom_attributes=false&with_issues_enabled=false&with_merge_requests_enabled=false&with_security_reports=false&with_shared=true>; rel=\"first\", <https://gitlab.com/api/v4/groups/111/projects?id=111&include_ancestor_groups=false&include_subgroups=false&order_by=id&owned=false&page=4&pagination=keyset&per_page=20&simple=false&sort=asc&starred=false&with_custom_attributes=false&with_issues_enabled=false&with_merge_requests_enabled=false&with_security_reports=false&with_shared=true>; rel=\"last\""
+	res := gitlab.GetNextLink(value)
+	if res != "https://gitlab.com/api/v4/groups/111/projects?id=111&include_ancestor_groups=false&include_subgroups=false&order_by=id&owned=false&page=2&pagination=keyset&per_page=20&simple=false&sort=asc&starred=false&with_custom_attributes=false&with_issues_enabled=false&with_merge_requests_enabled=false&with_security_reports=false&with_shared=true" {
+		t.Errorf("expected string=%s, got %s", expected, res)
 	}
 }

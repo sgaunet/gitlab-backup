@@ -36,8 +36,8 @@ type GitlabProject struct {
 // askExport asks gitlab to export the project
 func (p *GitlabProject) askExport() (acceptedRequest bool, err error) {
 	s := NewGitlabService()
-	path := fmt.Sprintf("projects/%d/export", p.Id)
-	resp, err := s.Post(path)
+	url := fmt.Sprintf("%s/projects/%d/export", s.gitlabApiEndpoint, p.Id)
+	resp, err := s.Post(url)
 	if err != nil {
 		return
 	}
@@ -73,7 +73,7 @@ func (p *GitlabProject) waitForExport() (gitlabExport GitlabProject, err error) 
 // getStatusExport returns the status of the export
 func (p *GitlabProject) getStatusExport() (res GitlabProject, err error) {
 	s := NewGitlabService()
-	url := fmt.Sprintf("projects/%d/export", p.Id)
+	url := fmt.Sprintf("%s/projects/%d/export", s.gitlabApiEndpoint, p.Id)
 	resp, err := s.Get(url)
 	if err != nil {
 		return res, err
@@ -91,7 +91,7 @@ func (p *GitlabProject) getStatusExport() (res GitlabProject, err error) {
 func (p *GitlabProject) downloadProject(tmpFilePath string) error {
 	s := NewGitlabService()
 	tmpFile := tmpFilePath + ".tmp"
-	url := fmt.Sprintf("projects/%d/export/download", p.Id)
+	url := fmt.Sprintf("%s/projects/%d/export/download", s.gitlabApiEndpoint, p.Id)
 	resp, err := s.Get(url)
 	if err != nil {
 		return err

@@ -30,35 +30,42 @@ type GitlabGroup struct {
 // GetSubgroupsLst returns the list of subgroups of the group
 func (g *GitlabGroup) GetSubgroupsLst() (res []GitlabGroup, err error) {
 	s := NewGitlabService()
-	url := fmt.Sprintf("groups/%d/subgroups", g.Id)
-	resp, err := s.Get(url)
-	if err != nil {
-		return res, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return res, err
-	}
-	var jsonResponse []GitlabGroup
-	if err := json.Unmarshal(body, &jsonResponse); err != nil {
-		return res, err
-	}
-	// Loop for every subgroups
-	for _, value := range jsonResponse {
-		log.Info("Get subgroup list", "subgroup", value.Id)
-		subgroup, err := s.GetGroup(value.Id)
-		if err != nil {
-			return res, err
-		}
-		res = append(res, value)
-		recursiveGroups, err := subgroup.GetSubgroupsLst()
-		if err != nil {
-			return res, err
-		}
-		res = append(res, recursiveGroups...)
-	}
-	return res, err
+	// url := fmt.Sprintf("groups/%d/subgroups", g.Id)
+	url := fmt.Sprintf("%s/groups/%d/subgroups?per_page=20&order_by=id&sort=asc&pagination=keyset", s.gitlabApiEndpoint, g.Id)
+	// add pagination
+	// there is a pagination parameter to set to "keyset" value
+	// (https://docs.gitlab.com/ee/api/rest/index.html#pagination)
+	// per_page can be set between 20 and 100
+	// order_by and sort must be set also
+	// order_by=id&sort=asc
+	return s.retrieveSubgroups(url)
+	// if err != nil {
+	// 	return res, err
+	// }
+	// defer resp.Body.Close()
+	// body, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	return res, err
+	// }
+	// var jsonResponse []GitlabGroup
+	// if err := json.Unmarshal(body, &jsonResponse); err != nil {
+	// 	return res, err
+	// }
+	// // Loop for every subgroups
+	// for _, value := range jsonResponse {
+	// 	log.Info("Get subgroup list", "subgroup", value.Id)
+	// 	subgroup, err := s.GetGroup(value.Id)
+	// 	if err != nil {
+	// 		return res, err
+	// 	}
+	// 	res = append(res, value)
+	// 	recursiveGroups, err := subgroup.GetSubgroupsLst()
+	// 	if err != nil {
+	// 		return res, err
+	// 	}
+	// 	res = append(res, recursiveGroups...)
+	// }
+	// return res, err
 }
 
 // GetEveryProjectsOfGroup returns the list of every projects of the group and subgroups
@@ -89,9 +96,32 @@ func (g *GitlabGroup) GetEveryProjectsOfGroup() (res []GitlabProject, err error)
 
 // GetProjectsLst returns the list of projects of the group
 func (g *GitlabGroup) GetProjectsLst() (res []GitlabProject, err error) {
-	var respGitlab []GitlabProject
+	// var respGitlab []GitlabProject
 	s := NewGitlabService()
-	url := fmt.Sprintf("groups/%d/projects", g.Id)
+	// add pagination
+	// there is a pagination parameter to set to "keyset" value
+	// (https://docs.gitlab.com/ee/api/rest/index.html#pagination)
+	// per_page can be set between 20 and 100
+	// order_by and sort must be set also
+	// order_by=id&sort=asc
+	url := fmt.Sprintf("%s/groups/%d/projects?per_page=20&order_by=id&sort=asc&pagination=keyset", s.gitlabApiEndpoint, g.Id)
+	res, err = s.retrieveProjects(url)
+	// if err != nil {
+	// 	return res, err
+	// }
+	// defer resp.Body.Close()
+	// body, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if err := json.Unmarshal(body, &respGitlab); err != nil {
+	// 	return res, err
+	// }
+	// res = append(res, respGitlab...)
+	return res, err
+}
+
+func (s *GitlabService) retrieveProjects(url string) (res []GitlabProject, err error) {
 	resp, err := s.Get(url)
 	if err != nil {
 		return res, err
@@ -99,11 +129,69 @@ func (g *GitlabGroup) GetProjectsLst() (res []GitlabProject, err error) {
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(body, &respGitlab); err != nil {
 		return res, err
 	}
-	res = append(res, respGitlab...)
-	return res, err
+	var jsonResponse []GitlabProject
+	if err := json.Unmarshal(body, &jsonResponse); err != nil {
+		return res, err
+	}
+
+	// check if response header contains a link to the next page
+	// if yes, recursively call retrieveProjects with the next page url
+	// and append the result to the current response
+	if link := resp.Header.Get("Link"); link != "" {
+		// link is formatted like this:
+		// <https://gitlab.com/api/v4/groups/1234/projects?page=2&per_page=100>; rel="next"
+		// we only need the next page url
+		// so we split the string with the ; separator
+		// and take the first element
+		nextPageUrl := GetNextLink(link)
+		if nextPageUrl != "" {
+			nextPageProjects, err := s.retrieveProjects(nextPageUrl)
+			if err != nil {
+				return res, err
+			}
+			jsonResponse = append(jsonResponse, nextPageProjects...)
+		}
+	}
+
+	return jsonResponse, err
+}
+
+func (s *GitlabService) retrieveSubgroups(url string) (res []GitlabGroup, err error) {
+	resp, err := s.Get(url)
+	if err != nil {
+		return res, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return res, err
+	}
+	var jsonResponse []GitlabGroup
+	if err := json.Unmarshal(body, &jsonResponse); err != nil {
+		return res, err
+	}
+
+	// check if response header contains a link to the next page
+	// if yes, recursively call retrieveProjects with the next page url
+	// and append the result to the current response
+	if link := resp.Header.Get("Link"); link != "" {
+		// link is formatted like this:
+		// "<https://gitlab.com/api/v4/groups/6939159/subgroups?id=6939159&order_by=id&owned=false&page=1&pagination=keyset&per_page=20&sort=asc&statistics=false&with_custom_attributes=false>; rel=\"first\", <https://gitlab.com/api/v4/groups/6939159/subgroups?id=6939159&order_by=id&owned=false&page=1&pagination=keyset&per_page=20&sort=asc&statistics=false&with_custom_attributes=false>; rel=\"last\""
+		// we only need the next page url
+		// so we split the string with the ; separator
+		// and take the first element
+		// nextPageUrl := strings.Split(link, ";")[0]
+		nextPageUrl := GetNextLink(link)
+		if nextPageUrl != "" {
+			nextPageGroups, err := s.retrieveSubgroups(nextPageUrl)
+			if err != nil {
+				return res, err
+			}
+			jsonResponse = append(jsonResponse, nextPageGroups...)
+		}
+	}
+
+	return jsonResponse, err
 }

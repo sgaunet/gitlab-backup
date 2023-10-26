@@ -11,7 +11,7 @@
           "mode": "auto",
           "program": "cmd/",
           "env": {},
-          "args": [ "-c" ,"/home/sylvain/GITHUB/PUBLIC/gitlab-backup/tst/integration.yaml" ]
+          "args": [ "-c" ,"/home/sylvain/GITHUB/PUBLIC/gitlab-backup/tst/group.yaml" ]
       },
   ]
 }

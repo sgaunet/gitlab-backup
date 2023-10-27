@@ -116,3 +116,55 @@ func TestExecuteHooks(t *testing.T) {
 	// Cleanup
 	os.Remove(filePathPost)
 }
+
+func TestHasPreBackup(t *testing.T) {
+	h := hooks.Hooks{
+		PreBackup:  "touch /tmp/tmp.pre",
+		PostBackup: "touch /tmp/%INPUTFILE%.post",
+	}
+	if !h.HasPreBackup() {
+		t.Errorf("HasPreBackup() should return true")
+	}
+
+	h = hooks.Hooks{}
+	if h.HasPreBackup() {
+		t.Errorf("HasPreBackup() should return false")
+	}
+}
+
+func TestHasPostBackup(t *testing.T) {
+	h := hooks.Hooks{
+		PreBackup:  "touch /tmp/tmp.pre",
+		PostBackup: "touch /tmp/%INPUTFILE%.post",
+	}
+	if !h.HasPostBackup() {
+		t.Errorf("HasPostBackup() should return true")
+	}
+
+	h = hooks.Hooks{}
+	if h.HasPostBackup() {
+		t.Errorf("HasPostBackup() should return false")
+	}
+}
+
+func TestNoErrWhenNoCommand(t *testing.T) {
+	h := hooks.Hooks{}
+	err := h.ExecutePreBackup()
+	if err != nil {
+		t.Errorf("ExecutePreBackup() should not return error")
+	}
+	err = h.ExecutePostBackup("archive-12345689.tar.gz")
+	if err != nil {
+		t.Errorf("ExecutePostBackup() should not return error")
+	}
+}
+
+func TestThatGotErrorIfCommandIsInError(t *testing.T) {
+	h := hooks.Hooks{
+		PreBackup: "exit 1",
+	}
+	err := h.ExecutePreBackup()
+	if err == nil {
+		t.Errorf("ExecutePreBackup() should return error")
+	}
+}

@@ -65,7 +65,9 @@ func NewGitlabService() *GitlabService {
 }
 
 func SetLogger(l Logger) {
-	log = l
+	if l != nil {
+		log = l
+	}
 }
 
 // SetGitlabEndpoint sets the Gitlab API endpoint
@@ -77,6 +79,9 @@ func (r *GitlabService) SetGitlabEndpoint(gitlabApiEndpoint string) {
 // SetToken sets the Gitlab API token
 // default: GITLAB_TOKEN env variable
 func (r *GitlabService) SetToken(token string) {
+	if token == "" {
+		log.Warn("no token provided")
+	}
 	r.token = token
 }
 

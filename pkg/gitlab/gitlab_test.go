@@ -288,3 +288,9 @@ func TestGetNextLink2(t *testing.T) {
 		t.Errorf("expected string=%s, got %s", expected, res)
 	}
 }
+
+func TestSetLogger(t *testing.T) {
+	gitlab.SetLogger(nil)
+	r := gitlab.NewGitlabService()
+	r.SetToken("")
+}

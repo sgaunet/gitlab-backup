@@ -10,7 +10,7 @@ require (
 	github.com/go-andiamo/splitter v1.2.5
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/sgaunet/ratelimit v1.1.1
-	github.com/testcontainers/testcontainers-go v0.25.0
+	github.com/testcontainers/testcontainers-go v0.26.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

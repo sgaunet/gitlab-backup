@@ -16,6 +16,7 @@ func NewLocalStorage(dirpath string) *LocalStorage {
 	}
 }
 
+// SaveFile saves the file in localstorage
 func (s *LocalStorage) SaveFile(ctx context.Context, archiveFilePath string, dstFilename string) error {
 	src, err := os.Open(archiveFilePath)
 	if err != nil {

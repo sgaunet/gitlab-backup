@@ -13,48 +13,45 @@ type Hooks struct {
 	PostBackup string `yaml:"postbackup" env:"POSTBACKUP" env-default:""`
 }
 
+// GeneratePreBackupCmd generates the pre backup command
 func (h *Hooks) GeneratePreBackupCmd() string {
 	return h.PreBackup
 }
 
+// GeneratePostBackupCmd generates the post backup command
 func (h *Hooks) GeneratePostBackupCmd(file string) string {
 	cmd := strings.ReplaceAll(h.PostBackup, "%INPUTFILE%", file)
 	return cmd
 }
 
+// HasPreBackup returns true if a pre backup command is defined
 func (h *Hooks) HasPreBackup() bool {
 	return h.PreBackup != ""
 }
 
+// HasPostBackup returns true if a post backup command is defined
 func (h *Hooks) HasPostBackup() bool {
 	return h.PostBackup != ""
 }
 
+// ExecutePreBackup executes the pre backup command
 func (h *Hooks) ExecutePreBackup() error {
 	return execute(h.GeneratePreBackupCmd())
 }
 
+// ExecutePostBackup executes the post backup command
 func (h *Hooks) ExecutePostBackup(file string) error {
 	return execute(h.GeneratePostBackupCmd(file))
 }
 
+// execute executes the given command
 func execute(command string) error {
 	if command == "" {
 		return nil
 	}
-	// cmd := exec.Command("sh", "-c", command)
-	// // cmd.Stdout = os.Stdout
-	// // cmd.Stderr = os.Stderr
-	// err := cmd.Run()
-	// if err != nil {
-	// 	return err
-	// }
 	commandSplitter, _ := splitter.NewSplitter(' ', splitter.SingleQuotes, splitter.DoubleQuotes)
 	trimmer := splitter.Trim("'\"")
-
 	splitCmd, _ := commandSplitter.Split(command, trimmer)
-
-	// splitCmd := strings.Split(cmd, " ")
 	if len(splitCmd) == 0 {
 		return nil
 	}
@@ -62,6 +59,5 @@ func execute(command string) error {
 	if err != nil {
 		return fmt.Errorf("failed to execute : %s - %s", command, err.Error())
 	}
-
 	return nil
 }

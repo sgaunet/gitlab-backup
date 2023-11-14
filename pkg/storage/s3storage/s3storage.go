@@ -24,6 +24,7 @@ type S3Storage struct {
 	path     string
 }
 
+// InitClient initializes the s3 client
 func (s *S3Storage) InitClient() (err error) {
 	if os.Getenv("AWS_ACCESS_KEY_ID") != "" {
 		staticResolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
@@ -63,6 +64,7 @@ func (s *S3Storage) InitClient() (err error) {
 	return nil
 }
 
+// NewS3Storage creates a new S3Storage
 func NewS3Storage(region string, endpoint string, bucket string, path string) (*S3Storage, error) {
 	var err error
 
@@ -72,12 +74,6 @@ func NewS3Storage(region string, endpoint string, bucket string, path string) (*
 		bucket:   bucket,
 		path:     path,
 	}
-
-	// s.s3Client, err = minio.New(s.endpoint, &minio.Options{
-	// 	Creds:  credentials.NewStaticV4(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), ""),
-	// 	Secure: secure,
-	// 	Region: s.region,
-	// })
 	err = s.InitClient()
 	if err != nil {
 		return nil, err
@@ -85,6 +81,7 @@ func NewS3Storage(region string, endpoint string, bucket string, path string) (*
 	return s, nil
 }
 
+// CreateBucket creates the bucket
 func (s *S3Storage) CreateBucket(ctx context.Context) error {
 	// return s.s3Client.MakeBucket(ctx, s.bucket, minio.MakeBucketOptions{Region: s.region})
 	_, err := s.s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
@@ -93,6 +90,7 @@ func (s *S3Storage) CreateBucket(ctx context.Context) error {
 	return err
 }
 
+// SaveFile saves the file in s3
 func (s *S3Storage) SaveFile(ctx context.Context, archiveFilePath string, dstFilename string) error {
 	f, err := os.Open(archiveFilePath)
 	if err != nil {
@@ -111,10 +109,7 @@ func (s *S3Storage) SaveFile(ctx context.Context, archiveFilePath string, dstFil
 	}
 	defer fsrc.Close()
 
-	// md5ofF := fmt.Sprintf("%x", hash.Sum(nil))
 	md5b64 := base64.StdEncoding.EncodeToString(hash.Sum(nil))
-	// fmt.Println("md5b64", md5b64)
-	// fmt.Println("md5ofF", md5ofF)
 	_, err = s.s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket:     aws.String(s.bucket),
 		Key:        aws.String(s.path + "/" + dstFilename),

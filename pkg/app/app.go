@@ -32,6 +32,7 @@ type Logger interface {
 	Info(msg string, args ...any)
 }
 
+// NewApp returns a new App struct
 func NewApp(configFile string) (*App, error) {
 	var cfg *config.Config
 	var err error
@@ -69,12 +70,14 @@ func NewApp(configFile string) (*App, error) {
 	return app, nil
 }
 
+// SetLogger sets the logger
 func (a *App) SetLogger(l Logger) {
 	a.log = l
 	gitlab.SetLogger(l)
 
 }
 
+// Run runs the app
 func (a *App) Run() error {
 	if a.cfg.GitlabGroupID != 0 {
 		return a.ExportGroup()
@@ -85,27 +88,27 @@ func (a *App) Run() error {
 	return nil
 }
 
+// SetGitlabEndpoint sets the gitlab endpoint
 func (a *App) SetGitlabEndpoint(gitlabApiEndpoint string) {
 	a.gitlabService.SetGitlabEndpoint(gitlabApiEndpoint)
 }
 
+// SetToken sets the gitlab token
 func (a *App) SetToken(token string) {
 	a.gitlabService.SetToken(token)
 }
 
+// SetHttpClient sets the http client
 func (a *App) SetHttpClient(httpClient *http.Client) {
 	a.gitlabService.SetHttpClient(httpClient)
 }
 
+// ExportGroup will export all projects of the group
 func (a *App) ExportGroup() error {
 	var returnErr int
 	ctx := context.Background()
 	r, _ := ratelimit.New(ctx, 60*time.Second, 1)
-	group, err := a.gitlabService.GetGroup(a.cfg.GitlabGroupID)
-	if err != nil {
-		return err
-	}
-	projects, err := group.GetEveryProjectsOfGroup()
+	projects, err := a.gitlabService.GetEveryProjectsOfGroup(a.cfg.GitlabGroupID)
 	if err != nil {
 		return err
 	}
@@ -128,6 +131,7 @@ func (a *App) ExportGroup() error {
 	return nil
 }
 
+// ExportProject exports the project of the given ID
 func (a *App) ExportProject(projectID int) error {
 	project, err := a.gitlabService.GetProject(projectID)
 	if err != nil {
@@ -141,19 +145,20 @@ func (a *App) ExportProject(projectID int) error {
 			return err
 		}
 	}
-	err = project.Export(a.cfg.TmpDir)
+	archivePath := fmt.Sprintf("%s%s%s-%d.tar.gz", a.cfg.TmpDir, string(os.PathSeparator), project.Name, project.Id)
+	err = a.gitlabService.ExportProject(&project, archivePath)
 	if err != nil {
 		return err
 	}
 	// call postbackup hook
 	if a.cfg.Hooks.HasPostBackup() {
-		a.log.Info("SaveProject (call postbackup hook)", "projectExportedArchive", project.ExportedArchivePath(a.cfg.TmpDir))
-		err = a.cfg.Hooks.ExecutePostBackup(project.ExportedArchivePath(a.cfg.TmpDir))
+		a.log.Info("SaveProject (call postbackup hook)", "archivePath", archivePath)
+		err = a.cfg.Hooks.ExecutePostBackup(archivePath)
 		if err != nil {
 			return err
 		}
 	}
-	err = a.StoreArchive(project.ExportedArchivePath(a.cfg.TmpDir))
+	err = a.StoreArchive(archivePath)
 	if err != nil {
 		return err
 	}
@@ -161,17 +166,8 @@ func (a *App) ExportProject(projectID int) error {
 	return nil
 }
 
+// StoreArchive stores the archive
 func (a *App) StoreArchive(archiveFilePath string) error {
-	// f, err := os.Open(archiveFilePath)
-	// if err != nil {
-	// 	return err
-	// }
-	// defer f.Close()
-	// // get file size
-	// fi, err := f.Stat()
-	// if err != nil {
-	// 	return err
-	// }
 	err := a.storage.SaveFile(context.TODO(), archiveFilePath, filepath.Base(archiveFilePath))
 	os.Remove(archiveFilePath)
 	if err != nil {

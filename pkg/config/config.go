@@ -29,6 +29,7 @@ type Config struct {
 	S3cfg           S3Config    `yaml:"s3cfg"`
 }
 
+// NewConfigFromFile returns a new Config struct from the given file
 func NewConfigFromFile(filePath string) (*Config, error) {
 	var cfg Config
 	err := cleanenv.ReadConfig(filePath, &cfg)
@@ -38,6 +39,7 @@ func NewConfigFromFile(filePath string) (*Config, error) {
 	return &cfg, nil
 }
 
+// NewConfigFromEnv returns a new Config struct from the environment variables
 func NewConfigFromEnv() (*Config, error) {
 	var cfg Config
 	err := cleanenv.ReadEnv(&cfg)
@@ -47,14 +49,17 @@ func NewConfigFromEnv() (*Config, error) {
 	return &cfg, nil
 }
 
+// IsS3ConfigValid returns true if the S3 config is valid
 func (c *Config) IsS3ConfigValid() bool {
 	return len(c.S3cfg.BucketPath) > 0 && len(c.S3cfg.Region) > 0
 }
 
+// IsLocalConfigValid returns true if the local config is valid
 func (c *Config) IsLocalConfigValid() bool {
 	return len(c.LocalPath) > 0
 }
 
+// IsConfigValid returns true if the config is valid
 func (c *Config) IsConfigValid() bool {
 	valid := c.GitlabGroupID > 0 || c.GitlabProjectID > 0
 	return (c.IsS3ConfigValid() || c.IsLocalConfigValid()) && valid
@@ -68,6 +73,7 @@ func (c *Config) String() string {
 	return string(cyaml)
 }
 
+// Usage prints the usage of the config
 func (c *Config) Usage() {
 	f := cleanenv.Usage(c, nil)
 	f()

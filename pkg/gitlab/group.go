@@ -28,54 +28,19 @@ type GitlabGroup struct {
 }
 
 // GetSubgroupsLst returns the list of subgroups of the group
-func (g *GitlabGroup) GetSubgroupsLst() (res []GitlabGroup, err error) {
-	s := NewGitlabService()
-	// url := fmt.Sprintf("groups/%d/subgroups", g.Id)
-	url := fmt.Sprintf("%s/groups/%d/subgroups?per_page=20&order_by=id&sort=asc&pagination=keyset", s.gitlabApiEndpoint, g.Id)
-	// add pagination
-	// there is a pagination parameter to set to "keyset" value
-	// (https://docs.gitlab.com/ee/api/rest/index.html#pagination)
-	// per_page can be set between 20 and 100
-	// order_by and sort must be set also
-	// order_by=id&sort=asc
+func (s *GitlabService) GetSubgroupsLst(groupID int) (res []GitlabGroup, err error) {
+	url := fmt.Sprintf("%s/groups/%d/subgroups?per_page=20&order_by=id&sort=asc&pagination=keyset", s.gitlabApiEndpoint, groupID)
 	return s.retrieveSubgroups(url)
-	// if err != nil {
-	// 	return res, err
-	// }
-	// defer resp.Body.Close()
-	// body, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return res, err
-	// }
-	// var jsonResponse []GitlabGroup
-	// if err := json.Unmarshal(body, &jsonResponse); err != nil {
-	// 	return res, err
-	// }
-	// // Loop for every subgroups
-	// for _, value := range jsonResponse {
-	// 	log.Info("Get subgroup list", "subgroup", value.Id)
-	// 	subgroup, err := s.GetGroup(value.Id)
-	// 	if err != nil {
-	// 		return res, err
-	// 	}
-	// 	res = append(res, value)
-	// 	recursiveGroups, err := subgroup.GetSubgroupsLst()
-	// 	if err != nil {
-	// 		return res, err
-	// 	}
-	// 	res = append(res, recursiveGroups...)
-	// }
-	// return res, err
 }
 
 // GetEveryProjectsOfGroup returns the list of every projects of the group and subgroups
-func (g *GitlabGroup) GetEveryProjectsOfGroup() (res []GitlabProject, err error) {
-	subgroups, err := g.GetSubgroupsLst()
+func (s *GitlabService) GetEveryProjectsOfGroup(groupID int) (res []GitlabProject, err error) {
+	subgroups, err := s.GetSubgroupsLst(groupID)
 	if err != nil {
-		return res, fmt.Errorf("got error when listing subgroups of %d (%s)", g.Id, err.Error())
+		return res, fmt.Errorf("got error when listing subgroups of %d (%s)", groupID, err.Error())
 	}
 	for _, group := range subgroups {
-		projects, err := group.GetProjectsLst()
+		projects, err := s.GetProjectsLst(group.Id)
 		if err != nil {
 			return res, fmt.Errorf("got error when listing projects of %d (%s)", group.Id, err.Error())
 		}
@@ -86,7 +51,7 @@ func (g *GitlabGroup) GetEveryProjectsOfGroup() (res []GitlabProject, err error)
 			}
 		}
 	}
-	projects, err := g.GetProjectsLst()
+	projects, err := s.GetProjectsLst(groupID)
 	if err != nil {
 		return res, err
 	}
@@ -95,34 +60,21 @@ func (g *GitlabGroup) GetEveryProjectsOfGroup() (res []GitlabProject, err error)
 }
 
 // GetProjectsLst returns the list of projects of the group
-func (g *GitlabGroup) GetProjectsLst() (res []GitlabProject, err error) {
-	// var respGitlab []GitlabProject
-	s := NewGitlabService()
+func (s *GitlabService) GetProjectsLst(groupID int) (res []GitlabProject, err error) {
 	// add pagination
 	// there is a pagination parameter to set to "keyset" value
 	// (https://docs.gitlab.com/ee/api/rest/index.html#pagination)
 	// per_page can be set between 20 and 100
 	// order_by and sort must be set also
 	// order_by=id&sort=asc
-	url := fmt.Sprintf("%s/groups/%d/projects?per_page=20&order_by=id&sort=asc&pagination=keyset", s.gitlabApiEndpoint, g.Id)
+	url := fmt.Sprintf("%s/groups/%d/projects?per_page=20&order_by=id&sort=asc&pagination=keyset", s.gitlabApiEndpoint, groupID)
 	res, err = s.retrieveProjects(url)
-	// if err != nil {
-	// 	return res, err
-	// }
-	// defer resp.Body.Close()
-	// body, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if err := json.Unmarshal(body, &respGitlab); err != nil {
-	// 	return res, err
-	// }
-	// res = append(res, respGitlab...)
 	return res, err
 }
 
+// retrieveProjects returns the list of projects
 func (s *GitlabService) retrieveProjects(url string) (res []GitlabProject, err error) {
-	resp, err := s.Get(url)
+	resp, err := s.get(url)
 	if err != nil {
 		return res, err
 	}
@@ -145,7 +97,7 @@ func (s *GitlabService) retrieveProjects(url string) (res []GitlabProject, err e
 		// we only need the next page url
 		// so we split the string with the ; separator
 		// and take the first element
-		nextPageUrl := GetNextLink(link)
+		nextPageUrl := getNextLink(link)
 		if nextPageUrl != "" {
 			nextPageProjects, err := s.retrieveProjects(nextPageUrl)
 			if err != nil {
@@ -154,12 +106,12 @@ func (s *GitlabService) retrieveProjects(url string) (res []GitlabProject, err e
 			jsonResponse = append(jsonResponse, nextPageProjects...)
 		}
 	}
-
 	return jsonResponse, err
 }
 
+// retrieveSubgroups returns the list of subgroups
 func (s *GitlabService) retrieveSubgroups(url string) (res []GitlabGroup, err error) {
-	resp, err := s.Get(url)
+	resp, err := s.get(url)
 	if err != nil {
 		return res, err
 	}
@@ -183,7 +135,7 @@ func (s *GitlabService) retrieveSubgroups(url string) (res []GitlabGroup, err er
 		// so we split the string with the ; separator
 		// and take the first element
 		// nextPageUrl := strings.Split(link, ";")[0]
-		nextPageUrl := GetNextLink(link)
+		nextPageUrl := getNextLink(link)
 		if nextPageUrl != "" {
 			nextPageGroups, err := s.retrieveSubgroups(nextPageUrl)
 			if err != nil {
@@ -192,6 +144,5 @@ func (s *GitlabService) retrieveSubgroups(url string) (res []GitlabGroup, err er
 			jsonResponse = append(jsonResponse, nextPageGroups...)
 		}
 	}
-
 	return jsonResponse, err
 }

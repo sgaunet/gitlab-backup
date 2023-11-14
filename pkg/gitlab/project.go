@@ -34,10 +34,9 @@ type GitlabProject struct {
 }
 
 // askExport asks gitlab to export the project
-func (p *GitlabProject) askExport() (acceptedRequest bool, err error) {
-	s := NewGitlabService()
-	url := fmt.Sprintf("%s/projects/%d/export", s.gitlabApiEndpoint, p.Id)
-	resp, err := s.Post(url)
+func (s *GitlabService) askExport(projectID int) (acceptedRequest bool, err error) {
+	url := fmt.Sprintf("%s/projects/%d/export", s.gitlabApiEndpoint, projectID)
+	resp, err := s.post(url)
 	if err != nil {
 		return
 	}
@@ -52,47 +51,49 @@ func (p *GitlabProject) askExport() (acceptedRequest bool, err error) {
 }
 
 // waitForExport waits for gitlab to finish the export
-func (p *GitlabProject) waitForExport() (gitlabExport GitlabProject, err error) {
-	for gitlabExport.ExportStatus != "finished" {
+func (s *GitlabService) waitForExport(projectID int) (err error) {
+loop:
+	for {
 		// !TODO : Set a timeout to avoid to wait forever
-		gitlabExport, err = p.getStatusExport()
+		exportStatus, err := s.getStatusExport(projectID)
 		if err != nil {
-			return gitlabExport, err
+			return err
 		}
-		switch gitlabExport.ExportStatus {
+		switch exportStatus {
 		case "none":
-			return gitlabExport, errors.New("project not exported")
+			return errors.New("project not exported")
+		case "finished":
+			break loop
 		default:
-			log.Info("wait after gitlab to get the archive", "project name", gitlabExport.Name)
+			log.Info("wait after gitlab to get the archive", "projectID", projectID)
 		}
 		time.Sleep(5 * time.Second)
 	}
-	return gitlabExport, nil
+	return nil
 }
 
 // getStatusExport returns the status of the export
-func (p *GitlabProject) getStatusExport() (res GitlabProject, err error) {
-	s := NewGitlabService()
-	url := fmt.Sprintf("%s/projects/%d/export", s.gitlabApiEndpoint, p.Id)
-	resp, err := s.Get(url)
+func (s *GitlabService) getStatusExport(projectID int) (exportStatus string, err error) {
+	var res GitlabProject
+	url := fmt.Sprintf("%s/projects/%d/export", s.gitlabApiEndpoint, projectID)
+	resp, err := s.get(url)
 	if err != nil {
-		return res, err
+		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return res, err
+		return "", err
 	}
 	err = json.Unmarshal(body, &res)
-	return res, err
+	return res.ExportStatus, err
 }
 
 // downloadProject downloads the project and save the archive to the given path
-func (p *GitlabProject) downloadProject(tmpFilePath string) error {
-	s := NewGitlabService()
+func (s *GitlabService) downloadProject(projectID int, tmpFilePath string) error {
 	tmpFile := tmpFilePath + ".tmp"
-	url := fmt.Sprintf("%s/projects/%d/export/download", s.gitlabApiEndpoint, p.Id)
-	resp, err := s.Get(url)
+	url := fmt.Sprintf("%s/projects/%d/export/download", s.gitlabApiEndpoint, projectID)
+	resp, err := s.get(url)
 	if err != nil {
 		return err
 	}
@@ -101,7 +102,7 @@ func (p *GitlabProject) downloadProject(tmpFilePath string) error {
 	log.Debug("downloadProject", "tmpFilePath", tmpFilePath)
 	log.Debug("downloadProject", "ContentLength", resp.ContentLength)
 	log.Debug("downloadProject", "StatusCode", resp.StatusCode)
-	log.Debug("downloadProject", "projectID", p.Id)
+	log.Debug("downloadProject", "projectID", projectID)
 	out, err := os.Create(tmpFile)
 	if err != nil {
 		return err
@@ -117,33 +118,29 @@ func (p *GitlabProject) downloadProject(tmpFilePath string) error {
 }
 
 // SaveProject saves the project in the given storage
-func (p *GitlabProject) Export(tmpdir string) (err error) {
+func (s *GitlabService) ExportProject(project *GitlabProject, archiveFilePath string) (err error) {
 	var gitlabAcceptedRequest bool
-	if p.Archived {
-		log.Warn("SaveProject", "project name", p.Name, "is archived, skip it")
+	if project.Archived {
+		log.Warn("SaveProject", "project name", project.Name, "is archived, skip it")
 		return nil
 	}
 	for !gitlabAcceptedRequest {
-		gitlabAcceptedRequest, err = p.askExport()
+		gitlabAcceptedRequest, err = s.askExport(project.Id)
 		if err != nil {
 			return err
 		}
 		time.Sleep(5 * time.Second)
 	}
-	log.Info("SaveProject (gitlab is creating the archive)", "project name", p.Name)
-	_, err = p.waitForExport()
+	log.Info("SaveProject (gitlab is creating the archive)", "project name", project.Name)
+	err = s.waitForExport(project.Id)
 	if err != nil {
-		return fmt.Errorf("failed to export project %s (%s)", p.Name, err.Error())
+		return fmt.Errorf("failed to export project %s (%s)", project.Name, err.Error())
 	}
-	log.Info("SaveProject (gitlab has created the archive, download is beginning)", "project name", p.Name)
+	log.Info("SaveProject (gitlab has created the archive, download is beginning)", "project name", project.Name)
 	time.Sleep(5 * time.Second)
-	err = p.downloadProject(p.ExportedArchivePath(tmpdir))
+	err = s.downloadProject(project.Id, archiveFilePath)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func (p *GitlabProject) ExportedArchivePath(tmpdir string) string {
-	return fmt.Sprintf("%s%s%s-%d.tar.gz", tmpdir, string(os.PathSeparator), p.Name, p.Id)
 }

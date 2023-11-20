@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/sgaunet/gitlab-backup)](https://goreportcard.com/report/github.com/sgaunet/gitlab-backup)
+
 # gitlab-backup
 
 This tool can be used to export project or every projects of a gitlab group. It uses the API of gitlab to get an archive of exported project.

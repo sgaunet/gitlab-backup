@@ -65,7 +65,7 @@ func TestS3Storage_SaveFile(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 
-	err = s3.SaveFile(ctx, "/home/sylvain/GITHUB/PUBLIC/gitlab-backup/README.md", "README.md")
+	err = s3.SaveFile(ctx, "../../../README.md", "README.md")
 	if err != nil {
 		t.Errorf(err.Error())
 	}

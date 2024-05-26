@@ -9,11 +9,6 @@ tasks:
     cmds:
       - task -a
 
-  update-crt:
-    desc: "Update the crt file"
-    cmds:
-      - cp /etc/ssl/certs/ca-certificates.crt resources/etc/ssl/certs/ca-certificates.crt
-
   build:
     desc: "Build the binary"
     cmds:
@@ -23,7 +18,6 @@ tasks:
     desc: "Build/push the docker image"
     deps:
       - build
-      - update-crt
     cmds:
       - docker build --no-cache --build-arg VERSION=development . -t sgaunet/gitlab-backup:latest
       - docker push sgaunet/gitlab-backup:latest
@@ -36,15 +30,11 @@ tasks:
 
   snapshot:
     desc: "Create a snapshot release"
-    deps:
-      - update-crt
     cmds:
       - GITLAB_TOKEN="" goreleaser --clean --snapshot
     
   release:
     desc: "Create a release"
-    deps:
-      - update-crt
     cmds:
       - GITLAB_TOKEN="" goreleaser --clean
     

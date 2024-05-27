@@ -1,4 +1,4 @@
-FROM alpine:3.19.1 AS alpine
+FROM alpine:3.20.0 AS alpine
 
 FROM scratch AS final
 LABEL maintainer="Sylvain Gaunet <sgaunet@gmail.com>"

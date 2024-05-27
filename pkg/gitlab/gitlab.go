@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
+
+	"golang.org/x/time/rate"
 )
 
 const GitlabApiEndpoint = "https://gitlab.com/api/v4"
@@ -22,9 +25,11 @@ type Logger interface {
 }
 
 type GitlabService struct {
-	gitlabApiEndpoint string
-	token             string
-	httpClient        *http.Client
+	gitlabApiEndpoint    string
+	token                string
+	httpClient           *http.Client
+	rateLimitDownloadAPI *rate.Limiter
+	rateLimitExportAPI   *rate.Limiter
 }
 
 func init() {
@@ -61,6 +66,9 @@ func NewGitlabService() *GitlabService {
 		gitlabApiEndpoint: GitlabApiEndpoint,
 		token:             os.Getenv("GITLAB_TOKEN"),
 		httpClient:        &http.Client{},
+		// implement rate limiting https://docs.gitlab.com/ee/administration/settings/import_export_rate_limits.html
+		rateLimitDownloadAPI: rate.NewLimiter(rate.Every(60*time.Second), 1),
+		rateLimitExportAPI:   rate.NewLimiter(rate.Every(60*time.Second), 6),
 	}
 	return gs
 }

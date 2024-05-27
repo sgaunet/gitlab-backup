@@ -17,6 +17,7 @@
 package gitlab
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -91,6 +92,11 @@ func (s *GitlabService) getStatusExport(projectID int) (exportStatus string, err
 
 // downloadProject downloads the project and save the archive to the given path
 func (s *GitlabService) downloadProject(projectID int, tmpFilePath string) error {
+	err := s.rateLimitDownloadAPI.Wait(context.Background()) // This is a blocking call. Honors the rate limit
+	if err != nil {
+		return fmt.Errorf("rate limit error: %v", err)
+	}
+
 	tmpFile := tmpFilePath + ".tmp"
 	url := fmt.Sprintf("%s/projects/%d/export/download", s.gitlabApiEndpoint, projectID)
 	resp, err := s.get(url)
@@ -124,12 +130,15 @@ func (s *GitlabService) ExportProject(project *GitlabProject, archiveFilePath st
 		log.Warn("SaveProject", "project name", project.Name, "is archived, skip it")
 		return nil
 	}
+	err = s.rateLimitExportAPI.Wait(context.Background()) // This is a blocking call. Honors the rate limit
+	if err != nil {
+		return fmt.Errorf("rate limit error: %v", err)
+	}
 	for !gitlabAcceptedRequest {
 		gitlabAcceptedRequest, err = s.askExport(project.Id)
 		if err != nil {
 			return err
 		}
-		time.Sleep(5 * time.Second)
 	}
 	log.Info("SaveProject (gitlab is creating the archive)", "project name", project.Name)
 	err = s.waitForExport(project.Id)
@@ -137,7 +146,6 @@ func (s *GitlabService) ExportProject(project *GitlabProject, archiveFilePath st
 		return fmt.Errorf("failed to export project %s (%s)", project.Name, err.Error())
 	}
 	log.Info("SaveProject (gitlab has created the archive, download is beginning)", "project name", project.Name)
-	time.Sleep(5 * time.Second)
 	err = s.downloadProject(project.Id, archiveFilePath)
 	if err != nil {
 		return err

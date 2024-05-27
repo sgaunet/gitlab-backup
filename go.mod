@@ -1,6 +1,6 @@
 module github.com/sgaunet/gitlab-backup
 
-go 1.21
+go 1.22
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.27.0
@@ -9,8 +9,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.54.2
 	github.com/go-andiamo/splitter v1.2.5
 	github.com/ilyakaznacheev/cleanenv v1.5.0
-	github.com/sgaunet/ratelimit v1.1.1
 	github.com/testcontainers/testcontainers-go v0.31.0
+	golang.org/x/sync v0.4.0
+	golang.org/x/time v0.3.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

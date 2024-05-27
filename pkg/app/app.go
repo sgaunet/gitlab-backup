@@ -8,14 +8,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/sgaunet/gitlab-backup/pkg/config"
 	"github.com/sgaunet/gitlab-backup/pkg/gitlab"
 	"github.com/sgaunet/gitlab-backup/pkg/storage"
 	"github.com/sgaunet/gitlab-backup/pkg/storage/localstorage"
 	"github.com/sgaunet/gitlab-backup/pkg/storage/s3storage"
-	"github.com/sgaunet/ratelimit"
+	"golang.org/x/sync/errgroup"
 )
 
 type App struct {
@@ -78,9 +77,9 @@ func (a *App) SetLogger(l Logger) {
 }
 
 // Run runs the app
-func (a *App) Run() error {
+func (a *App) Run(ctx context.Context) error {
 	if a.cfg.GitlabGroupID != 0 {
-		return a.ExportGroup()
+		return a.ExportGroup(ctx)
 	}
 	if a.cfg.GitlabProjectID != 0 {
 		return a.ExportProject(a.cfg.GitlabProjectID)
@@ -104,28 +103,28 @@ func (a *App) SetHttpClient(httpClient *http.Client) {
 }
 
 // ExportGroup will export all projects of the group
-func (a *App) ExportGroup() error {
-	var returnErr int
-	ctx := context.Background()
-	r, _ := ratelimit.New(ctx, 60*time.Second, 1)
+func (a *App) ExportGroup(ctx context.Context) error {
 	projects, err := a.gitlabService.GetEveryProjectsOfGroup(a.cfg.GitlabGroupID)
 	if err != nil {
 		return err
 	}
+	eg := errgroup.Group{}
 	for project := range projects {
-		r.WaitIfLimitReached()
 		if !projects[project].Archived {
-			err = a.ExportProject(projects[project].Id)
-			if err != nil {
-				a.log.Error("error occured during backup", "project name", projects[project].Name, "error", err.Error())
-				returnErr = 1
-				continue
-			}
+			eg.Go(func() error {
+				err = a.ExportProject(projects[project].Id)
+				if err != nil {
+					a.log.Error("error occured during backup", "project name", projects[project].Name, "error", err.Error())
+					return err
+				}
+				return nil
+			})
 		} else {
 			a.log.Info("project is archived, skip", "project name", projects[project].Name)
 		}
 	}
-	if returnErr != 0 {
+	err = eg.Wait()
+	if err != nil {
 		return fmt.Errorf("errors occured during backup")
 	}
 	return nil

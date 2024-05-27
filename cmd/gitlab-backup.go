@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -77,7 +78,8 @@ func main() {
 
 	l := initTrace(os.Getenv("DEBUGLEVEL"))
 	app.SetLogger(l)
-	err = app.Run()
+	ctx := context.Background()
+	err = app.Run(ctx)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())

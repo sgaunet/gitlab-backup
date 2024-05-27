@@ -82,7 +82,7 @@ func (a *App) Run(ctx context.Context) error {
 		return a.ExportGroup(ctx)
 	}
 	if a.cfg.GitlabProjectID != 0 {
-		return a.ExportProject(a.cfg.GitlabProjectID)
+		return a.ExportProject(ctx, a.cfg.GitlabProjectID)
 	}
 	return nil
 }
@@ -112,7 +112,7 @@ func (a *App) ExportGroup(ctx context.Context) error {
 	for project := range projects {
 		if !projects[project].Archived {
 			eg.Go(func() error {
-				err = a.ExportProject(projects[project].Id)
+				err = a.ExportProject(ctx, projects[project].Id)
 				if err != nil {
 					a.log.Error("error occured during backup", "project name", projects[project].Name, "error", err.Error())
 					return err
@@ -131,7 +131,7 @@ func (a *App) ExportGroup(ctx context.Context) error {
 }
 
 // ExportProject exports the project of the given ID
-func (a *App) ExportProject(projectID int) error {
+func (a *App) ExportProject(ctx context.Context, projectID int) error {
 	project, err := a.gitlabService.GetProject(projectID)
 	if err != nil {
 		return err

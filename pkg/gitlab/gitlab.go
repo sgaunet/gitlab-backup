@@ -155,7 +155,11 @@ func (s *GitlabService) GetProject(projectID int) (res GitlabProject, err error)
 		return res, err
 	}
 	if err := json.Unmarshal(body, &res); err != nil {
-		return res, err
+		var errMsg ErrorMessage
+		if err := json.Unmarshal(body, &errMsg); err != nil {
+			return res, fmt.Errorf("error unmarshalling json: %s", err.Error())
+		}
+		return res, fmt.Errorf("error retrieving project: %s", errMsg.Message)
 	}
 	return res, err
 }

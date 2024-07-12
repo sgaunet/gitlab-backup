@@ -85,7 +85,11 @@ func (s *GitlabService) retrieveProjects(url string) (res []GitlabProject, err e
 	}
 	var jsonResponse []GitlabProject
 	if err := json.Unmarshal(body, &jsonResponse); err != nil {
-		return res, err
+		var errMsg ErrorMessage
+		if err := json.Unmarshal(body, &errMsg); err != nil {
+			return res, fmt.Errorf("error unmarshalling json: %s", err.Error())
+		}
+		return res, fmt.Errorf("error retrieving projects: %s", errMsg.Message)
 	}
 
 	// check if response header contains a link to the next page
@@ -122,7 +126,11 @@ func (s *GitlabService) retrieveSubgroups(url string) (res []GitlabGroup, err er
 	}
 	var jsonResponse []GitlabGroup
 	if err := json.Unmarshal(body, &jsonResponse); err != nil {
-		return res, err
+		var errMsg ErrorMessage
+		if err := json.Unmarshal(body, &errMsg); err != nil {
+			return res, fmt.Errorf("error unmarshalling json: %s", err.Error())
+		}
+		return res, fmt.Errorf("error retrieving subgroups: %s", errMsg.Message)
 	}
 
 	// check if response header contains a link to the next page

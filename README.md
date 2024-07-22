@@ -1,3 +1,4 @@
+[![GitHub release](https://img.shields.io/github/release/sgaunet/gitlab-backup.svg)](https://github.com/sgaunet/gitlab-backup/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sgaunet/gitlab-backup)](https://goreportcard.com/report/github.com/sgaunet/gitlab-backup)
 
 # gitlab-backup

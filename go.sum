@@ -13,8 +13,8 @@ github.com/aws/aws-sdk-go-v2 v1.30.5 h1:mWSRTwQAb0aLE17dSzztCVJWI9+cRMgqebndjwDy
 github.com/aws/aws-sdk-go-v2 v1.30.5/go.mod h1:CT+ZPWXbYrci8chcARI3OmI/qgd+f6WtuLOoaIA8PR0=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.4 h1:70PVAiL15/aBMh5LThwgXdSQorVr91L127ttckI9QQU=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.4/go.mod h1:/MQxMqci8tlqDH+pjmoLu1i0tbWCUP1hhyMRuFxpQCw=
-github.com/aws/aws-sdk-go-v2/config v1.27.31 h1:kxBoRsjhT3pq0cKthgj6RU6bXTm/2SgdoUMyrVw0rAI=
-github.com/aws/aws-sdk-go-v2/config v1.27.31/go.mod h1:z04nZdSWFPaDwK3DdJOG2r+scLQzMYuJeW0CujEm9FM=
+github.com/aws/aws-sdk-go-v2/config v1.27.35 h1:jeFgiWYNV0vrgdZqB4kZBjYNdy0IKkwrAjr2fwpHIig=
+github.com/aws/aws-sdk-go-v2/config v1.27.35/go.mod h1:qnpEvTq8ZfjrCqmJGRfWZuF+lGZ/vG8LK2K0L/TY1gQ=
 github.com/aws/aws-sdk-go-v2/credentials v1.17.33 h1:lBHAQQznENv0gLHAZ73ONiTSkCtr8q3pSqWrpbBBZz0=
 github.com/aws/aws-sdk-go-v2/credentials v1.17.33/go.mod h1:MBuqCUOT3ChfLuxNDGyra67eskx7ge9e3YKYBce7wpI=
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.13 h1:pfQ2sqNpMVK6xz2RbqLEL0GH87JOwSxPV2rzm8Zsb74=

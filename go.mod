@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.31.0
 	github.com/aws/aws-sdk-go-v2/config v1.27.37
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.35
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.63.1
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.63.3
 	github.com/go-andiamo/splitter v1.2.5
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/testcontainers/testcontainers-go v0.33.0

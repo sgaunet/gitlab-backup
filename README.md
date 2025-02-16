@@ -3,7 +3,7 @@
 ![GitHub Downloads](https://img.shields.io/github/downloads/sgaunet/gitlab-backup/total)
 ![Test Coverage](https://raw.githubusercontent.com/wiki/sgaunet/gitlab-backup/coverage-badge.svg)
 [![GoDoc](https://godoc.org/github.com/sgaunet/gitlab-backup?status.svg)](https://godoc.org/github.com/sgaunet/gitlab-backup)
-[![License](https://img.shields.io/github/license/sgaunet/gitlab-backup.svg)]
+[![License](https://img.shields.io/github/license/sgaunet/gitlab-backup.svg)](LICENSE)
 
 # gitlab-backup
 

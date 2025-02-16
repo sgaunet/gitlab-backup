@@ -82,6 +82,19 @@ Launch the program: `gitlab-backup -c configuration.yaml`
 * gitlab-backup (this project)
 * [gocrypt](https://github.com/sgaunet/gocrypt)
 
+# Installation
+
+## Release
+
+Download the latest release from [github](https://github.com/sgaunet/gitlab-backup/releases) and install it.
+
+## Brew
+
+```bash
+brew tap sgaunet/homebrew-tools
+brew install sgaunet/tools/gitlab-backup
+```
+
 # Development
 
 This project is using :

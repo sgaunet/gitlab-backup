@@ -1,8 +1,7 @@
 [![GitHub release](https://img.shields.io/github/release/sgaunet/gitlab-backup.svg)](https://github.com/sgaunet/gitlab-backup/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sgaunet/gitlab-backup)](https://goreportcard.com/report/github.com/sgaunet/gitlab-backup)
 ![GitHub Downloads](https://img.shields.io/github/downloads/sgaunet/gitlab-backup/total)
-[![Maintainability](https://api.codeclimate.com/v1/badges/497688f4a25ab49e1e45/maintainability)](https://codeclimate.com/github/sgaunet/gitlab-backup/maintainability)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/497688f4a25ab49e1e45/test_coverage)](https://codeclimate.com/github/sgaunet/gitlab-backup/test_coverage)
+![Test Coverage](https://raw.githubusercontent.com/wiki/sgaunet/gitlab-backup/coverage-badge.svg)
 [![GoDoc](https://godoc.org/github.com/sgaunet/gitlab-backup?status.svg)](https://godoc.org/github.com/sgaunet/gitlab-backup)
 [![License](https://img.shields.io/github/license/sgaunet/gitlab-backup.svg)]
 

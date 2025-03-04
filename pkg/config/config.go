@@ -27,6 +27,7 @@ type Config struct {
 	TmpDir          string      `yaml:"tmpdir" env:"TMPDIR" env-default:"/tmp"`
 	Hooks           hooks.Hooks `yaml:"hooks"`
 	S3cfg           S3Config    `yaml:"s3cfg"`
+	NoLogTime       bool        `yaml:"noLogTime" env:"NOLOGTIME" env-default:"false"`
 }
 
 // NewConfigFromFile returns a new Config struct from the given file

@@ -33,11 +33,16 @@ func printVersion() {
 }
 
 func main() {
-	var cfgFile string
-	var vOption bool
-	var helpOption bool
-	var printCfg bool
-	var err error
+	var (
+		// arguments
+		cfgFile    string
+		vOption    bool
+		helpOption bool
+		printCfg   bool
+		// internal
+		cfg *config.Config
+		err error
+	)
 
 	// Parameters treatment
 	flag.StringVar(&cfgFile, "c", "", "configuration file")
@@ -70,19 +75,33 @@ func main() {
 		os.Exit(0)
 	}
 
-	app, err := app.NewApp(cfgFile)
+	if len(cfgFile) > 0 {
+		cfg, err = config.NewConfigFromFile(cfgFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		cfg, err = config.NewConfigFromEnv()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	app, err := app.NewApp(cfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 
-	l := initTrace(os.Getenv("DEBUGLEVEL"))
+	l := initTrace(os.Getenv("DEBUGLEVEL"), cfg.NoLogTime)
 	app.SetLogger(l)
 	ctx := context.Background()
 	err = app.Run(ctx)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		l.Error("error(s) occured", "error", err)
 		os.Exit(1)
 	}
 }

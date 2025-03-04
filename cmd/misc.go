@@ -5,10 +5,17 @@ import (
 	"os"
 )
 
-func initTrace(debugLevel string) *slog.Logger {
+func initTrace(debugLevel string, noLogTime bool) *slog.Logger {
 	handlerOptions := &slog.HandlerOptions{
 		Level: slog.LevelDebug,
-		// AddSource: true,
+	}
+	if noLogTime {
+		handlerOptions.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				return slog.Attr{} // Remove the time attribute
+			}
+			return a
+		}
 	}
 
 	switch debugLevel {

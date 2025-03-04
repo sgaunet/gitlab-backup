@@ -32,20 +32,8 @@ type Logger interface {
 }
 
 // NewApp returns a new App struct
-func NewApp(configFile string) (*App, error) {
-	var cfg *config.Config
+func NewApp(cfg *config.Config) (*App, error) {
 	var err error
-	if len(configFile) > 0 {
-		cfg, err = config.NewConfigFromFile(configFile)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		cfg, err = config.NewConfigFromEnv()
-		if err != nil {
-			return nil, err
-		}
-	}
 	app := &App{
 		cfg:           cfg,
 		gitlabService: gitlab.NewGitlabService(),
@@ -55,7 +43,7 @@ func NewApp(configFile string) (*App, error) {
 	if cfg.IsS3ConfigValid() {
 		app.storage, err = s3storage.NewS3Storage(cfg.S3cfg.Region, cfg.S3cfg.Endpoint, cfg.S3cfg.BucketName, cfg.S3cfg.BucketPath)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error occured during s3 storage creation: %s", err.Error())
 		}
 	} else {
 		if len(cfg.LocalPath) == 0 {
@@ -73,7 +61,6 @@ func NewApp(configFile string) (*App, error) {
 func (a *App) SetLogger(l Logger) {
 	a.log = l
 	gitlab.SetLogger(l)
-
 }
 
 // Run runs the app

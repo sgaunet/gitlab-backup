@@ -19,7 +19,6 @@ package gitlab
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -53,8 +52,9 @@ func (s *GitlabService) askExport(projectID int) (acceptedRequest bool, err erro
 
 // waitForExport waits for gitlab to finish the export
 func (s *GitlabService) waitForExport(projectID int) (err error) {
+	nbTries := 0
 loop:
-	for {
+	for nbTries < 5 {
 		// !TODO : Set a timeout to avoid to wait forever
 		exportStatus, err := s.getStatusExport(projectID)
 		if err != nil {
@@ -62,13 +62,17 @@ loop:
 		}
 		switch exportStatus {
 		case "none":
-			return errors.New("project not exported")
+			nbTries++
+			log.Warn("no export in progress", "projectID", projectID)
 		case "finished":
 			break loop
 		default:
 			log.Info("wait after gitlab to get the archive", "projectID", projectID)
 		}
 		time.Sleep(5 * time.Second)
+	}
+	if nbTries == 5 {
+		return fmt.Errorf("timeout waiting for gitlab to start the export project %d", projectID)
 	}
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 func TestNewConfigFromFile(t *testing.T) {
 	// TestNewConfigFromFile tests the NewConfigFromFile function
 	t.Run("normal case", func(t *testing.T) {
+		t.Setenv("GITLAB_TOKEN", "mytoken")
 		cfg, err := config.NewConfigFromFile("testdata/good-cfg.yaml")
 		require.NoError(t, err)
 		require.NotNil(t, cfg)

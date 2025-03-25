@@ -21,7 +21,7 @@ type S3Config struct {
 type Config struct {
 	GitlabGroupID   int         `yaml:"gitlabGroupID" env:"GITLABGROUPID" env-default:"0"`
 	GitlabProjectID int         `yaml:"gitlabProjectID" env:"GITLABPROJECTID" env-default:"0"`
-	GitlabToken     string      `env:"GITLAB_TOKEN" env-required`
+	GitlabToken     string      `env:"GITLAB_TOKEN" env-required:"true"`
 	GitlabURI       string      `env:"GITLAB_URI" env-default:"https://gitlab.com"`
 	LocalPath       string      `yaml:"localpath" env:"LOCALPATH" env-default:""`
 	TmpDir          string      `yaml:"tmpdir" env:"TMPDIR" env-default:"/tmp"`
@@ -63,7 +63,7 @@ func (c *Config) IsLocalConfigValid() bool {
 // IsConfigValid returns true if the config is valid
 func (c *Config) IsConfigValid() bool {
 	valid := c.GitlabGroupID > 0 || c.GitlabProjectID > 0
-	return (c.IsS3ConfigValid() || c.IsLocalConfigValid()) && valid
+	return (c.IsS3ConfigValid() || c.IsLocalConfigValid()) && valid && len(c.GitlabToken) > 0
 }
 
 func (c *Config) String() string {

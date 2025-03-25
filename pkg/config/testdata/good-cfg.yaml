@@ -1,0 +1,13 @@
+gitlabGroupID: 123
+gitlabProjectID: 456
+localpath: /data/gitlab
+tmpdir: /tmp
+s3cfg:
+  endpoint: myendpoint
+  bucketName: mybucket
+  bucketPath: mybucketpath
+  region: myregion
+hooks:
+  prebackup: "echo prebackup"
+  postbackup: "echo postbackup"
+noLogTime: false

@@ -1,19 +1,3 @@
-// gitlab-backup
-// Copyright (C) 2021  Sylvain Gaunet
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 package gitlab
 
 import (
@@ -26,11 +10,28 @@ import (
 	"time"
 )
 
+// GitlabProject represents a Gitlab project
+// https://docs.gitlab.com/ee/api/projects.html
+// struct fields are not exhaustive - most of them won't be used
 type GitlabProject struct {
 	Id           int    `json:"id"`
 	Name         string `json:"name"`
 	Archived     bool   `json:"archived"`
 	ExportStatus string `json:"export_status"`
+}
+
+// GetProject returns the gitlab project from the given ID
+type ProjectAccessToken struct {
+	Id          int      `json:"id"`
+	Name        string   `json:"name"`
+	Revoked     bool     `json:"revoked"`
+	CreatedAt   string   `json:"created_at"`
+	Scopes      []string `json:"scopes"`
+	UserId      int      `json:"user_id"`
+	LastUsedAt  string   `json:"last_used_at"`
+	Active      bool     `json:"active"`
+	ExpiresAt   string   `json:"expires_at"`
+	AccessLevel int      `json:"access_level"`
 }
 
 // askExport asks gitlab to export the project
@@ -90,8 +91,41 @@ func (s *GitlabService) getStatusExport(projectID int) (exportStatus string, err
 	if err != nil {
 		return "", err
 	}
-	err = json.Unmarshal(body, &res)
+	if err = json.Unmarshal(body, &res); err != nil {
+		// If the response is an error message, unmarshal it
+		return "", UnmarshalErrorMessage(body)
+	}
 	return res.ExportStatus, err
+}
+
+// SaveProject saves the project in the given storage
+func (s *GitlabService) ExportProject(project *GitlabProject, archiveFilePath string) (err error) {
+	var gitlabAcceptedRequest bool
+	if project.Archived {
+		log.Warn("SaveProject", "project name", project.Name, "is archived, skip it")
+		return nil
+	}
+	err = s.rateLimitExportAPI.Wait(context.Background()) // This is a blocking call. Honors the rate limit
+	if err != nil {
+		return fmt.Errorf("rate limit error: %v", err)
+	}
+	for !gitlabAcceptedRequest {
+		gitlabAcceptedRequest, err = s.askExport(project.Id)
+		if err != nil {
+			return err
+		}
+	}
+	log.Info("SaveProject (gitlab is creating the archive)", "project name", project.Name)
+	err = s.waitForExport(project.Id)
+	if err != nil {
+		return fmt.Errorf("failed to export project %s (%s)", project.Name, err.Error())
+	}
+	log.Info("SaveProject (gitlab has created the archive, download is beginning)", "project name", project.Name)
+	err = s.downloadProject(project.Id, archiveFilePath)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // downloadProject downloads the project and save the archive to the given path
@@ -122,36 +156,6 @@ func (s *GitlabService) downloadProject(projectID int, tmpFilePath string) error
 		return err
 	}
 	if err = os.Rename(tmpFile, tmpFilePath); err != nil {
-		return err
-	}
-	return nil
-}
-
-// SaveProject saves the project in the given storage
-func (s *GitlabService) ExportProject(project *GitlabProject, archiveFilePath string) (err error) {
-	var gitlabAcceptedRequest bool
-	if project.Archived {
-		log.Warn("SaveProject", "project name", project.Name, "is archived, skip it")
-		return nil
-	}
-	err = s.rateLimitExportAPI.Wait(context.Background()) // This is a blocking call. Honors the rate limit
-	if err != nil {
-		return fmt.Errorf("rate limit error: %v", err)
-	}
-	for !gitlabAcceptedRequest {
-		gitlabAcceptedRequest, err = s.askExport(project.Id)
-		if err != nil {
-			return err
-		}
-	}
-	log.Info("SaveProject (gitlab is creating the archive)", "project name", project.Name)
-	err = s.waitForExport(project.Id)
-	if err != nil {
-		return fmt.Errorf("failed to export project %s (%s)", project.Name, err.Error())
-	}
-	log.Info("SaveProject (gitlab has created the archive, download is beginning)", "project name", project.Name)
-	err = s.downloadProject(project.Id, archiveFilePath)
-	if err != nil {
 		return err
 	}
 	return nil

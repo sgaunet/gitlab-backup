@@ -91,7 +91,7 @@ func (a *App) SetHttpClient(httpClient *http.Client) {
 
 // ExportGroup will export all projects of the group
 func (a *App) ExportGroup(ctx context.Context) error {
-	projects, err := a.gitlabService.GetEveryProjectsOfGroup(a.cfg.GitlabGroupID)
+	projects, err := a.gitlabService.GetProjectsOfGroup(a.cfg.GitlabGroupID)
 	if err != nil {
 		return err
 	}

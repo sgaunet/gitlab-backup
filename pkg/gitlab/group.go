@@ -1,19 +1,3 @@
-// gitlab-backup
-// Copyright (C) 2021  Sylvain Gaunet
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 package gitlab
 
 import (
@@ -22,31 +6,47 @@ import (
 	"io"
 )
 
+// GitlabGroup represents a Gitlab group
+// https://docs.gitlab.com/ee/api/groups.html
+// struct fields are not exhaustive - most of them won't be used
 type GitlabGroup struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
 }
 
-// GetSubgroupsLst returns the list of subgroups of the group
-func (s *GitlabService) GetSubgroupsLst(groupID int) (res []GitlabGroup, err error) {
+// GetSubgroups returns the list of subgroups of the group
+// It's a recursive function that will return all subgroups of the group
+func (s *GitlabService) GetSubgroups(groupID int) (res []GitlabGroup, err error) {
 	url := fmt.Sprintf("%s/groups/%d/subgroups?per_page=20&order_by=id&sort=asc&pagination=keyset", s.gitlabApiEndpoint, groupID)
-	return s.retrieveSubgroups(url)
+	subgroups, err := s.retrieveSubgroups(url)
+	if err != nil {
+		return res, err
+	}
+	res = append(res, subgroups...)
+	for _, group := range subgroups {
+		sub, err := s.GetSubgroups(group.Id)
+		if err != nil {
+			return res, fmt.Errorf("got error when listing subgroups of %d (%s)", group.Id, err.Error())
+		}
+		res = append(res, sub...)
+	}
+	return res, nil
 }
 
-// GetEveryProjectsOfGroup returns the list of every projects of the group and subgroups
-func (s *GitlabService) GetEveryProjectsOfGroup(groupID int) (res []GitlabProject, err error) {
-	subgroups, err := s.GetSubgroupsLst(groupID)
+// GetProjectsOfGroup returns the list of every projects of the group and subgroups
+func (s *GitlabService) GetProjectsOfGroup(groupID int) (res []GitlabProject, err error) {
+	subgroups, err := s.GetSubgroups(groupID)
 	if err != nil {
 		return res, fmt.Errorf("got error when listing subgroups of %d (%s)", groupID, err.Error())
 	}
 	for _, group := range subgroups {
+		// fmt.Println("GetProjectsOfGroup", "groupName", group.Name)
 		projects, err := s.GetProjectsLst(group.Id)
 		if err != nil {
 			return res, fmt.Errorf("got error when listing projects of %d (%s)", group.Id, err.Error())
 		}
 		for _, project := range projects {
 			if !project.Archived {
-				log.Info("GetEveryProjectsOfGroup", "projectName", project.Name)
 				res = append(res, project)
 			}
 		}
@@ -84,12 +84,9 @@ func (s *GitlabService) retrieveProjects(url string) (res []GitlabProject, err e
 		return res, err
 	}
 	var jsonResponse []GitlabProject
-	if err := json.Unmarshal(body, &jsonResponse); err != nil {
-		var errMsg ErrorMessage
-		if err := json.Unmarshal(body, &errMsg); err != nil {
-			return res, fmt.Errorf("error unmarshalling json: %s", err.Error())
-		}
-		return res, fmt.Errorf("error retrieving projects: %s", errMsg.Message)
+	if err = json.Unmarshal(body, &jsonResponse); err != nil {
+		// If the response is an error message, unmarshal it
+		return res, UnmarshalErrorMessage(body)
 	}
 
 	// check if response header contains a link to the next page
@@ -125,12 +122,10 @@ func (s *GitlabService) retrieveSubgroups(url string) (res []GitlabGroup, err er
 		return res, err
 	}
 	var jsonResponse []GitlabGroup
-	if err := json.Unmarshal(body, &jsonResponse); err != nil {
-		var errMsg ErrorMessage
-		if err := json.Unmarshal(body, &errMsg); err != nil {
-			return res, fmt.Errorf("error unmarshalling json: %s", err.Error())
-		}
-		return res, fmt.Errorf("error retrieving subgroups: %s", errMsg.Message)
+	// Unmarshal the response
+	if err = json.Unmarshal(body, &jsonResponse); err != nil {
+		// If the response is an error message, unmarshal it
+		return res, UnmarshalErrorMessage(body)
 	}
 
 	// check if response header contains a link to the next page

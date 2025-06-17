@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sgaunet/gitlab-backup/pkg/config"
+	"github.com/sgaunet/gitlab-backup/pkg/hooks"
 	"github.com/stretchr/testify/require"
 )
 
@@ -90,4 +91,201 @@ func TestEmptyGitlabToken(t *testing.T) {
 	require.NoError(t, err)
 	isValid := cfg.IsConfigValid()
 	require.Equal(t, false, isValid)
+}
+
+func TestIsS3ConfigValid(t *testing.T) {
+	t.Run("valid S3 config", func(t *testing.T) {
+		cfg := &config.Config{
+			S3cfg: config.S3Config{
+				BucketPath: "mybucketpath",
+				Region:     "myregion",
+				BucketName: "mybucket", // these are not checked in IsS3ConfigValid
+				Endpoint:   "myendpoint", // these are not checked in IsS3ConfigValid
+			},
+		}
+		require.True(t, cfg.IsS3ConfigValid())
+	})
+
+	t.Run("invalid S3 config - empty BucketPath", func(t *testing.T) {
+		cfg := &config.Config{
+			S3cfg: config.S3Config{
+				BucketPath: "", // empty BucketPath makes it invalid
+				Region:     "myregion",
+			},
+		}
+		require.False(t, cfg.IsS3ConfigValid())
+	})
+
+	t.Run("invalid S3 config - empty Region", func(t *testing.T) {
+		cfg := &config.Config{
+			S3cfg: config.S3Config{
+				BucketPath: "mybucketpath",
+				Region:     "", // empty Region makes it invalid
+			},
+		}
+		require.False(t, cfg.IsS3ConfigValid())
+	})
+
+	t.Run("invalid S3 config - both empty", func(t *testing.T) {
+		cfg := &config.Config{
+			S3cfg: config.S3Config{
+				BucketPath: "", 
+				Region:     "",
+			},
+		}
+		require.False(t, cfg.IsS3ConfigValid())
+	})
+}
+
+func TestIsLocalConfigValid(t *testing.T) {
+	t.Run("valid local config", func(t *testing.T) {
+		cfg := &config.Config{
+			LocalPath: "/data/gitlab",
+		}
+		require.True(t, cfg.IsLocalConfigValid())
+	})
+
+	t.Run("invalid local config - empty LocalPath", func(t *testing.T) {
+		cfg := &config.Config{
+			LocalPath: "", // empty LocalPath makes it invalid
+		}
+		require.False(t, cfg.IsLocalConfigValid())
+	})
+}
+
+func TestIsConfigValid(t *testing.T) {
+	t.Run("valid config with group ID and local storage", func(t *testing.T) {
+		cfg := &config.Config{
+			GitlabGroupID: 123,
+			GitlabToken:   "mytoken",
+			LocalPath:     "/data/gitlab",
+		}
+		require.True(t, cfg.IsConfigValid())
+	})
+
+	t.Run("valid config with project ID and S3 storage", func(t *testing.T) {
+		cfg := &config.Config{
+			GitlabProjectID: 456,
+			GitlabToken:     "mytoken",
+			S3cfg: config.S3Config{
+				BucketPath: "mybucketpath",
+				Region:     "myregion",
+			},
+		}
+		require.True(t, cfg.IsConfigValid())
+	})
+
+	t.Run("invalid config - no group or project ID", func(t *testing.T) {
+		cfg := &config.Config{
+			GitlabGroupID:   0,
+			GitlabProjectID: 0,
+			GitlabToken:     "mytoken",
+			LocalPath:       "/data/gitlab",
+		}
+		require.False(t, cfg.IsConfigValid())
+	})
+
+	t.Run("invalid config - empty token", func(t *testing.T) {
+		cfg := &config.Config{
+			GitlabGroupID: 123,
+			GitlabToken:   "", // empty token makes it invalid
+			LocalPath:     "/data/gitlab",
+		}
+		require.False(t, cfg.IsConfigValid())
+	})
+
+	t.Run("invalid config - no storage options", func(t *testing.T) {
+		cfg := &config.Config{
+			GitlabGroupID: 123,
+			GitlabToken:   "mytoken",
+			LocalPath:     "", // empty local path
+			S3cfg: config.S3Config{ // invalid S3 config
+				BucketPath: "",
+				Region:     "",
+			},
+		}
+		require.False(t, cfg.IsConfigValid())
+	})
+}
+
+func TestConfigString(t *testing.T) {
+	// Test that the String method returns a YAML representation of the config
+	cfg := &config.Config{
+		GitlabGroupID:   123,
+		GitlabProjectID: 456,
+		GitlabToken:     "mytoken",
+		GitlabURI:       "https://gitlab.com",
+		LocalPath:       "/data/gitlab",
+		TmpDir:          "/tmp",
+		NoLogTime:       false,
+		Hooks: hooks.Hooks{
+			PreBackup:  "echo prebackup",
+			PostBackup: "echo postbackup",
+		},
+		S3cfg: config.S3Config{
+			Endpoint:   "myendpoint",
+			BucketName: "mybucket",
+			BucketPath: "mybucketpath",
+			Region:     "myregion",
+			AccessKey:  "myaccesskey",
+			SecretKey:  "mysecretkey",
+		},
+	}
+
+	str := cfg.String()
+
+	// Check that the string contains all the expected values
+	require.Contains(t, str, "gitlabGroupID: 123")
+	require.Contains(t, str, "gitlabProjectID: 456")
+	require.Contains(t, str, "gitlabtoken: mytoken")
+	require.Contains(t, str, "gitlaburi: https://gitlab.com")
+	require.Contains(t, str, "localpath: /data/gitlab")
+	require.Contains(t, str, "tmpdir: /tmp")
+	require.Contains(t, str, "prebackup: echo prebackup")
+	require.Contains(t, str, "postbackup: echo postbackup")
+	require.Contains(t, str, "endpoint: myendpoint")
+	require.Contains(t, str, "bucketName: mybucket")
+	require.Contains(t, str, "bucketPath: mybucketpath")
+	require.Contains(t, str, "region: myregion")
+	require.Contains(t, str, "accesskey: myaccesskey")
+	require.Contains(t, str, "secretkey: mysecretkey")
+	require.Contains(t, str, "noLogTime: false")
+}
+
+func TestConfigUsage(t *testing.T) {
+	// Just test that the Usage method doesn't panic
+	cfg := &config.Config{}
+
+	// This should not panic
+	require.NotPanics(t, func() {
+		cfg.Usage()
+	})
+}
+
+func TestNewConfigFromEnvEdgeCases(t *testing.T) {
+	// Test invalid group ID
+	t.Run("invalid group ID format", func(t *testing.T) {
+		t.Setenv("GITLABGROUPID", "not_a_number")
+		t.Setenv("GITLAB_TOKEN", "mytoken")
+		_, err := config.NewConfigFromEnv()
+		require.Error(t, err)
+	})
+
+	// Test invalid project ID
+	t.Run("invalid project ID format", func(t *testing.T) {
+		t.Setenv("GITLABGROUPID", "123")
+		t.Setenv("GITLABPROJECTID", "not_a_number")
+		t.Setenv("GITLAB_TOKEN", "mytoken")
+		_, err := config.NewConfigFromEnv()
+		require.Error(t, err)
+	})
+
+	// Test invalid boolean value for NoLogTime
+	t.Run("invalid boolean value", func(t *testing.T) {
+		t.Setenv("GITLABGROUPID", "123")
+		t.Setenv("GITLAB_TOKEN", "mytoken")
+		t.Setenv("NOLOGTIME", "not_a_boolean")
+		_, err := config.NewConfigFromEnv()
+		require.Error(t, err)
+	})
 }

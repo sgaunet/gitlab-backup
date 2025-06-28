@@ -1,4 +1,4 @@
-// gitlab-backup
+// Package main provides the gitlab-backup command-line tool for backing up GitLab projects and groups.
 // Copyright (C) 2021  Sylvain Gaunet
 
 // This program is free software: you can redistribute it and/or modify
@@ -13,7 +13,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 package main
 
 import (
@@ -26,23 +25,49 @@ import (
 	"github.com/sgaunet/gitlab-backup/pkg/config"
 )
 
-var version string = "development"
+var version = "development"
 
 func printVersion() {
 	fmt.Println(version)
 }
 
+func printConfiguration() {
+	c, err := config.NewConfigFromEnv()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	c.Usage()
+
+	fmt.Println("--------------------------------------------------")
+	fmt.Println("Gitlab-backup configuration:")
+	fmt.Printf("%+v\n", c)
+	os.Exit(0)
+}
+
+func loadConfiguration(cfgFile string) *config.Config {
+	var cfg *config.Config
+	var err error
+	
+	if len(cfgFile) > 0 {
+		cfg, err = config.NewConfigFromFile(cfgFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		cfg, err = config.NewConfigFromEnv()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+	}
+	return cfg
+}
+
 func main() {
-	var (
-		// arguments
-		cfgFile    string
-		vOption    bool
-		helpOption bool
-		printCfg   bool
-		// internal
-		cfg *config.Config
-		err error
-	)
+	var cfgFile string
+	var vOption, helpOption, printCfg bool
 
 	// Parameters treatment
 	flag.StringVar(&cfgFile, "c", "", "configuration file")
@@ -62,32 +87,10 @@ func main() {
 	}
 
 	if printCfg {
-		c, err := config.NewConfigFromEnv()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		c.Usage()
-
-		fmt.Println("--------------------------------------------------")
-		fmt.Println("Gitlab-backup configuration:")
-		fmt.Printf("%+v\n", c)
-		os.Exit(0)
+		printConfiguration()
 	}
 
-	if len(cfgFile) > 0 {
-		cfg, err = config.NewConfigFromFile(cfgFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
-		}
-	} else {
-		cfg, err = config.NewConfigFromEnv()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
-		}
-	}
+	cfg := loadConfiguration(cfgFile)
 
 	app, err := app.NewApp(cfg)
 	if err != nil {
@@ -101,7 +104,7 @@ func main() {
 	err = app.Run(ctx)
 
 	if err != nil {
-		l.Error("error(s) occured", "error", err)
+		l.Error("error(s) occurred", "error", err)
 		os.Exit(1)
 	}
 }

@@ -19,8 +19,8 @@ tasks:
     deps:
       - build
     cmds:
-      - docker build --no-cache --build-arg VERSION=development . -t sgaunet/gitlab-backup:latest
-      - docker push sgaunet/gitlab-backup:latest
+      - docker build --no-cache --build-arg VERSION=development . -t ghcr.io/sgaunet/gitlab-backup:latest
+      - docker push ghcr.io/sgaunet/gitlab-backup:latest
 
   doc:
     desc: "Start godoc server"

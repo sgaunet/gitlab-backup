@@ -39,16 +39,18 @@ func (s *GitlabService) askExport(projectID int) (acceptedRequest bool, err erro
 	url := fmt.Sprintf("%s/projects/%d/export", s.gitlabApiEndpoint, projectID)
 	resp, err := s.post(url)
 	if err != nil {
-		return
-	}
-	_, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return
+		return false, fmt.Errorf("failed to make export request: %w", err)
 	}
 	defer resp.Body.Close()
-	statusCode := resp.StatusCode
+	
+	// Read and discard response body to allow connection reuse
+	_, err = io.Copy(io.Discard, resp.Body)
+	if err != nil {
+		return false, fmt.Errorf("failed to read response body: %w", err)
+	}
+	
 	// 202 means that gitlab has accepted request
-	return statusCode == http.StatusAccepted, nil
+	return resp.StatusCode == http.StatusAccepted, nil
 }
 
 // waitForExport waits for gitlab to finish the export

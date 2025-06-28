@@ -129,17 +129,31 @@ func (s *GitlabService) GetGroup(groupID int) (res GitlabGroup, err error) {
 	url := fmt.Sprintf("%s/groups/%d", s.gitlabApiEndpoint, groupID)
 	resp, err := s.get(url)
 	if err != nil {
-		return res, err
+		return res, fmt.Errorf("error retrieving group: %w", err)
 	}
 	defer resp.Body.Close()
+	
+	// Check for non-2xx status codes
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var errMsg ErrorMessage
+		body, _ := io.ReadAll(resp.Body)
+		if err := json.Unmarshal(body, &errMsg); err != nil {
+			// If we can't unmarshal the error message, return a generic error
+			return res, fmt.Errorf("error retrieving group: status code %d", resp.StatusCode)
+		}
+		return res, fmt.Errorf("error retrieving group: %s", errMsg.Message)
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return res, err
+		return res, fmt.Errorf("error reading response body: %w", err)
 	}
+
 	if err := json.Unmarshal(body, &res); err != nil {
-		return res, err
+		return res, fmt.Errorf("error unmarshalling json: %w", err)
 	}
-	return res, err
+
+	return res, nil
 }
 
 // GetProject returns informations of the project that matches the given ID
@@ -147,19 +161,29 @@ func (s *GitlabService) GetProject(projectID int) (res GitlabProject, err error)
 	url := fmt.Sprintf("%s/projects/%d", s.gitlabApiEndpoint, projectID)
 	resp, err := s.get(url)
 	if err != nil {
-		return res, err
+		return res, fmt.Errorf("error retrieving project: %w", err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return res, err
-	}
-	if err := json.Unmarshal(body, &res); err != nil {
+
+	// Check for non-2xx status codes
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		var errMsg ErrorMessage
+		body, _ := io.ReadAll(resp.Body)
 		if err := json.Unmarshal(body, &errMsg); err != nil {
-			return res, fmt.Errorf("error unmarshalling json: %s", err.Error())
+			// If we can't unmarshal the error message, return a generic error
+			return res, fmt.Errorf("error retrieving project: status code %d", resp.StatusCode)
 		}
 		return res, fmt.Errorf("error retrieving project: %s", errMsg.Message)
 	}
-	return res, err
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return res, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	if err := json.Unmarshal(body, &res); err != nil {
+		return res, fmt.Errorf("error unmarshalling json: %w", err)
+	}
+
+	return res, nil
 }

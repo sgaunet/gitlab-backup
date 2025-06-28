@@ -35,27 +35,38 @@ func (s *GitlabService) GetSubgroups(groupID int) (res []GitlabGroup, err error)
 
 // GetProjectsOfGroup returns the list of every projects of the group and subgroups
 func (s *GitlabService) GetProjectsOfGroup(groupID int) (res []GitlabProject, err error) {
+	// First get all subgroups recursively
 	subgroups, err := s.GetSubgroups(groupID)
 	if err != nil {
 		return res, fmt.Errorf("got error when listing subgroups of %d (%s)", groupID, err.Error())
 	}
+
+	// Get projects for each subgroup
 	for _, group := range subgroups {
-		// fmt.Println("GetProjectsOfGroup", "groupName", group.Name)
 		projects, err := s.GetProjectsLst(group.Id)
 		if err != nil {
 			return res, fmt.Errorf("got error when listing projects of %d (%s)", group.Id, err.Error())
 		}
+		// Filter out archived projects
 		for _, project := range projects {
 			if !project.Archived {
 				res = append(res, project)
 			}
 		}
 	}
+
+	// Get projects for the main group
 	projects, err := s.GetProjectsLst(groupID)
 	if err != nil {
 		return res, err
 	}
-	res = append(res, projects...)
+	// Filter out archived projects from the main group as well
+	for _, project := range projects {
+		if !project.Archived {
+			res = append(res, project)
+		}
+	}
+
 	return res, nil
 }
 

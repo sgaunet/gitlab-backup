@@ -13,9 +13,6 @@
       "build": [
         "task build"
       ],
-      "run": [
-        "task run"
-      ],
       "linter": [
         "task linter"
       ],

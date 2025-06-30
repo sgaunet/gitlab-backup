@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -23,9 +22,9 @@ var (
 	// ErrNoStorageDefined is returned when no storage configuration is provided.
 	ErrNoStorageDefined = errors.New("no storage defined")
 	// ErrBackupErrors is returned when errors occur during backup process.
-	ErrBackupErrors     = errors.New("errors occurred during backup")
+	ErrBackupErrors = errors.New("errors occurred during backup")
 	// ErrNotDirectory is returned when a path is not a directory.
-	ErrNotDirectory     = errors.New("path is not a directory")
+	ErrNotDirectory = errors.New("path is not a directory")
 )
 
 // App represents the main application structure.
@@ -100,11 +99,6 @@ func (a *App) SetGitlabEndpoint(gitlabAPIEndpoint string) {
 // SetToken sets the gitlab token.
 func (a *App) SetToken(token string) {
 	a.gitlabService.SetToken(token)
-}
-
-// SetHTTPClient sets the http client.
-func (a *App) SetHTTPClient(httpClient *http.Client) {
-	a.gitlabService.SetHTTPClient(httpClient)
 }
 
 // ExportGroup will export all projects of the group.

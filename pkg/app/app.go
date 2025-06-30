@@ -1,7 +1,9 @@
+// Package app provides the main application logic for GitLab backup.
 package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,13 +19,24 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var (
+	// ErrNoStorageDefined is returned when no storage configuration is provided.
+	ErrNoStorageDefined = errors.New("no storage defined")
+	// ErrBackupErrors is returned when errors occur during backup process.
+	ErrBackupErrors     = errors.New("errors occurred during backup")
+	// ErrNotDirectory is returned when a path is not a directory.
+	ErrNotDirectory     = errors.New("path is not a directory")
+)
+
+// App represents the main application structure.
 type App struct {
 	cfg           *config.Config
-	gitlabService *gitlab.GitlabService
+	gitlabService *gitlab.Service
 	storage       storage.Storage
 	log           Logger
 }
 
+// Logger interface defines the logging methods used by the application.
 type Logger interface {
 	Debug(msg string, args ...any)
 	Warn(msg string, args ...any)
@@ -31,7 +44,7 @@ type Logger interface {
 	Info(msg string, args ...any)
 }
 
-// NewApp returns a new App struct
+// NewApp returns a new App struct.
 func NewApp(cfg *config.Config) (*App, error) {
 	var err error
 	app := &App{
@@ -41,29 +54,34 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}
 	gitlab.SetLogger(app.log)
 	if cfg.IsS3ConfigValid() {
-		app.storage, err = s3storage.NewS3Storage(cfg.S3cfg.Region, cfg.S3cfg.Endpoint, cfg.S3cfg.BucketName, cfg.S3cfg.BucketPath)
+		app.storage, err = s3storage.NewS3Storage(
+			cfg.S3cfg.Region,
+			cfg.S3cfg.Endpoint,
+			cfg.S3cfg.BucketName,
+			cfg.S3cfg.BucketPath,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("error occured during s3 storage creation: %s", err.Error())
+			return nil, fmt.Errorf("error occurred during s3 storage creation: %w", err)
 		}
 	} else {
 		if len(cfg.LocalPath) == 0 {
-			return nil, fmt.Errorf("no storage defined")
+			return nil, ErrNoStorageDefined
 		}
 		app.storage = localstorage.NewLocalStorage(cfg.LocalPath)
 		if stat, err := os.Stat(cfg.LocalPath); err != nil || !stat.IsDir() {
-			return nil, fmt.Errorf("%s is not a directory", cfg.LocalPath)
+			return nil, fmt.Errorf("%s: %w", cfg.LocalPath, ErrNotDirectory)
 		}
 	}
 	return app, nil
 }
 
-// SetLogger sets the logger
+// SetLogger sets the logger.
 func (a *App) SetLogger(l Logger) {
 	a.log = l
 	gitlab.SetLogger(l)
 }
 
-// Run runs the app
+// Run runs the app.
 func (a *App) Run(ctx context.Context) error {
 	if a.cfg.GitlabGroupID != 0 {
 		return a.ExportGroup(ctx)
@@ -74,34 +92,34 @@ func (a *App) Run(ctx context.Context) error {
 	return nil
 }
 
-// SetGitlabEndpoint sets the gitlab endpoint
-func (a *App) SetGitlabEndpoint(gitlabApiEndpoint string) {
-	a.gitlabService.SetGitlabEndpoint(gitlabApiEndpoint)
+// SetGitlabEndpoint sets the gitlab endpoint.
+func (a *App) SetGitlabEndpoint(gitlabAPIEndpoint string) {
+	a.gitlabService.SetGitlabEndpoint(gitlabAPIEndpoint)
 }
 
-// SetToken sets the gitlab token
+// SetToken sets the gitlab token.
 func (a *App) SetToken(token string) {
 	a.gitlabService.SetToken(token)
 }
 
-// SetHttpClient sets the http client
-func (a *App) SetHttpClient(httpClient *http.Client) {
-	a.gitlabService.SetHttpClient(httpClient)
+// SetHTTPClient sets the http client.
+func (a *App) SetHTTPClient(httpClient *http.Client) {
+	a.gitlabService.SetHTTPClient(httpClient)
 }
 
-// ExportGroup will export all projects of the group
+// ExportGroup will export all projects of the group.
 func (a *App) ExportGroup(ctx context.Context) error {
-	projects, err := a.gitlabService.GetProjectsOfGroup(a.cfg.GitlabGroupID)
+	projects, err := a.gitlabService.GetProjectsOfGroup(ctx, a.cfg.GitlabGroupID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get projects of group %d: %w", a.cfg.GitlabGroupID, err)
 	}
 	eg := errgroup.Group{}
 	for project := range projects {
 		if !projects[project].Archived {
 			eg.Go(func() error {
-				err = a.ExportProject(ctx, projects[project].Id)
+				err = a.ExportProject(ctx, projects[project].ID)
 				if err != nil {
-					a.log.Error("error occured during backup", "project name", projects[project].Name, "error", err.Error())
+					a.log.Error("error occurred during backup", "project name", projects[project].Name, "error", err.Error())
 					return err
 				}
 				return nil
@@ -112,52 +130,54 @@ func (a *App) ExportGroup(ctx context.Context) error {
 	}
 	err = eg.Wait()
 	if err != nil {
-		return fmt.Errorf("errors occured during backup")
+		return ErrBackupErrors
 	}
 	return nil
 }
 
-// ExportProject exports the project of the given ID
+// ExportProject exports the project of the given ID.
 func (a *App) ExportProject(ctx context.Context, projectID int) error {
-	project, err := a.gitlabService.GetProject(projectID)
+	project, err := a.gitlabService.GetProject(ctx, projectID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get project %d: %w", projectID, err)
 	}
 	// call prebackup hook
 	if a.cfg.Hooks.HasPreBackup() {
 		a.log.Info("SaveProject (call prebackup hook)", "project name", project.Name)
 		err = a.cfg.Hooks.ExecutePreBackup()
 		if err != nil {
-			return err
+			return fmt.Errorf("pre-backup hook failed: %w", err)
 		}
 	}
-	archivePath := fmt.Sprintf("%s%s%s-%d.tar.gz", a.cfg.TmpDir, string(os.PathSeparator), project.Name, project.Id)
-	err = a.gitlabService.ExportProject(&project, archivePath)
+	archivePath := fmt.Sprintf("%s%s%s-%d.tar.gz", a.cfg.TmpDir, string(os.PathSeparator), project.Name, project.ID)
+	err = a.gitlabService.ExportProject(ctx, &project, archivePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to export project %s: %w", project.Name, err)
 	}
 	// call postbackup hook
 	if a.cfg.Hooks.HasPostBackup() {
 		a.log.Info("SaveProject (call postbackup hook)", "archivePath", archivePath)
 		err = a.cfg.Hooks.ExecutePostBackup(archivePath)
 		if err != nil {
-			return err
+			return fmt.Errorf("post-backup hook failed: %w", err)
 		}
 	}
-	err = a.StoreArchive(archivePath)
+	err = a.StoreArchive(ctx, archivePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to store archive %s: %w", archivePath, err)
 	}
-	a.log.Info("project succesfully exported", "project", project.Name)
+	a.log.Info("project successfully exported", "project", project.Name)
 	return nil
 }
 
-// StoreArchive stores the archive
-func (a *App) StoreArchive(archiveFilePath string) error {
-	err := a.storage.SaveFile(context.TODO(), archiveFilePath, filepath.Base(archiveFilePath))
-	os.Remove(archiveFilePath)
+// StoreArchive stores the archive.
+func (a *App) StoreArchive(ctx context.Context, archiveFilePath string) error {
+	err := a.storage.SaveFile(ctx, archiveFilePath, filepath.Base(archiveFilePath))
+	if removeErr := os.Remove(archiveFilePath); removeErr != nil {
+		a.log.Warn("failed to remove temporary file", "file", archiveFilePath, "error", removeErr)
+	}
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to save file to storage: %w", err)
 	}
 	return nil
 }

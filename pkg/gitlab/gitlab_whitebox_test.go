@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -32,8 +33,8 @@ func TestGetNextLinkReturnTheNextLinkIfPresent(t *testing.T) {
 func TestGitlabService_GetGroup(t *testing.T) {
 	ts := httptest.NewTLSServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			res := GitlabGroup{
-				Id:   1,
+			res := Group{
+				ID:   1,
 				Name: "test",
 			}
 			// check method GET
@@ -57,10 +58,10 @@ func TestGitlabService_GetGroup(t *testing.T) {
 	client := ts.Client()
 
 	r := NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
-	_, err := r.GetGroup(1)
+	_, err := r.GetGroup(context.Background(), 1)
 	if err != nil {
 		t.Errorf("expected no error, got %s", err.Error())
 	}
@@ -89,10 +90,10 @@ func TestGitlabService_CheckTokenInHeaderFromEnvVar(t *testing.T) {
 	client := ts.Client()
 
 	r := NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
-	resp, err := r.get(fmt.Sprintf("%s/groups", ts.URL))
+	resp, err := r.get(context.Background(), fmt.Sprintf("%s/groups", ts.URL))
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -111,11 +112,11 @@ func TestGitlabService_CheckTokenInHeaderFromEnvVar(t *testing.T) {
 
 func TestGitlabService_SetGitlabEndpoint(t *testing.T) {
 	response := []struct {
-		Id   int    `json:"id"`
+		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}{
 		{
-			Id:   1,
+			ID:   1,
 			Name: "test",
 		},
 	}
@@ -130,10 +131,10 @@ func TestGitlabService_SetGitlabEndpoint(t *testing.T) {
 	client := ts.Client()
 
 	r := NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
-	resp, err := r.get(fmt.Sprintf("%s/groups", ts.URL))
+	resp, err := r.get(context.Background(), fmt.Sprintf("%s/groups", ts.URL))
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -159,11 +160,11 @@ func TestGitlabService_CheckTokenInHeader(t *testing.T) {
 	client := ts.Client()
 
 	r := NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	r.SetToken("test")
 	// retrieve groups
-	resp, err := r.get(fmt.Sprintf("%s/groups", ts.URL))
+	resp, err := r.get(context.Background(), fmt.Sprintf("%s/groups", ts.URL))
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -199,10 +200,10 @@ func TestGitlabService_askExport_Success(t *testing.T) {
 	client := ts.Client()
 
 	r := NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
-	res, err := r.askExport(1)
+	res, err := r.askExport(context.Background(), 1)
 	if err != nil {
 		t.Errorf("expected no error, got %s", err.Error())
 	}
@@ -214,10 +215,10 @@ func TestGitlabService_askExport_Success(t *testing.T) {
 func TestGitlabService_getStatusExport(t *testing.T) {
 	ts := httptest.NewTLSServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			var res GitlabProject
+			var res Project
 			res.Archived = false
 			res.ExportStatus = "finished"
-			res.Id = 1
+			res.ID = 1
 			res.Name = "test"
 
 			if r.Method != "GET" {
@@ -240,10 +241,10 @@ func TestGitlabService_getStatusExport(t *testing.T) {
 	client := ts.Client()
 
 	r := NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
-	res, err := r.getStatusExport(1)
+	res, err := r.getStatusExport(context.Background(), 1)
 	if err != nil {
 		t.Errorf("expected no error, got %s", err.Error())
 	}
@@ -257,10 +258,10 @@ func TestGitlabService_waitForExport(t *testing.T) {
 	nbrequest := 0
 	ts := httptest.NewTLSServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			var res GitlabProject
+			var res Project
 			res.Archived = false
 			res.ExportStatus = exportstatus
-			res.Id = 1
+			res.ID = 1
 			res.Name = "test"
 			nbrequest++
 
@@ -284,13 +285,13 @@ func TestGitlabService_waitForExport(t *testing.T) {
 	client := ts.Client()
 
 	r := NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		err := r.waitForExport(1)
+		err := r.waitForExport(context.Background(), 1)
 		if err != nil {
 			t.Errorf("expected no error, got %s", err.Error())
 		}

@@ -1,6 +1,7 @@
 package gitlab_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -19,8 +20,8 @@ import (
 func TestGitlabService_GetGroupGetID(t *testing.T) {
 	ts := httptest.NewTLSServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			res := gitlab.GitlabGroup{
-				Id:   1,
+			res := gitlab.Group{
+				ID:   1,
 				Name: "test",
 			}
 			resJSON, err := json.Marshal(res)
@@ -36,15 +37,15 @@ func TestGitlabService_GetGroupGetID(t *testing.T) {
 	client := ts.Client()
 
 	r := gitlab.NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
-	g, err := r.GetGroup(1)
+	g, err := r.GetGroup(context.Background(), 1)
 	if err != nil {
 		t.Errorf("expected no error, got %s", err.Error())
 	}
-	if g.Id != 1 {
-		t.Errorf("expected id %d, got %d", 1, g.Id)
+	if g.ID != 1 {
+		t.Errorf("expected id %d, got %d", 1, g.ID)
 	}
 }
 
@@ -73,9 +74,9 @@ func TestGitlabService_GetProjectsLst(t *testing.T) {
 
 			// First page request
 			if r.URL.Query().Get("page") == "" || r.URL.Query().Get("page") == "1" {
-				projects := []gitlab.GitlabProject{
-					{Id: 101, Name: "project1", Archived: false},
-					{Id: 102, Name: "project2", Archived: true},
+				projects := []gitlab.Project{
+					{ID: 101, Name: "project1", Archived: false},
+					{ID: 102, Name: "project2", Archived: true},
 				}
 				resJSON, err := json.Marshal(projects)
 				require.NoError(t, err)
@@ -88,8 +89,8 @@ func TestGitlabService_GetProjectsLst(t *testing.T) {
 				fmt.Fprintln(w, string(resJSON))
 			} else if r.URL.Query().Get("page") == "2" {
 				// Second page of results
-				projects := []gitlab.GitlabProject{
-					{Id: 103, Name: "project3", Archived: false},
+				projects := []gitlab.Project{
+					{ID: 103, Name: "project3", Archived: false},
 				}
 				resJSON, err := json.Marshal(projects)
 				require.NoError(t, err)
@@ -108,20 +109,20 @@ func TestGitlabService_GetProjectsLst(t *testing.T) {
 	// Set up GitLab service with test client
 	client := ts.Client()
 	r := gitlab.NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL + "/api/v4")
 
 	// Test the GetProjectsLst function
-	projects, err := r.GetProjectsLst(42)
+	projects, err := r.GetProjectsLst(context.Background(), 42)
 
 	// Verify results
 	require.NoError(t, err)
 	require.Len(t, projects, 3) // 2 from first page + 1 from second page
 
 	// Check we have all the expected projects in the list
-	projectMap := make(map[int]gitlab.GitlabProject)
+	projectMap := make(map[int]gitlab.Project)
 	for _, project := range projects {
-		projectMap[project.Id] = project
+		projectMap[project.ID] = project
 	}
 
 	assert.Contains(t, projectMap, 101)
@@ -148,8 +149,8 @@ func TestGitlabService_GetGroupGetIDWithHTTPMethod(t *testing.T) {
 			assert.NotEmpty(t, r.Header.Get("PRIVATE-TOKEN"))
 
 			// Respond with a mock group object
-			group := gitlab.GitlabGroup{
-				Id:   1,
+			group := gitlab.Group{
+				ID:   1,
 				Name: "testgroup",
 			}
 			resJSON, err := json.Marshal(group)
@@ -163,23 +164,23 @@ func TestGitlabService_GetGroupGetIDWithHTTPMethod(t *testing.T) {
 	// Set up GitLab service with test client
 	client := ts.Client()
 	r := gitlab.NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL + "/api/v4")
 
 	// Test the GetGroup function
-	g, err := r.GetGroup(1)
+	g, err := r.GetGroup(context.Background(), 1)
 	require.NoError(t, err)
 
 	// Check response values
-	assert.Equal(t, 1, g.Id)
+	assert.Equal(t, 1, g.ID)
 	assert.Equal(t, "testgroup", g.Name)
 }
 
 func TestGitlabService_GetProjectGetID(t *testing.T) {
 	ts := httptest.NewTLSServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			res := gitlab.GitlabProject{
-				Id:           1,
+			res := gitlab.Project{
+				ID:           1,
 				Name:         "test",
 				Archived:     true,
 				ExportStatus: "finished",
@@ -197,15 +198,15 @@ func TestGitlabService_GetProjectGetID(t *testing.T) {
 	client := ts.Client()
 
 	r := gitlab.NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL)
 	// retrieve groups
-	p, err := r.GetProject(1)
+	p, err := r.GetProject(context.Background(), 1)
 	if err != nil {
 		t.Errorf("expected no error, got %s", err.Error())
 	}
-	if p.Id != 1 {
-		t.Errorf("expected id %d, got %d", 1, p.Id)
+	if p.ID != 1 {
+		t.Errorf("expected id %d, got %d", 1, p.ID)
 	}
 	if p.Name != "test" {
 		t.Errorf("expected name %s, got %s", "test", p.Name)
@@ -235,7 +236,7 @@ func TestGitlabService_SetGitlabEndpoint(t *testing.T) {
 	ts := httptest.NewTLSServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/groups/1", r.URL.Path)
-			group := gitlab.GitlabGroup{Id: 1, Name: "test-endpoint"}
+			group := gitlab.Group{ID: 1, Name: "test-endpoint"}
 			resJSON, err := json.Marshal(group)
 			require.NoError(t, err)
 			w.Header().Add("Content-Type", "application/json")
@@ -244,12 +245,12 @@ func TestGitlabService_SetGitlabEndpoint(t *testing.T) {
 	defer ts.Close()
 
 	r.SetGitlabEndpoint(ts.URL)
-	r.SetHttpClient(ts.Client())
+	r.SetHTTPClient(ts.Client())
 
 	// Verify the endpoint was set correctly by making a request
-	group, err := r.GetGroup(1)
+	group, err := r.GetGroup(context.Background(), 1)
 	require.NoError(t, err)
-	assert.Equal(t, 1, group.Id)
+	assert.Equal(t, 1, group.ID)
 	assert.Equal(t, "test-endpoint", group.Name)
 }
 
@@ -269,9 +270,9 @@ func TestGitlabService_GetProjectsOfGroup(t *testing.T) {
 
 				if groupID == 10 {
 					// Main group subgroups
-					subgroups := []gitlab.GitlabGroup{
-						{Id: 11, Name: "subgroup1"},
-						{Id: 12, Name: "subgroup2"},
+					subgroups := []gitlab.Group{
+						{ID: 11, Name: "subgroup1"},
+						{ID: 12, Name: "subgroup2"},
 					}
 					resJSON, err := json.Marshal(subgroups)
 					require.NoError(t, err)
@@ -288,24 +289,24 @@ func TestGitlabService_GetProjectsOfGroup(t *testing.T) {
 
 				switch groupID {
 				case 10: // Main group projects
-					projects := []gitlab.GitlabProject{
-						{Id: 101, Name: "main-project1", Archived: false},
-						{Id: 102, Name: "main-project2", Archived: true}, // Archived should be excluded
+					projects := []gitlab.Project{
+						{ID: 101, Name: "main-project1", Archived: false},
+						{ID: 102, Name: "main-project2", Archived: true}, // Archived should be excluded
 					}
 					resJSON, err := json.Marshal(projects)
 					require.NoError(t, err)
 					fmt.Fprintln(w, string(resJSON))
 				case 11: // Subgroup1 projects
-					projects := []gitlab.GitlabProject{
-						{Id: 111, Name: "sub1-project1", Archived: false},
+					projects := []gitlab.Project{
+						{ID: 111, Name: "sub1-project1", Archived: false},
 					}
 					resJSON, err := json.Marshal(projects)
 					require.NoError(t, err)
 					fmt.Fprintln(w, string(resJSON))
 				case 12: // Subgroup2 projects
-					projects := []gitlab.GitlabProject{
-						{Id: 121, Name: "sub2-project1", Archived: false},
-						{Id: 122, Name: "sub2-project2", Archived: false},
+					projects := []gitlab.Project{
+						{ID: 121, Name: "sub2-project1", Archived: false},
+						{ID: 122, Name: "sub2-project2", Archived: false},
 					}
 					resJSON, err := json.Marshal(projects)
 					require.NoError(t, err)
@@ -320,11 +321,11 @@ func TestGitlabService_GetProjectsOfGroup(t *testing.T) {
 	// Set up GitLab service with test client
 	client := ts.Client()
 	r := gitlab.NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL + "/api/v4")
 
 	// Test the GetProjectsOfGroup function
-	projects, err := r.GetProjectsOfGroup(10)
+	projects, err := r.GetProjectsOfGroup(context.Background(), 10)
 
 	// Verify results
 	require.NoError(t, err)
@@ -337,7 +338,7 @@ func TestGitlabService_GetProjectsOfGroup(t *testing.T) {
 	projectNames := make(map[string]bool)
 
 	for _, project := range projects {
-		projectMap[project.Id] = true
+		projectMap[project.ID] = true
 		projectNames[project.Name] = true
 		assert.False(t, project.Archived, "No archived projects should be included")
 	}
@@ -388,8 +389,8 @@ func TestGitlabService_ExportProject(t *testing.T) {
 
 	// 1. Handle project info endpoint
 	mux.HandleFunc(fmt.Sprintf("/api/v4/projects/%d", projectID), func(w http.ResponseWriter, r *http.Request) {
-		project := gitlab.GitlabProject{
-			Id:       projectID,
+		project := gitlab.Project{
+			ID:       projectID,
 			Name:     projectName,
 			Archived: false, // non-archived project
 		}
@@ -439,18 +440,18 @@ func TestGitlabService_ExportProject(t *testing.T) {
 	// Setup GitLab service client with test server
 	client := server.Client()
 	r := gitlab.NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(server.URL + "/api/v4")
 	r.SetToken("test-token")
 
 	// Execute the ExportProject method
-	project := &gitlab.GitlabProject{
-		Id:       projectID,
+	project := &gitlab.Project{
+		ID:       projectID,
 		Name:     projectName,
 		Archived: false,
 	}
 
-	err = r.ExportProject(project, archivePath)
+	err = r.ExportProject(context.Background(), project, archivePath)
 	require.NoError(t, err)
 
 	// Verify file was downloaded
@@ -459,14 +460,14 @@ func TestGitlabService_ExportProject(t *testing.T) {
 	assert.Equal(t, exportContent, fileContent)
 
 	// Test with archived project
-	archivedProject := &gitlab.GitlabProject{
-		Id:       999,
+	archivedProject := &gitlab.Project{
+		ID:       999,
 		Name:     "archived-project",
 		Archived: true,
 	}
 
 	// The export should be skipped for archived projects
-	err = r.ExportProject(archivedProject, filepath.Join(tempDir, "archived-export.tar.gz"))
+	err = r.ExportProject(context.Background(), archivedProject, filepath.Join(tempDir, "archived-export.tar.gz"))
 	require.NoError(t, err)
 
 	// The file should not exist since export was skipped
@@ -478,7 +479,7 @@ func TestGitlabService_Error(t *testing.T) {
 	// 1. Test for HTTP errors (connection refused)
 	r := gitlab.NewGitlabService()
 	r.SetGitlabEndpoint("https://non-existent-gitlab-server.example.com/api/v4")
-	_, err := r.GetGroup(1)
+	_, err := r.GetGroup(context.Background(), 1)
 	require.Error(t, err)
 	// Check for common connection error substrings since the exact message might vary by OS/environment
 	errMsg := err.Error()
@@ -499,9 +500,9 @@ func TestGitlabService_Error(t *testing.T) {
 	defer ts.Close()
 
 	r = gitlab.NewGitlabService()
-	r.SetHttpClient(ts.Client())
+	r.SetHTTPClient(ts.Client())
 	r.SetGitlabEndpoint(ts.URL + "/api/v4")
-	_, err = r.GetGroup(1)
+	_, err = r.GetGroup(context.Background(), 1)
 	require.Error(t, err)
 	// Check for JSON unmarshal error in a more flexible way
 	errMsg = err.Error()
@@ -520,9 +521,9 @@ func TestGitlabService_Error(t *testing.T) {
 	defer ts2.Close()
 
 	r = gitlab.NewGitlabService()
-	r.SetHttpClient(ts2.Client())
+	r.SetHTTPClient(ts2.Client())
 	r.SetGitlabEndpoint(ts2.URL + "/api/v4")
-	_, err = r.GetGroup(1)
+	_, err = r.GetGroup(context.Background(), 1)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error retrieving group")
 	assert.Contains(t, err.Error(), "404 Group Not Found")
@@ -540,7 +541,7 @@ func TestGitlabService_TokenWarning(t *testing.T) {
 			assert.Equal(t, "", r.Header.Get("PRIVATE-TOKEN"))
 
 			// Return a successful response
-			group := gitlab.GitlabGroup{Id: 1, Name: "no-token-test"}
+			group := gitlab.Group{ID: 1, Name: "no-token-test"}
 			resJSON, err := json.Marshal(group)
 			require.NoError(t, err)
 			w.Header().Add("Content-Type", "application/json")
@@ -550,15 +551,15 @@ func TestGitlabService_TokenWarning(t *testing.T) {
 
 	// Create a new service but don't set a token
 	r := gitlab.NewGitlabService()
-	r.SetHttpClient(ts.Client())
+	r.SetHTTPClient(ts.Client())
 	r.SetGitlabEndpoint(ts.URL + "/api/v4")
 	// Explicitly set an empty token
 	r.SetToken("")
 
 	// Make the request - this should work but cause a warning to be logged
-	group, err := r.GetGroup(1)
+	group, err := r.GetGroup(context.Background(), 1)
 	require.NoError(t, err)
-	assert.Equal(t, 1, group.Id)
+	assert.Equal(t, 1, group.ID)
 	assert.Equal(t, "no-token-test", group.Name)
 }
 
@@ -575,7 +576,7 @@ func TestGitlabService_GetNextLink(t *testing.T) {
 			}
 
 			// Return an empty result - we're just testing the header processing
-			projects := []gitlab.GitlabProject{}
+			projects := []gitlab.Project{}
 			resJSON, err := json.Marshal(projects)
 			require.NoError(t, err)
 			w.Header().Add("Content-Type", "application/json")
@@ -586,7 +587,7 @@ func TestGitlabService_GetNextLink(t *testing.T) {
 	// Set up GitLab service with test client
 	client := ts.Client()
 	r := gitlab.NewGitlabService()
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 	r.SetGitlabEndpoint(ts.URL + "/api/v4")
 
 	// 1. Test with Link header present
@@ -596,7 +597,7 @@ func TestGitlabService_GetNextLink(t *testing.T) {
 
 	// This functionality actually tests the unexported getNextLink behavior
 	// through the observable behavior of retrieveProjects calling it
-	_, err = r.GetProjectsLst(1) // This will internally process Link headers
+	_, err = r.GetProjectsLst(context.Background(), 1) // This will internally process Link headers
 	require.NoError(t, err)
 
 	// 2. Test with no Link header
@@ -608,7 +609,7 @@ func TestGitlabService_GetNextLink(t *testing.T) {
 	assert.Equal(t, "", resp.Header.Get("Link"))
 }
 
-func TestGitlabService_SetHttpClient(t *testing.T) {
+func TestGitlabService_SetHTTPClient(t *testing.T) {
 	r := gitlab.NewGitlabService()
 
 	// Create a custom HTTP client with specific timeout
@@ -617,12 +618,12 @@ func TestGitlabService_SetHttpClient(t *testing.T) {
 	}
 
 	// Set the custom client
-	r.SetHttpClient(client)
+	r.SetHTTPClient(client)
 
 	// Test that the client was set correctly by making a request
 	ts := httptest.NewTLSServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			group := gitlab.GitlabGroup{Id: 1, Name: "test-client"}
+			group := gitlab.Group{ID: 1, Name: "test-client"}
 			resJSON, err := json.Marshal(group)
 			require.NoError(t, err)
 			w.Header().Add("Content-Type", "application/json")
@@ -631,11 +632,11 @@ func TestGitlabService_SetHttpClient(t *testing.T) {
 	defer ts.Close()
 
 	// Use the test server's client which has the correct certificates
-	r.SetHttpClient(ts.Client())
+	r.SetHTTPClient(ts.Client())
 	r.SetGitlabEndpoint(ts.URL + "/api/v4")
 
-	group, err := r.GetGroup(1)
+	group, err := r.GetGroup(context.Background(), 1)
 	require.NoError(t, err)
-	assert.Equal(t, 1, group.Id)
+	assert.Equal(t, 1, group.ID)
 	assert.Equal(t, "test-client", group.Name)
 }

@@ -1,3 +1,4 @@
+// Package hooks provides pre and post backup hook functionality.
 package hooks
 
 import (
@@ -8,43 +9,44 @@ import (
 	"github.com/go-andiamo/splitter"
 )
 
+// Hooks holds the configuration for pre and post backup hooks.
 type Hooks struct {
-	PreBackup  string `yaml:"prebackup" env:"PREBACKUP" env-default:""`
-	PostBackup string `yaml:"postbackup" env:"POSTBACKUP" env-default:""`
+	PreBackup  string `env:"PREBACKUP"  env-default:"" yaml:"prebackup"`
+	PostBackup string `env:"POSTBACKUP" env-default:"" yaml:"postbackup"`
 }
 
-// GeneratePreBackupCmd generates the pre backup command
+// GeneratePreBackupCmd generates the pre backup command.
 func (h *Hooks) GeneratePreBackupCmd() string {
 	return h.PreBackup
 }
 
-// GeneratePostBackupCmd generates the post backup command
+// GeneratePostBackupCmd generates the post backup command.
 func (h *Hooks) GeneratePostBackupCmd(file string) string {
 	cmd := strings.ReplaceAll(h.PostBackup, "%INPUTFILE%", file)
 	return cmd
 }
 
-// HasPreBackup returns true if a pre backup command is defined
+// HasPreBackup returns true if a pre backup command is defined.
 func (h *Hooks) HasPreBackup() bool {
 	return h.PreBackup != ""
 }
 
-// HasPostBackup returns true if a post backup command is defined
+// HasPostBackup returns true if a post backup command is defined.
 func (h *Hooks) HasPostBackup() bool {
 	return h.PostBackup != ""
 }
 
-// ExecutePreBackup executes the pre backup command
+// ExecutePreBackup executes the pre backup command.
 func (h *Hooks) ExecutePreBackup() error {
 	return execute(h.GeneratePreBackupCmd())
 }
 
-// ExecutePostBackup executes the post backup command
+// ExecutePostBackup executes the post backup command.
 func (h *Hooks) ExecutePostBackup(file string) error {
 	return execute(h.GeneratePostBackupCmd(file))
 }
 
-// execute executes the given command
+// execute executes the given command.
 func execute(command string) error {
 	if command == "" {
 		return nil
@@ -55,9 +57,10 @@ func execute(command string) error {
 	if len(splitCmd) == 0 {
 		return nil
 	}
+	//nolint:gosec // G204: Command execution with user input is intentional for hook functionality
 	_, err := exec.Command(splitCmd[0], splitCmd[1:]...).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to execute : %s - %s", command, err.Error())
+		return fmt.Errorf("failed to execute %s: %w", command, err)
 	}
 	return nil
 }

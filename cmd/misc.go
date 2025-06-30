@@ -10,7 +10,7 @@ func initTrace(debugLevel string, noLogTime bool) *slog.Logger {
 		Level: slog.LevelDebug,
 	}
 	if noLogTime {
-		handlerOptions.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
+		handlerOptions.ReplaceAttr = func(_ []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey {
 				return slog.Attr{} // Remove the time attribute
 			}

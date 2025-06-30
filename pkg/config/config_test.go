@@ -237,8 +237,8 @@ func TestConfigString(t *testing.T) {
 	// Check that the string contains all the expected values
 	require.Contains(t, str, "gitlabGroupID: 123")
 	require.Contains(t, str, "gitlabProjectID: 456")
-	require.Contains(t, str, "gitlabtoken: mytoken")
-	require.Contains(t, str, "gitlaburi: https://gitlab.com")
+	require.Contains(t, str, "gitlabToken: mytoken")
+	require.Contains(t, str, "gitlabURI: https://gitlab.com")
 	require.Contains(t, str, "localpath: /data/gitlab")
 	require.Contains(t, str, "tmpdir: /tmp")
 	require.Contains(t, str, "prebackup: echo prebackup")
@@ -247,8 +247,8 @@ func TestConfigString(t *testing.T) {
 	require.Contains(t, str, "bucketName: mybucket")
 	require.Contains(t, str, "bucketPath: mybucketpath")
 	require.Contains(t, str, "region: myregion")
-	require.Contains(t, str, "accesskey: myaccesskey")
-	require.Contains(t, str, "secretkey: mysecretkey")
+	require.Contains(t, str, "accessKey: myaccesskey")
+	require.Contains(t, str, "secretKey: mysecretkey")
 	require.Contains(t, str, "noLogTime: false")
 }
 

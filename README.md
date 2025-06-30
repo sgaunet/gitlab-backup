@@ -3,6 +3,9 @@
 ![GitHub Downloads](https://img.shields.io/github/downloads/sgaunet/gitlab-backup/total)
 ![Test Coverage](https://raw.githubusercontent.com/wiki/sgaunet/gitlab-backup/coverage-badge.svg)
 [![GoDoc](https://godoc.org/github.com/sgaunet/gitlab-backup?status.svg)](https://godoc.org/github.com/sgaunet/gitlab-backup)
+[![Linter](https://github.com/sgaunet/gitlab-backup/workflows/linter/badge.svg)](https://github.com/sgaunet/gitlab-backup/actions/workflows/linter.yml)
+[![Release](https://github.com/sgaunet/gitlab-backup/workflows/release/badge.svg)](https://github.com/sgaunet/gitlab-backup/actions/workflows/release.yml)
+[![Snapshot](https://github.com/sgaunet/gitlab-backup/workflows/snapshot/badge.svg)](https://github.com/sgaunet/gitlab-backup/actions/workflows/snapshot.yml)
 [![License](https://img.shields.io/github/license/sgaunet/gitlab-backup.svg)](LICENSE)
 
 # gitlab-backup

@@ -118,7 +118,8 @@ docker_manifests:
 
 
 brews:
-  - homepage: 'https://github.com/sgaunet/homebrew-tools'
+  - homepage: 'https://github.com/sgaunet/gitlab-backup'
+    description: 'A tool for backing up GitLab projects'
     directory: Formula
     commit_author:
       name: sgaunet
@@ -126,3 +127,10 @@ brews:
     repository:
       owner: sgaunet
       name: homebrew-tools
+      # Token with 'repo' scope is required for pushing to a different repository
+      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
+    url_template: 'https://github.com/sgaunet/gitlab-backup/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
+    install: |
+      bin.install "gitlab-backup"
+    test: |
+      system "#{bin}/gitlab-backup", "--help"

@@ -28,7 +28,7 @@ func (s *Service) GetSubgroups(ctx context.Context, groupID int) ([]Group, error
 	
 	var allSubgroups []Group
 	for {
-		subgroups, resp, err := s.client.Groups.ListSubGroups(groupID, opt, gitlab.WithContext(ctx))
+		subgroups, resp, err := s.client.Groups().ListSubGroups(groupID, opt, gitlab.WithContext(ctx))
 		if err != nil {
 			return nil, fmt.Errorf("error listing subgroups: %w", err)
 		}
@@ -109,7 +109,7 @@ func (s *Service) GetProjectsLst(ctx context.Context, groupID int) ([]Project, e
 	
 	var allProjects []Project
 	for {
-		projects, resp, err := s.client.Groups.ListGroupProjects(groupID, opt, gitlab.WithContext(ctx))
+		projects, resp, err := s.client.Groups().ListGroupProjects(groupID, opt, gitlab.WithContext(ctx))
 		if err != nil {
 			return nil, fmt.Errorf("error listing group projects: %w", err)
 		}

@@ -37,7 +37,7 @@ type Project struct {
 
 // askExport asks gitlab to export the project.
 func (s *Service) askExport(ctx context.Context, projectID int) (bool, error) {
-	resp, err := s.client.ProjectImportExport.ScheduleExport(projectID, nil, gitlab.WithContext(ctx))
+	resp, err := s.client.ProjectImportExport().ScheduleExport(projectID, nil, gitlab.WithContext(ctx))
 	if err != nil {
 		return false, fmt.Errorf("failed to make export request: %w", err)
 	}
@@ -75,7 +75,7 @@ loop:
 
 // getStatusExport returns the status of the export.
 func (s *Service) getStatusExport(ctx context.Context, projectID int) (string, error) {
-	exportStatus, _, err := s.client.ProjectImportExport.ExportStatus(projectID, gitlab.WithContext(ctx))
+	exportStatus, _, err := s.client.ProjectImportExport().ExportStatus(projectID, gitlab.WithContext(ctx))
 	if err != nil {
 		return "", fmt.Errorf("failed to get export status: %w", err)
 	}
@@ -122,7 +122,7 @@ func (s *Service) downloadProject(ctx context.Context, projectID int, tmpFilePat
 	tmpFile := tmpFilePath + ".tmp"
 
 	// Download the export using the official client
-	data, _, err := s.client.ProjectImportExport.ExportDownload(projectID, gitlab.WithContext(ctx))
+	data, _, err := s.client.ProjectImportExport().ExportDownload(projectID, gitlab.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("failed to download export: %w", err)
 	}

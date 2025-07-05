@@ -44,10 +44,9 @@ type Logger interface {
 
 // Service provides methods to interact with GitLab API.
 type Service struct {
-	client            *gitlab.Client
-	gitlabAPIEndpoint string
-	token             string
-
+	client               GitLabClient
+	gitlabAPIEndpoint    string
+	token                string
 	rateLimitDownloadAPI *rate.Limiter
 	rateLimitExportAPI   *rate.Limiter
 }
@@ -59,11 +58,13 @@ func init() {
 // NewGitlabService returns a new Service.
 func NewGitlabService() *Service {
 	token := os.Getenv("GITLAB_TOKEN")
-	client, err := gitlab.NewClient(token)
+	glClient, err := gitlab.NewClient(token)
 	if err != nil {
 		log.Error("failed to create GitLab client", "error", err)
 		return nil
 	}
+
+	client := NewGitLabClientWrapper(glClient)
 
 	gs := &Service{
 		client:            client,
@@ -94,12 +95,12 @@ func SetLogger(l Logger) {
 func (r *Service) SetGitlabEndpoint(gitlabAPIEndpoint string) {
 	r.gitlabAPIEndpoint = gitlabAPIEndpoint
 	// Create a new client with the custom base URL
-	client, err := gitlab.NewClient(r.token, gitlab.WithBaseURL(gitlabAPIEndpoint))
+	glClient, err := gitlab.NewClient(r.token, gitlab.WithBaseURL(gitlabAPIEndpoint))
 	if err != nil {
 		log.Error("failed to create GitLab client with custom base URL", "error", err, "url", gitlabAPIEndpoint)
 		return
 	}
-	r.client = client
+	r.client = NewGitLabClientWrapper(glClient)
 }
 
 // SetToken sets the Gitlab API token
@@ -110,23 +111,23 @@ func (r *Service) SetToken(token string) {
 	}
 	r.token = token
 	// Create a new client with the new token
-	var client *gitlab.Client
+	var glClient *gitlab.Client
 	var err error
 	if r.gitlabAPIEndpoint != GitlabAPIEndpoint {
-		client, err = gitlab.NewClient(token, gitlab.WithBaseURL(r.gitlabAPIEndpoint))
+		glClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(r.gitlabAPIEndpoint))
 	} else {
-		client, err = gitlab.NewClient(token)
+		glClient, err = gitlab.NewClient(token)
 	}
 	if err != nil {
 		log.Error("failed to create GitLab client with new token", "error", err)
 		return
 	}
-	r.client = client
+	r.client = NewGitLabClientWrapper(glClient)
 }
 
 // GetGroup returns the gitlab group from the given ID.
 func (r *Service) GetGroup(ctx context.Context, groupID int) (Group, error) {
-	group, _, err := r.client.Groups.GetGroup(groupID, nil, gitlab.WithContext(ctx))
+	group, _, err := r.client.Groups().GetGroup(groupID, nil, gitlab.WithContext(ctx))
 	if err != nil {
 		return Group{}, fmt.Errorf("error retrieving group: %w", err)
 	}
@@ -139,7 +140,7 @@ func (r *Service) GetGroup(ctx context.Context, groupID int) (Group, error) {
 
 // GetProject returns informations of the project that matches the given ID.
 func (r *Service) GetProject(ctx context.Context, projectID int) (Project, error) {
-	project, _, err := r.client.Projects.GetProject(projectID, nil, gitlab.WithContext(ctx))
+	project, _, err := r.client.Projects().GetProject(projectID, nil, gitlab.WithContext(ctx))
 	if err != nil {
 		return Project{}, fmt.Errorf("error retrieving project: %w", err)
 	}

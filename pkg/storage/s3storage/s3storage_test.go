@@ -57,17 +57,17 @@ func TestS3Storage_SaveFile(t *testing.T) {
 
 	s3, err := s3storage.NewS3Storage("us-east-1", fmt.Sprintf("http://%s", endpoint), "tests", "tests")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("error: %v", err)
 	}
 
 	err = s3.CreateBucket(ctx)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("error: %v", err)
 	}
 
 	err = s3.SaveFile(ctx, "../../../README.md", "README.md")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("error: %v", err)
 	}
 
 }
@@ -79,10 +79,10 @@ func TestS3Storage_SaveFile(t *testing.T) {
 
 // 	s3, err := s3storage.NewS3Storage("eu-west-3", "https://s3.eu-west-3.amazonaws.com", "mybucket", "prefix")
 // 	if err != nil {
-// 		t.Errorf(err.Error())
+// 		t.Errorf("error: %v", err)
 // 	}
 // 	err = s3.SaveFile(ctx, "/home/sylvain/GITHUB/PUBLIC/gitlab-backup/README.md", "README.md")
 // 	if err != nil {
-// 		t.Errorf(err.Error())
+// 		t.Errorf("error: %v", err)
 // 	}
 // }

@@ -2,16 +2,13 @@ package gitlab
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"os"
-	"strings"
 	"time"
 
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 	"golang.org/x/time/rate"
 )
 
@@ -23,15 +20,15 @@ var (
 const (
 	// GitlabAPIEndpoint is the default GitLab API endpoint.
 	GitlabAPIEndpoint = "https://gitlab.com/api/v4"
-	
+
 	// DownloadRateLimitIntervalSeconds defines the rate limit interval for download API calls.
 	DownloadRateLimitIntervalSeconds = 60
 	// DownloadRateLimitBurst defines the burst limit for download API calls.
-	DownloadRateLimitBurst          = 1
+	DownloadRateLimitBurst = 1
 	// ExportRateLimitIntervalSeconds defines the rate limit interval for export API calls.
-	ExportRateLimitIntervalSeconds  = 60
+	ExportRateLimitIntervalSeconds = 60
 	// ExportRateLimitBurst defines the burst limit for export API calls.
-	ExportRateLimitBurst           = 6
+	ExportRateLimitBurst = 6
 )
 
 var log Logger
@@ -46,47 +43,32 @@ type Logger interface {
 
 // Service provides methods to interact with GitLab API.
 type Service struct {
+	client               GitLabClient
 	gitlabAPIEndpoint    string
 	token                string
-	httpClient           *http.Client
 	rateLimitDownloadAPI *rate.Limiter
 	rateLimitExportAPI   *rate.Limiter
 }
 
 func init() {
-	log = slog.New(slog.NewTextHandler(io.Discard, nil))
-}
-
-// getNextLink parses the link header and returns the next page url
-// gitlab API returns a link header with the next page url
-// we need to parse this header to get the next page url.
-func getNextLink(linkHeader string) string {
-	// linkHeader has the format: url1; rel="first", url2; rel="prev", url3; rel="next", url4; rel="last"
-	// so we split the string with the , separator
-	// and take the first element
-	links := strings.Split(linkHeader, ",")
-	for _, link := range links {
-		// link is formatted like this:
-		// <https://gitlab.com/api/v4/groups/1234/projects?page=2&per_page=100>; rel="next"
-		// we only need the next page url
-		// so we split the string with the ; separator
-		// and take the first element
-		if strings.Contains(link, "rel=\"next\"") {
-			nextPageURL := strings.Split(link, ";")[0]
-			// remove the < and > characters
-			nextPageURL = strings.Trim(nextPageURL, "<> ")
-			return nextPageURL
-		}
-	}
-	return ""
+	log = slog.New(slog.DiscardHandler)
 }
 
 // NewGitlabService returns a new Service.
 func NewGitlabService() *Service {
+	token := os.Getenv("GITLAB_TOKEN")
+	glClient, err := gitlab.NewClient(token)
+	if err != nil {
+		log.Error("failed to create GitLab client", "error", err)
+		return nil
+	}
+
+	client := NewGitLabClientWrapper(glClient)
+
 	gs := &Service{
+		client:            client,
 		gitlabAPIEndpoint: GitlabAPIEndpoint,
-		token:             os.Getenv("GITLAB_TOKEN"),
-		httpClient:        &http.Client{},
+		token:             token,
 		// implement rate limiting https://docs.gitlab.com/ee/administration/settings/import_export_rate_limits.html
 		rateLimitDownloadAPI: rate.NewLimiter(
 			rate.Every(DownloadRateLimitIntervalSeconds*time.Second),
@@ -111,6 +93,13 @@ func SetLogger(l Logger) {
 // default: https://gitlab.com/v4/api/
 func (r *Service) SetGitlabEndpoint(gitlabAPIEndpoint string) {
 	r.gitlabAPIEndpoint = gitlabAPIEndpoint
+	// Create a new client with the custom base URL
+	glClient, err := gitlab.NewClient(r.token, gitlab.WithBaseURL(gitlabAPIEndpoint))
+	if err != nil {
+		log.Error("failed to create GitLab client with custom base URL", "error", err, "url", gitlabAPIEndpoint)
+		return
+	}
+	r.client = NewGitLabClientWrapper(glClient)
 }
 
 // SetToken sets the Gitlab API token
@@ -120,45 +109,45 @@ func (r *Service) SetToken(token string) {
 		log.Warn("no token provided")
 	}
 	r.token = token
-}
-
-// SetHTTPClient sets the http client
-// default: http.Client{}
-func (r *Service) SetHTTPClient(httpClient *http.Client) {
-	if httpClient != nil {
-		r.httpClient = httpClient
+	// Create a new client with the new token
+	var glClient *gitlab.Client
+	var err error
+	if r.gitlabAPIEndpoint != GitlabAPIEndpoint {
+		glClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(r.gitlabAPIEndpoint))
+	} else {
+		glClient, err = gitlab.NewClient(token)
 	}
+	if err != nil {
+		log.Error("failed to create GitLab client with new token", "error", err)
+		return
+	}
+	r.client = NewGitLabClientWrapper(glClient)
 }
-
 
 // GetGroup returns the gitlab group from the given ID.
 func (r *Service) GetGroup(ctx context.Context, groupID int) (Group, error) {
-	url := fmt.Sprintf("%s/groups/%d", r.gitlabAPIEndpoint, groupID)
-	body, err := r.makeRequest(ctx, url, "group")
+	group, _, err := r.client.Groups().GetGroup(groupID, nil, gitlab.WithContext(ctx))
 	if err != nil {
-		return Group{}, err
+		return Group{}, fmt.Errorf("error retrieving group: %w", err)
 	}
 
-	var res Group
-	if err := json.Unmarshal(body, &res); err != nil {
-		return Group{}, fmt.Errorf("error unmarshalling json: %w", err)
-	}
-
-	return res, nil
+	return Group{
+		ID:   group.ID,
+		Name: group.Name,
+	}, nil
 }
 
 // GetProject returns informations of the project that matches the given ID.
 func (r *Service) GetProject(ctx context.Context, projectID int) (Project, error) {
-	url := fmt.Sprintf("%s/projects/%d", r.gitlabAPIEndpoint, projectID)
-	body, err := r.makeRequest(ctx, url, "project")
+	project, _, err := r.client.Projects().GetProject(projectID, nil, gitlab.WithContext(ctx))
 	if err != nil {
-		return Project{}, err
+		return Project{}, fmt.Errorf("error retrieving project: %w", err)
 	}
 
-	var res Project
-	if err := json.Unmarshal(body, &res); err != nil {
-		return Project{}, fmt.Errorf("error unmarshalling json: %w", err)
-	}
-
-	return res, nil
+	return Project{
+		ID:           project.ID,
+		Name:         project.Name,
+		Archived:     project.Archived,
+		ExportStatus: "", // ExportStatus not available in project struct, will be fetched separately when needed
+	}, nil
 }

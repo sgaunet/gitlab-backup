@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"time"
@@ -52,7 +51,7 @@ type Service struct {
 }
 
 func init() {
-	log = slog.New(slog.NewTextHandler(io.Discard, nil))
+	log = slog.New(slog.DiscardHandler)
 }
 
 // NewGitlabService returns a new Service.

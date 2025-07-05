@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -49,7 +48,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	app := &App{
 		cfg:           cfg,
 		gitlabService: gitlab.NewGitlabService(),
-		log:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		log:           slog.New(slog.DiscardHandler),
 	}
 	gitlab.SetLogger(app.log)
 	if cfg.IsS3ConfigValid() {

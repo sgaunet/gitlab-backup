@@ -22,10 +22,12 @@ const (
 	GitlabAPIEndpoint = "https://gitlab.com/api/v4"
 
 	// DownloadRateLimitIntervalSeconds defines the rate limit interval for download API calls.
+	// Based on GitLab repository files API limit: 5 requests per minute per user
 	DownloadRateLimitIntervalSeconds = 60
 	// DownloadRateLimitBurst defines the burst limit for download API calls.
-	DownloadRateLimitBurst = 1
+	DownloadRateLimitBurst = 5
 	// ExportRateLimitIntervalSeconds defines the rate limit interval for export API calls.
+	// Based on GitLab project import/export API limit: 6 requests per minute per user
 	ExportRateLimitIntervalSeconds = 60
 	// ExportRateLimitBurst defines the burst limit for export API calls.
 	ExportRateLimitBurst = 6

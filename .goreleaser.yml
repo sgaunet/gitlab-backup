@@ -131,6 +131,6 @@ brews:
       token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
     url_template: 'https://github.com/sgaunet/gitlab-backup/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
     install: |
-      bin.install "gitlab-backup"
+      bin.install "{{ .ArtifactName }}" => "gitlab-backup"
     test: |
       system "#{bin}/gitlab-backup", "--help"

@@ -57,7 +57,7 @@ func execute(command string) error {
 	if len(splitCmd) == 0 {
 		return nil
 	}
-	//nolint:gosec // G204: Command execution with user input is intentional for hook functionality
+	//nolint:gosec,noctx // G204: Command execution with user input is intentional for hook functionality
 	_, err := exec.Command(splitCmd[0], splitCmd[1:]...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to execute %s: %w", command, err)

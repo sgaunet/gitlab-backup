@@ -47,7 +47,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	var err error
 	app := &App{
 		cfg:           cfg,
-		gitlabService: gitlab.NewGitlabService(),
+		gitlabService: gitlab.NewGitlabServiceWithTimeout(cfg.ExportTimeoutMins),
 		log:           slog.New(slog.DiscardHandler),
 	}
 	gitlab.SetLogger(app.log)

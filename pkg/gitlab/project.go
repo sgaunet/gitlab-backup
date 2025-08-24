@@ -48,11 +48,14 @@ func (s *Service) askExport(ctx context.Context, projectID int) (bool, error) {
 
 // waitForExport waits for gitlab to finish the export.
 func (s *Service) waitForExport(ctx context.Context, projectID int) error {
+	// Create a context with timeout to avoid waiting forever
+	timeoutCtx, cancel := context.WithTimeout(ctx, s.exportTimeoutDuration)
+	defer cancel()
+
 	nbTries := 0
 loop:
 	for nbTries < MaxExportRetries {
-		// !TODO : Set a timeout to avoid to wait forever
-		exportStatus, err := s.getStatusExport(ctx, projectID)
+		exportStatus, err := s.getStatusExport(timeoutCtx, projectID)
 		if err != nil {
 			return err
 		}
@@ -65,12 +68,30 @@ loop:
 		default:
 			log.Info("wait after gitlab to get the archive", "projectID", projectID)
 		}
-		time.Sleep(ExportCheckIntervalSeconds * time.Second)
+
+		// Sleep with context awareness
+		if err := s.sleepWithContext(timeoutCtx, projectID, ExportCheckIntervalSeconds*time.Second); err != nil {
+			return err
+		}
 	}
 	if nbTries == MaxExportRetries {
 		return fmt.Errorf("%w %d", ErrExportTimeout, projectID)
 	}
 	return nil
+}
+
+// sleepWithContext sleeps for the specified duration or until the context is done.
+func (s *Service) sleepWithContext(ctx context.Context, projectID int, duration time.Duration) error {
+	select {
+	case <-ctx.Done():
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf("export timeout after %v for project %d: %w",
+				s.exportTimeoutDuration, projectID, context.DeadlineExceeded)
+		}
+		return fmt.Errorf("export cancelled for project %d: %w", projectID, ctx.Err())
+	case <-time.After(duration):
+		return nil
+	}
 }
 
 // getStatusExport returns the status of the export.

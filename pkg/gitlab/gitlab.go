@@ -31,6 +31,8 @@ const (
 	ExportRateLimitIntervalSeconds = 60
 	// ExportRateLimitBurst defines the burst limit for export API calls.
 	ExportRateLimitBurst = 6
+	// DefaultExportTimeoutMins defines the default export timeout in minutes.
+	DefaultExportTimeoutMins = 10
 )
 
 var log Logger
@@ -50,14 +52,20 @@ type Service struct {
 	token                string
 	rateLimitDownloadAPI *rate.Limiter
 	rateLimitExportAPI   *rate.Limiter
+	exportTimeoutDuration time.Duration
 }
 
 func init() {
 	log = slog.New(slog.DiscardHandler)
 }
 
-// NewGitlabService returns a new Service.
+// NewGitlabService returns a new Service with default timeout.
 func NewGitlabService() *Service {
+	return NewGitlabServiceWithTimeout(DefaultExportTimeoutMins)
+}
+
+// NewGitlabServiceWithTimeout returns a new Service with configurable timeout.
+func NewGitlabServiceWithTimeout(timeoutMins int) *Service {
 	token := os.Getenv("GITLAB_TOKEN")
 	glClient, err := gitlab.NewClient(token)
 	if err != nil {
@@ -71,6 +79,7 @@ func NewGitlabService() *Service {
 		client:            client,
 		gitlabAPIEndpoint: GitlabAPIEndpoint,
 		token:             token,
+		exportTimeoutDuration: time.Duration(timeoutMins) * time.Minute,
 		// implement rate limiting https://docs.gitlab.com/ee/administration/settings/import_export_rate_limits.html
 		rateLimitDownloadAPI: rate.NewLimiter(
 			rate.Every(DownloadRateLimitIntervalSeconds*time.Second),

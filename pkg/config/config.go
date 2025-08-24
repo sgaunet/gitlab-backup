@@ -22,15 +22,16 @@ type S3Config struct {
 
 // Config holds the application configuration.
 type Config struct {
-	GitlabGroupID   int         `env:"GITLABGROUPID"   env-default:"0"                  yaml:"gitlabGroupID"`
-	GitlabProjectID int         `env:"GITLABPROJECTID" env-default:"0"                  yaml:"gitlabProjectID"`
-	GitlabToken     string      `env:"GITLAB_TOKEN"    env-required:"true"              yaml:"gitlabToken"`
-	GitlabURI       string      `env:"GITLAB_URI"      env-default:"https://gitlab.com" yaml:"gitlabURI"`
-	LocalPath       string      `env:"LOCALPATH"       env-default:""                   yaml:"localpath"`
-	TmpDir          string      `env:"TMPDIR"          env-default:"/tmp"               yaml:"tmpdir"`
-	Hooks           hooks.Hooks `yaml:"hooks"`
-	S3cfg           S3Config    `yaml:"s3cfg"`
-	NoLogTime       bool        `env:"NOLOGTIME"       env-default:"false"              yaml:"noLogTime"`
+	GitlabGroupID      int         `env:"GITLABGROUPID"      env-default:"0"                  yaml:"gitlabGroupID"`
+	GitlabProjectID    int         `env:"GITLABPROJECTID"    env-default:"0"                  yaml:"gitlabProjectID"`
+	GitlabToken        string      `env:"GITLAB_TOKEN"       env-required:"true"              yaml:"gitlabToken"`
+	GitlabURI          string      `env:"GITLAB_URI"         env-default:"https://gitlab.com" yaml:"gitlabURI"`
+	LocalPath          string      `env:"LOCALPATH"          env-default:""                   yaml:"localpath"`
+	TmpDir             string      `env:"TMPDIR"             env-default:"/tmp"               yaml:"tmpdir"`
+	ExportTimeoutMins  int         `env:"EXPORT_TIMEOUT_MIN" env-default:"10"                 yaml:"exportTimeoutMins"`
+	Hooks              hooks.Hooks `yaml:"hooks"`
+	S3cfg              S3Config    `yaml:"s3cfg"`
+	NoLogTime          bool        `env:"NOLOGTIME"          env-default:"false"              yaml:"noLogTime"`
 }
 
 // NewConfigFromFile returns a new Config struct from the given file.

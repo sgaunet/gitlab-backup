@@ -32,6 +32,7 @@ localpath: "/backup"
 gitlabtoken: 
 # gitlaburi: https://gitlab.com
 # tmpdir: /tmp
+# exportTimeoutMins: 10  # Export timeout in minutes (default: 10, increase for large projects)
 hooks:
     prebackup: ""
     postbackup: ""
@@ -53,6 +54,8 @@ Launch the program: `gitlab-backup -c configuration.yaml`
 ```
   AWS_ACCESS_KEY_ID string
   AWS_SECRET_ACCESS_KEY string
+  EXPORT_TIMEOUT_MIN int
+         (default "10")
   GITLABGROUPID int
          (default "0")
   GITLABPROJECTID int

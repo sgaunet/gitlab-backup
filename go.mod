@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.85.1
 	github.com/go-andiamo/splitter v1.2.5
 	github.com/ilyakaznacheev/cleanenv v1.5.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
 	gitlab.com/gitlab-org/api/client-go v0.137.0
 	golang.org/x/sync v0.16.0

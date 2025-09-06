@@ -1,8 +1,5 @@
-tst
-dist
-gitlab-backup
-gitlab-backup2s3/gitlab-backup2s3
-.task
+/dist
+/gitlab-backup
+/.task
 data-minio
-/.devbox
 /pkg/gitlab/mocks

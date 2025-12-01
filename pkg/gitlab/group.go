@@ -11,13 +11,13 @@ import (
 // https://docs.gitlab.com/ee/api/groups.html
 // struct fields are not exhaustive - most of them won't be used.
 type Group struct {
-	ID   int    `json:"id"`
+	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
 // GetSubgroups returns the list of subgroups of the group.
 // It's a recursive function that will return all subgroups of the group.
-func (s *Service) GetSubgroups(ctx context.Context, groupID int) ([]Group, error) {
+func (s *Service) GetSubgroups(ctx context.Context, groupID int64) ([]Group, error) {
 	opt := &gitlab.ListSubGroupsOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 20, //nolint:mnd // GitLab API pagination default
@@ -60,7 +60,7 @@ func (s *Service) GetSubgroups(ctx context.Context, groupID int) ([]Group, error
 }
 
 // GetProjectsOfGroup returns the list of every projects of the group and subgroups.
-func (s *Service) GetProjectsOfGroup(ctx context.Context, groupID int) ([]Project, error) {
+func (s *Service) GetProjectsOfGroup(ctx context.Context, groupID int64) ([]Project, error) {
 	// First get all subgroups recursively
 	subgroups, err := s.GetSubgroups(ctx, groupID)
 	if err != nil {
@@ -98,7 +98,7 @@ func (s *Service) GetProjectsOfGroup(ctx context.Context, groupID int) ([]Projec
 }
 
 // GetProjectsLst returns the list of projects of the group.
-func (s *Service) GetProjectsLst(ctx context.Context, groupID int) ([]Project, error) {
+func (s *Service) GetProjectsLst(ctx context.Context, groupID int64) ([]Project, error) {
 	opt := &gitlab.ListGroupProjectsOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 20, //nolint:mnd // GitLab API pagination default

@@ -29,14 +29,14 @@ const (
 // https://docs.gitlab.com/ee/api/projects.html
 // struct fields are not exhaustive - most of them won't be used.
 type Project struct {
-	ID           int    `json:"id"`
+	ID           int64  `json:"id"`
 	Name         string `json:"name"`
 	Archived     bool   `json:"archived"`
 	ExportStatus string `json:"export_status"`
 }
 
 // askExport asks gitlab to export the project.
-func (s *Service) askExport(ctx context.Context, projectID int) (bool, error) {
+func (s *Service) askExport(ctx context.Context, projectID int64) (bool, error) {
 	resp, err := s.client.ProjectImportExport().ScheduleExport(projectID, nil, gitlab.WithContext(ctx))
 	if err != nil {
 		return false, fmt.Errorf("failed to make export request: %w", err)
@@ -47,7 +47,7 @@ func (s *Service) askExport(ctx context.Context, projectID int) (bool, error) {
 }
 
 // waitForExport waits for gitlab to finish the export.
-func (s *Service) waitForExport(ctx context.Context, projectID int) error {
+func (s *Service) waitForExport(ctx context.Context, projectID int64) error {
 	// Create a context with timeout to avoid waiting forever
 	timeoutCtx, cancel := context.WithTimeout(ctx, s.exportTimeoutDuration)
 	defer cancel()
@@ -81,7 +81,7 @@ loop:
 }
 
 // sleepWithContext sleeps for the specified duration or until the context is done.
-func (s *Service) sleepWithContext(ctx context.Context, projectID int, duration time.Duration) error {
+func (s *Service) sleepWithContext(ctx context.Context, projectID int64, duration time.Duration) error {
 	select {
 	case <-ctx.Done():
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
@@ -95,7 +95,7 @@ func (s *Service) sleepWithContext(ctx context.Context, projectID int, duration 
 }
 
 // getStatusExport returns the status of the export.
-func (s *Service) getStatusExport(ctx context.Context, projectID int) (string, error) {
+func (s *Service) getStatusExport(ctx context.Context, projectID int64) (string, error) {
 	exportStatus, _, err := s.client.ProjectImportExport().ExportStatus(projectID, gitlab.WithContext(ctx))
 	if err != nil {
 		return "", fmt.Errorf("failed to get export status: %w", err)
@@ -134,7 +134,7 @@ func (s *Service) ExportProject(ctx context.Context, project *Project, archiveFi
 }
 
 // downloadProject downloads the project and save the archive to the given path.
-func (s *Service) downloadProject(ctx context.Context, projectID int, tmpFilePath string) error {
+func (s *Service) downloadProject(ctx context.Context, projectID int64, tmpFilePath string) error {
 	err := s.rateLimitDownloadAPI.Wait(ctx) // This is a blocking call. Honors the rate limit
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrRateLimit, err)

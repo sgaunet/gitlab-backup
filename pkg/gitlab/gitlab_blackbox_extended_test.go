@@ -168,23 +168,23 @@ func TestGitlabService_ContextHandling_PublicAPI(t *testing.T) {
 
 func TestGitlabService_DataTypes_PublicAPI(t *testing.T) {
 	// Test public data types and their structure
-	
+
 	// Test Group type
 	group := gitlab.Group{
-		ID:   1,
+		ID:   int64(1),
 		Name: "test-group",
 	}
-	assert.Equal(t, 1, group.ID)
+	assert.Equal(t, int64(1), group.ID)
 	assert.Equal(t, "test-group", group.Name)
 
 	// Test Project type
 	project := gitlab.Project{
-		ID:           1,
+		ID:           int64(1),
 		Name:         "test-project",
 		Archived:     false,
 		ExportStatus: "none",
 	}
-	assert.Equal(t, 1, project.ID)
+	assert.Equal(t, int64(1), project.ID)
 	assert.Equal(t, "test-project", project.Name)
 	assert.False(t, project.Archived)
 	assert.Equal(t, "none", project.ExportStatus)

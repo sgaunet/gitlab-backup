@@ -22,8 +22,8 @@ type S3Config struct {
 
 // Config holds the application configuration.
 type Config struct {
-	GitlabGroupID      int         `env:"GITLABGROUPID"      env-default:"0"                  yaml:"gitlabGroupID"`
-	GitlabProjectID    int         `env:"GITLABPROJECTID"    env-default:"0"                  yaml:"gitlabProjectID"`
+	GitlabGroupID      int64       `env:"GITLABGROUPID"      env-default:"0"                  yaml:"gitlabGroupID"`
+	GitlabProjectID    int64       `env:"GITLABPROJECTID"    env-default:"0"                  yaml:"gitlabProjectID"`
 	GitlabToken        string      `env:"GITLAB_TOKEN"       env-required:"true"              yaml:"gitlabToken"`
 	GitlabURI          string      `env:"GITLAB_URI"         env-default:"https://gitlab.com" yaml:"gitlabURI"`
 	LocalPath          string      `env:"LOCALPATH"          env-default:""                   yaml:"localpath"`

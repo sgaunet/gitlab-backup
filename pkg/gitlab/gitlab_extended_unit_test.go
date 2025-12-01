@@ -19,7 +19,7 @@ func TestService_RateLimiting_Behavior(t *testing.T) {
 	// Test rate limiting behavior
 	client := &mockGitLabClient{
 		projectImportExportService: &mockProjectImportExportService{
-			scheduleExportFunc: func(pid interface{}, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+			scheduleExportFunc: func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 				return &gitlab.Response{Response: &http.Response{StatusCode: http.StatusAccepted}}, nil
 			},
 		},
@@ -86,7 +86,7 @@ func TestService_RateLimiting_Integration(t *testing.T) {
 	// Test rate limiting integration with actual service methods
 	client := &mockGitLabClient{
 		projectImportExportService: &mockProjectImportExportService{
-			scheduleExportFunc: func(pid interface{}, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+			scheduleExportFunc: func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 				return &gitlab.Response{Response: &http.Response{StatusCode: http.StatusAccepted}}, nil
 			},
 		},
@@ -98,7 +98,7 @@ func TestService_RateLimiting_Integration(t *testing.T) {
 
 	// Multiple calls should all succeed without errors
 	for i := range 3 {
-		result, err := service.askExport(ctx, i+1)
+		result, err := service.askExport(ctx, int64(i+1))
 		require.NoError(t, err, "askExport should handle rate limiting gracefully")
 		assert.True(t, result, "askExport should return true on success")
 	}
@@ -108,7 +108,7 @@ func TestService_Pagination_Comprehensive(t *testing.T) {
 	// Test comprehensive pagination scenarios
 	callCount := 0
 	groupsService := &mockGroupsService{
-		listSubGroupsFunc: func(gid interface{}, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+		listSubGroupsFunc: func(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 			callCount++
 			switch callCount {
 			case 1:
@@ -156,7 +156,7 @@ func TestService_Pagination_ErrorHandling(t *testing.T) {
 	// Test pagination with errors
 	callCount := 0
 	groupsService := &mockGroupsService{
-		listSubGroupsFunc: func(gid interface{}, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+		listSubGroupsFunc: func(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 			callCount++
 			if callCount == 1 {
 				// First page succeeds
@@ -183,10 +183,10 @@ func TestService_ExportWorkflow_Complete(t *testing.T) {
 	// Test complete export workflow with different status transitions
 	statusCallCount := 0
 	exportService := &mockProjectImportExportService{
-		scheduleExportFunc: func(pid interface{}, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+		scheduleExportFunc: func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 			return &gitlab.Response{Response: &http.Response{StatusCode: http.StatusAccepted}}, nil
 		},
-		exportStatusFunc: func(pid interface{}, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
+		exportStatusFunc: func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
 			statusCallCount++
 			switch statusCallCount {
 			case 1:
@@ -199,7 +199,7 @@ func TestService_ExportWorkflow_Complete(t *testing.T) {
 				return &gitlab.ExportStatus{ExportStatus: "finished"}, &gitlab.Response{}, nil
 			}
 		},
-		exportDownloadFunc: func(pid interface{}, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
+		exportDownloadFunc: func(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
 			return []byte("export-data"), &gitlab.Response{}, nil
 		},
 	}
@@ -262,19 +262,19 @@ func TestService_ExportWorkflow_ErrorScenarios(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			exportService := &mockProjectImportExportService{
-				scheduleExportFunc: func(pid interface{}, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+				scheduleExportFunc: func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 					if tc.scheduleError != nil {
 						return nil, tc.scheduleError
 					}
 					return &gitlab.Response{Response: &http.Response{StatusCode: http.StatusAccepted}}, nil
 				},
-				exportStatusFunc: func(pid interface{}, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
+				exportStatusFunc: func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
 					if tc.statusError != nil {
 						return nil, nil, tc.statusError
 					}
 					return &gitlab.ExportStatus{ExportStatus: "finished"}, &gitlab.Response{}, nil
 				},
-				exportDownloadFunc: func(pid interface{}, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
+				exportDownloadFunc: func(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
 					if tc.downloadError != nil {
 						return nil, nil, tc.downloadError
 					}
@@ -326,7 +326,7 @@ func TestService_HTTPStatusCode_Handling(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			exportService := &mockProjectImportExportService{
-				scheduleExportFunc: func(pid interface{}, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+				scheduleExportFunc: func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 					return &gitlab.Response{
 						Response: &http.Response{StatusCode: tc.statusCode},
 					}, nil
@@ -353,31 +353,31 @@ func TestService_ContextCancellation_AllMethods(t *testing.T) {
 	// Test context cancellation for all service methods
 	client := &mockGitLabClient{
 		groupsService: &mockGroupsService{
-			getGroupFunc: func(gid interface{}, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
+			getGroupFunc: func(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond) // Simulate slow response
 				return &gitlab.Group{ID: 1}, &gitlab.Response{}, nil
 			},
-			listSubGroupsFunc: func(gid interface{}, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+			listSubGroupsFunc: func(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
 				return []*gitlab.Group{}, &gitlab.Response{}, nil
 			},
-			listGroupProjectsFunc: func(gid interface{}, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
+			listGroupProjectsFunc: func(gid any, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
 				return []*gitlab.Project{}, &gitlab.Response{}, nil
 			},
 		},
 		projectsService: &mockProjectsService{
-			getProjectFunc: func(pid interface{}, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
+			getProjectFunc: func(pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
 				return &gitlab.Project{ID: 1}, &gitlab.Response{}, nil
 			},
 		},
 		projectImportExportService: &mockProjectImportExportService{
-			exportStatusFunc: func(pid interface{}, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
+			exportStatusFunc: func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
 				return &gitlab.ExportStatus{ExportStatus: "finished"}, &gitlab.Response{}, nil
 			},
-			exportDownloadFunc: func(pid interface{}, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
+			exportDownloadFunc: func(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
 				return []byte("data"), &gitlab.Response{}, nil
 			},
@@ -434,7 +434,7 @@ func TestService_EdgeCases_DataValidation(t *testing.T) {
 	// Test edge cases and data validation
 	client := &mockGitLabClient{
 		groupsService: &mockGroupsService{
-			getGroupFunc: func(gid interface{}, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
+			getGroupFunc: func(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
 				// Return group with unusual but valid data
 				return &gitlab.Group{
 					ID:   0, // Edge case: ID = 0
@@ -443,7 +443,7 @@ func TestService_EdgeCases_DataValidation(t *testing.T) {
 			},
 		},
 		projectsService: &mockProjectsService{
-			getProjectFunc: func(pid interface{}, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
+			getProjectFunc: func(pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
 				// Return project with edge case data
 				return &gitlab.Project{
 					ID:       0,
@@ -460,13 +460,13 @@ func TestService_EdgeCases_DataValidation(t *testing.T) {
 	// Test group with edge case data
 	group, err := service.GetGroup(ctx, 0)
 	require.NoError(t, err)
-	assert.Equal(t, 0, group.ID)
+	assert.Equal(t, int64(0), group.ID)
 	assert.Equal(t, "", group.Name)
 
 	// Test project with edge case data
 	project, err := service.GetProject(ctx, 0)
 	require.NoError(t, err)
-	assert.Equal(t, 0, project.ID)
+	assert.Equal(t, int64(0), project.ID)
 	assert.Equal(t, "", project.Name)
 	assert.True(t, project.Archived)
 	assert.Equal(t, "", project.ExportStatus)
@@ -477,11 +477,19 @@ func TestService_ConcurrentOperations_Safety(t *testing.T) {
 	callCount := 0
 	client := &mockGitLabClient{
 		groupsService: &mockGroupsService{
-			getGroupFunc: func(gid interface{}, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
+			getGroupFunc: func(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
 				callCount++
 				time.Sleep(10 * time.Millisecond) // Small delay to encourage race conditions
+				// Convert gid to int64 - it could be int or int64 depending on the caller
+				var id int64
+				switch v := gid.(type) {
+				case int:
+					id = int64(v)
+				case int64:
+					id = v
+				}
 				return &gitlab.Group{
-					ID:   gid.(int),
+					ID:   id,
 					Name: "concurrent-group",
 				}, &gitlab.Response{}, nil
 			},
@@ -498,7 +506,7 @@ func TestService_ConcurrentOperations_Safety(t *testing.T) {
 	// Launch concurrent operations
 	for i := range numGoroutines {
 		go func(id int) {
-			group, err := service.GetGroup(ctx, id)
+			group, err := service.GetGroup(ctx, int64(id))
 			if err != nil {
 				errors <- err
 			} else {
@@ -528,7 +536,7 @@ func TestService_ConcurrentOperations_Safety(t *testing.T) {
 	assert.Equal(t, numGoroutines, callCount, "All API calls should be made")
 
 	// Verify each group has correct ID
-	groupIDs := make(map[int]bool)
+	groupIDs := make(map[int64]bool)
 	for _, group := range groups {
 		groupIDs[group.ID] = true
 		assert.Equal(t, "concurrent-group", group.Name)
@@ -541,14 +549,23 @@ func TestService_LargeDataSets_Handling(t *testing.T) {
 	const largePageSize = 100 // Reduced size for test performance
 	
 	groupsService := &mockGroupsService{
-		listSubGroupsFunc: func(gid interface{}, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+		listSubGroupsFunc: func(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 			// Only return data for the root group (ID 1) to avoid infinite recursion
-			if gid == 1 {
+			// Handle both int and int64 types
+			var id int64
+			switch v := gid.(type) {
+			case int:
+				id = int64(v)
+			case int64:
+				id = v
+			}
+
+			if id == 1 {
 				// Simulate large page of data
 				groups := make([]*gitlab.Group, largePageSize)
 				for i := range largePageSize {
 					groups[i] = &gitlab.Group{
-						ID:   i + 1000, // Use high IDs to avoid recursion
+						ID:   int64(i + 1000), // Use high IDs to avoid recursion
 						Name: "large-dataset-group",
 					}
 				}
@@ -566,11 +583,11 @@ func TestService_LargeDataSets_Handling(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, result, largePageSize, "Should handle large datasets")
-	
+
 	// Verify first and last items
 	if len(result) > 0 {
-		assert.Equal(t, 1000, result[0].ID)
+		assert.Equal(t, int64(1000), result[0].ID)
 		assert.Equal(t, "large-dataset-group", result[0].Name)
-		assert.Equal(t, 1000+largePageSize-1, result[len(result)-1].ID)
+		assert.Equal(t, int64(1000+largePageSize-1), result[len(result)-1].ID)
 	}
 }

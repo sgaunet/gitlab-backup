@@ -21,25 +21,25 @@ type GitLabClient interface {
 // GroupsService defines the interface for GitLab Groups API operations.
 type GroupsService interface {
 	//nolint:lll // GitLab API method signatures are inherently long
-	GetGroup(gid interface{}, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error)
+	GetGroup(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error)
 	//nolint:lll // GitLab API method signatures are inherently long
-	ListSubGroups(gid interface{}, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error)
+	ListSubGroups(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error)
 	//nolint:lll // GitLab API method signatures are inherently long
-	ListGroupProjects(gid interface{}, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error)
+	ListGroupProjects(gid any, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error)
 }
 
 // ProjectsService defines the interface for GitLab Projects API operations.
 type ProjectsService interface {
 	//nolint:lll // GitLab API method signatures are inherently long
-	GetProject(pid interface{}, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error)
+	GetProject(pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error)
 }
 
 // ProjectImportExportService defines the interface for GitLab Project Import/Export API operations.
 type ProjectImportExportService interface {
 	//nolint:lll // GitLab API method signatures are inherently long
-	ScheduleExport(pid interface{}, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
-	ExportStatus(pid interface{}, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error)
-	ExportDownload(pid interface{}, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error)
+	ScheduleExport(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
+	ExportStatus(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error)
+	ExportDownload(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error)
 }
 
 // gitlabClientWrapper wraps the official GitLab client to implement our interface.
@@ -81,17 +81,17 @@ type groupsServiceWrapper struct {
 }
 
 //nolint:lll,wrapcheck // Wrapper method with long signature, error passthrough intentional
-func (w *groupsServiceWrapper) GetGroup(gid interface{}, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
+func (w *groupsServiceWrapper) GetGroup(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
 	return w.service.GetGroup(gid, opt, options...)
 }
 
 //nolint:lll,wrapcheck // Wrapper method with long signature, error passthrough intentional
-func (w *groupsServiceWrapper) ListSubGroups(gid interface{}, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+func (w *groupsServiceWrapper) ListSubGroups(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 	return w.service.ListSubGroups(gid, opt, options...)
 }
 
 //nolint:lll,wrapcheck // Wrapper method with long signature, error passthrough intentional
-func (w *groupsServiceWrapper) ListGroupProjects(gid interface{}, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
+func (w *groupsServiceWrapper) ListGroupProjects(gid any, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
 	return w.service.ListGroupProjects(gid, opt, options...)
 }
 
@@ -101,7 +101,7 @@ type projectsServiceWrapper struct {
 }
 
 //nolint:lll,wrapcheck // Wrapper method with long signature, error passthrough intentional
-func (w *projectsServiceWrapper) GetProject(pid interface{}, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
+func (w *projectsServiceWrapper) GetProject(pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
 	return w.service.GetProject(pid, opt, options...)
 }
 
@@ -111,16 +111,16 @@ type projectImportExportServiceWrapper struct {
 }
 
 //nolint:lll,wrapcheck // Wrapper method with long signature, error passthrough intentional
-func (w *projectImportExportServiceWrapper) ScheduleExport(pid interface{}, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+func (w *projectImportExportServiceWrapper) ScheduleExport(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 	return w.service.ScheduleExport(pid, opt, options...)
 }
 
 //nolint:lll,wrapcheck // Wrapper method with long signature, error passthrough intentional
-func (w *projectImportExportServiceWrapper) ExportStatus(pid interface{}, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
+func (w *projectImportExportServiceWrapper) ExportStatus(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
 	return w.service.ExportStatus(pid, options...)
 }
 
 //nolint:lll,wrapcheck // Wrapper method with long signature, error passthrough intentional
-func (w *projectImportExportServiceWrapper) ExportDownload(pid interface{}, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
+func (w *projectImportExportServiceWrapper) ExportDownload(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
 	return w.service.ExportDownload(pid, options...)
 }

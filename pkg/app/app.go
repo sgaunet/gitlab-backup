@@ -129,7 +129,7 @@ func (a *App) ExportGroup(ctx context.Context) error {
 }
 
 // ExportProject exports the project of the given ID.
-func (a *App) ExportProject(ctx context.Context, projectID int) error {
+func (a *App) ExportProject(ctx context.Context, projectID int64) error {
 	project, err := a.gitlabService.GetProject(ctx, projectID)
 	if err != nil {
 		return fmt.Errorf("failed to get project %d: %w", projectID, err)

@@ -136,7 +136,7 @@ func (r *Service) SetToken(token string) {
 }
 
 // GetGroup returns the gitlab group from the given ID.
-func (r *Service) GetGroup(ctx context.Context, groupID int) (Group, error) {
+func (r *Service) GetGroup(ctx context.Context, groupID int64) (Group, error) {
 	group, _, err := r.client.Groups().GetGroup(groupID, nil, gitlab.WithContext(ctx))
 	if err != nil {
 		return Group{}, fmt.Errorf("error retrieving group: %w", err)
@@ -149,7 +149,7 @@ func (r *Service) GetGroup(ctx context.Context, groupID int) (Group, error) {
 }
 
 // GetProject returns informations of the project that matches the given ID.
-func (r *Service) GetProject(ctx context.Context, projectID int) (Project, error) {
+func (r *Service) GetProject(ctx context.Context, projectID int64) (Project, error) {
 	project, _, err := r.client.Projects().GetProject(projectID, nil, gitlab.WithContext(ctx))
 	if err != nil {
 		return Project{}, fmt.Errorf("error retrieving project: %w", err)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -47,6 +48,7 @@ type Logger interface {
 
 // Service provides methods to interact with GitLab API.
 type Service struct {
+	mu                   sync.RWMutex
 	client               GitLabClient
 	gitlabAPIEndpoint    string
 	token                string
@@ -103,6 +105,9 @@ func SetLogger(l Logger) {
 // SetGitlabEndpoint sets the Gitlab API endpoint
 // default: https://gitlab.com/v4/api/
 func (r *Service) SetGitlabEndpoint(gitlabAPIEndpoint string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	r.gitlabAPIEndpoint = gitlabAPIEndpoint
 	// Create a new client with the custom base URL
 	glClient, err := gitlab.NewClient(r.token, gitlab.WithBaseURL(gitlabAPIEndpoint))
@@ -116,6 +121,9 @@ func (r *Service) SetGitlabEndpoint(gitlabAPIEndpoint string) {
 // SetToken sets the Gitlab API token
 // default: GITLAB_TOKEN env variable
 func (r *Service) SetToken(token string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if token == "" {
 		log.Warn("no token provided")
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -474,11 +475,11 @@ func TestService_EdgeCases_DataValidation(t *testing.T) {
 
 func TestService_ConcurrentOperations_Safety(t *testing.T) {
 	// Test concurrent operations for thread safety
-	callCount := 0
+	var callCount int32
 	client := &mockGitLabClient{
 		groupsService: &mockGroupsService{
 			getGroupFunc: func(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
-				callCount++
+				atomic.AddInt32(&callCount, 1)
 				time.Sleep(10 * time.Millisecond) // Small delay to encourage race conditions
 				// Convert gid to int64 - it could be int or int64 depending on the caller
 				var id int64
@@ -533,7 +534,7 @@ func TestService_ConcurrentOperations_Safety(t *testing.T) {
 	// Verify all operations completed
 	assert.Len(t, errs, 0, "No errors should occur during concurrent operations")
 	assert.Len(t, groups, numGoroutines, "All goroutines should complete successfully")
-	assert.Equal(t, numGoroutines, callCount, "All API calls should be made")
+	assert.Equal(t, int32(numGoroutines), atomic.LoadInt32(&callCount), "All API calls should be made")
 
 	// Verify each group has correct ID
 	groupIDs := make(map[int64]bool)

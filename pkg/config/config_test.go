@@ -88,9 +88,10 @@ func TestEmptyGitlabToken(t *testing.T) {
 	// GITLAB_TOKEN is not set
 	t.Setenv("GITLAB_TOKEN", "")
 	cfg, err := config.NewConfigFromEnv()
-	require.NoError(t, err)
-	isValid := cfg.IsConfigValid()
-	require.Equal(t, false, isValid)
+	// With validation enabled, this should fail
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "gitlabToken is required")
+	require.Nil(t, cfg)
 }
 
 func TestIsS3ConfigValid(t *testing.T) {
@@ -368,4 +369,394 @@ func TestConfigRedactedEmptySecrets(t *testing.T) {
 
 	// Should NOT contain the redaction marker
 	require.NotContains(t, redacted, "***REDACTED***")
+}
+
+func TestConfigValidate_Success(t *testing.T) {
+	// Test successful validation with local storage
+	cfg := &config.Config{
+		GitlabGroupID:     123,
+		GitlabToken:       "test-token",
+		GitlabURI:         "https://gitlab.com",
+		LocalPath:         "/tmp",
+		TmpDir:            "/tmp",
+		ExportTimeoutMins: 10,
+	}
+
+	err := cfg.Validate()
+	require.NoError(t, err)
+}
+
+func TestConfigValidate_S3Storage(t *testing.T) {
+	// Test successful validation with S3 storage
+	cfg := &config.Config{
+		GitlabGroupID:     123,
+		GitlabToken:       "test-token",
+		GitlabURI:         "https://gitlab.example.com",
+		TmpDir:            "/tmp",
+		ExportTimeoutMins: 30,
+		S3cfg: config.S3Config{
+			BucketName: "my-backup-bucket",
+			BucketPath: "backups",
+			Region:     "us-east-1",
+		},
+	}
+
+	err := cfg.Validate()
+	require.NoError(t, err)
+}
+
+func TestConfigValidate_MissingGroupAndProject(t *testing.T) {
+	cfg := &config.Config{
+		GitlabToken:       "test-token",
+		GitlabURI:         "https://gitlab.com",
+		LocalPath:         "/tmp",
+		TmpDir:            "/tmp",
+		ExportTimeoutMins: 10,
+	}
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "either gitlabGroupID or gitlabProjectID must be set")
+}
+
+func TestConfigValidate_MissingToken(t *testing.T) {
+	cfg := &config.Config{
+		GitlabGroupID:     123,
+		GitlabURI:         "https://gitlab.com",
+		LocalPath:         "/tmp",
+		TmpDir:            "/tmp",
+		ExportTimeoutMins: 10,
+	}
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "gitlabToken is required")
+}
+
+func TestConfigValidate_NoStorage(t *testing.T) {
+	cfg := &config.Config{
+		GitlabGroupID:     123,
+		GitlabToken:       "test-token",
+		GitlabURI:         "https://gitlab.com",
+		TmpDir:            "/tmp",
+		ExportTimeoutMins: 10,
+	}
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "either S3 storage or local storage must be configured")
+}
+
+func TestConfigValidate_TimeoutTooLow(t *testing.T) {
+	cfg := &config.Config{
+		GitlabGroupID:     123,
+		GitlabToken:       "test-token",
+		GitlabURI:         "https://gitlab.com",
+		LocalPath:         "/tmp",
+		TmpDir:            "/tmp",
+		ExportTimeoutMins: 0,
+	}
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exportTimeoutMins must be at least 1 minute")
+}
+
+func TestConfigValidate_TimeoutTooHigh(t *testing.T) {
+	cfg := &config.Config{
+		GitlabGroupID:     123,
+		GitlabToken:       "test-token",
+		GitlabURI:         "https://gitlab.com",
+		LocalPath:         "/tmp",
+		TmpDir:            "/tmp",
+		ExportTimeoutMins: 1500,
+	}
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exportTimeoutMins must not exceed 1440 minutes")
+}
+
+func TestConfigValidate_TmpDirNotExists(t *testing.T) {
+	cfg := &config.Config{
+		GitlabGroupID:     123,
+		GitlabToken:       "test-token",
+		GitlabURI:         "https://gitlab.com",
+		LocalPath:         "/tmp",
+		TmpDir:            "/nonexistent/directory",
+		ExportTimeoutMins: 10,
+	}
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "tmpdir")
+	require.Contains(t, err.Error(), "does not exist")
+}
+
+func TestConfigValidate_InvalidGitlabURI(t *testing.T) {
+	testCases := []struct {
+		name string
+		uri  string
+		err  string
+	}{
+		{
+			name: "invalid URL format",
+			uri:  "not-a-url",
+			err:  "gitlabURI must use http or https scheme",
+		},
+		{
+			name: "ftp scheme",
+			uri:  "ftp://gitlab.com",
+			err:  "gitlabURI must use http or https scheme",
+		},
+		{
+			name: "no host",
+			uri:  "https://",
+			err:  "gitlabURI must have a host",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{
+				GitlabGroupID:     123,
+				GitlabToken:       "test-token",
+				GitlabURI:         tc.uri,
+				LocalPath:         "/tmp",
+				TmpDir:            "/tmp",
+				ExportTimeoutMins: 10,
+			}
+
+			err := cfg.Validate()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.err)
+		})
+	}
+}
+
+func TestConfigValidate_S3BucketName(t *testing.T) {
+	testCases := []struct {
+		name       string
+		bucketName string
+		shouldFail bool
+		errMsg     string
+	}{
+		{
+			name:       "valid bucket name",
+			bucketName: "my-backup-bucket",
+			shouldFail: false,
+		},
+		{
+			name:       "valid with numbers",
+			bucketName: "backup-123",
+			shouldFail: false,
+		},
+		{
+			name:       "too short",
+			bucketName: "ab",
+			shouldFail: true,
+			errMsg:     "bucket name must be between 3 and 63 characters",
+		},
+		{
+			name:       "too long",
+			bucketName: "this-is-a-very-long-bucket-name-that-exceeds-the-maximum-allowed-length-of-63-characters",
+			shouldFail: true,
+			errMsg:     "bucket name must be between 3 and 63 characters",
+		},
+		{
+			name:       "uppercase letters",
+			bucketName: "MyBucket",
+			shouldFail: true,
+			errMsg:     "bucket name must be lowercase",
+		},
+		{
+			name:       "consecutive dots",
+			bucketName: "my..bucket",
+			shouldFail: true,
+			errMsg:     "bucket name cannot contain consecutive dots",
+		},
+		{
+			name:       "IP address format",
+			bucketName: "192.168.1.1",
+			shouldFail: true,
+			errMsg:     "bucket name cannot be formatted as an IP address",
+		},
+		{
+			name:       "starts with hyphen",
+			bucketName: "-mybucket",
+			shouldFail: true,
+			errMsg:     "bucket name must be DNS-compliant",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{
+				GitlabGroupID:     123,
+				GitlabToken:       "test-token",
+				GitlabURI:         "https://gitlab.com",
+				TmpDir:            "/tmp",
+				ExportTimeoutMins: 10,
+				S3cfg: config.S3Config{
+					BucketName: tc.bucketName,
+					BucketPath: "backups",
+					Region:     "us-east-1",
+				},
+			}
+
+			err := cfg.Validate()
+			if tc.shouldFail {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.errMsg)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestConfigValidate_S3Region(t *testing.T) {
+	testCases := []struct {
+		name       string
+		region     string
+		bucketPath string
+		shouldFail bool
+		errMsg     string
+	}{
+		{
+			name:       "valid AWS region",
+			region:     "us-east-1",
+			bucketPath: "backups",
+			shouldFail: false,
+		},
+		{
+			name:       "valid custom region",
+			region:     "local",
+			bucketPath: "backups",
+			shouldFail: false,
+		},
+		{
+			name:       "empty region makes S3 invalid",
+			region:     "",
+			bucketPath: "",
+			shouldFail: true,
+			errMsg:     "either S3 storage or local storage must be configured",
+		},
+		{
+			name:       "uppercase letters",
+			region:     "US-EAST-1",
+			bucketPath: "backups",
+			shouldFail: true,
+			errMsg:     "region must contain only lowercase letters, numbers, and hyphens",
+		},
+		{
+			name:       "special characters",
+			region:     "us_east_1",
+			bucketPath: "backups",
+			shouldFail: true,
+			errMsg:     "region must contain only lowercase letters, numbers, and hyphens",
+		},
+		{
+			name:       "too short",
+			region:     "a",
+			bucketPath: "backups",
+			shouldFail: true,
+			errMsg:     "region name too short",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{
+				GitlabGroupID:     123,
+				GitlabToken:       "test-token",
+				GitlabURI:         "https://gitlab.com",
+				TmpDir:            "/tmp",
+				ExportTimeoutMins: 10,
+				S3cfg: config.S3Config{
+					BucketName: "my-bucket",
+					BucketPath: tc.bucketPath,
+					Region:     tc.region,
+				},
+			}
+
+			err := cfg.Validate()
+			if tc.shouldFail {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.errMsg)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestConfigValidate_PathTraversal(t *testing.T) {
+	testCases := []struct {
+		name       string
+		path       string
+		pathType   string
+		shouldFail bool
+	}{
+		{
+			name:       "valid local path",
+			path:       "/data/backups",
+			pathType:   "local",
+			shouldFail: false,
+		},
+		{
+			name:       "valid S3 path",
+			path:       "backups/gitlab",
+			pathType:   "s3",
+			shouldFail: false,
+		},
+		{
+			name:       "path traversal in local path",
+			path:       "/tmp/../etc/passwd",
+			pathType:   "local",
+			shouldFail: true,
+		},
+		{
+			name:       "path traversal in S3 path",
+			path:       "backups/../../secrets",
+			pathType:   "s3",
+			shouldFail: true,
+		},
+		{
+			name:       "relative path traversal",
+			path:       "../outside",
+			pathType:   "s3",
+			shouldFail: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{
+				GitlabGroupID:     123,
+				GitlabToken:       "test-token",
+				GitlabURI:         "https://gitlab.com",
+				TmpDir:            "/tmp",
+				ExportTimeoutMins: 10,
+			}
+
+			if tc.pathType == "local" {
+				cfg.LocalPath = tc.path
+			} else {
+				cfg.S3cfg = config.S3Config{
+					BucketName: "my-bucket",
+					BucketPath: tc.path,
+					Region:     "us-east-1",
+				}
+			}
+
+			err := cfg.Validate()
+			if tc.shouldFail {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "path traversal")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

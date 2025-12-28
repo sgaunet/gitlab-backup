@@ -10,6 +10,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const redactedValue = "***REDACTED***"
+
 // S3Config holds the configuration for S3 storage backend.
 type S3Config struct {
 	Endpoint   string `env:"S3ENDPOINT"            env-default:""   yaml:"endpoint"`
@@ -72,6 +74,25 @@ func (c *Config) IsConfigValid() bool {
 
 func (c *Config) String() string {
 	cyaml, err := yaml.Marshal(c)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	}
+	return string(cyaml)
+}
+
+// Redacted returns a YAML representation of the config with sensitive fields redacted.
+func (c *Config) Redacted() string {
+	redacted := *c
+	if redacted.GitlabToken != "" {
+		redacted.GitlabToken = redactedValue
+	}
+	if redacted.S3cfg.AccessKey != "" {
+		redacted.S3cfg.AccessKey = redactedValue
+	}
+	if redacted.S3cfg.SecretKey != "" {
+		redacted.S3cfg.SecretKey = redactedValue
+	}
+	cyaml, err := yaml.Marshal(redacted)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}

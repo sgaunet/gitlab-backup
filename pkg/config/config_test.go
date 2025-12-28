@@ -289,3 +289,83 @@ func TestNewConfigFromEnvEdgeCases(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestConfigRedacted(t *testing.T) {
+	// Test that the Redacted method properly redacts sensitive fields
+	cfg := &config.Config{
+		GitlabGroupID:   123,
+		GitlabProjectID: 456,
+		GitlabToken:     "super-secret-token",
+		GitlabURI:       "https://gitlab.com",
+		LocalPath:       "/data/gitlab",
+		TmpDir:          "/tmp",
+		NoLogTime:       false,
+		Hooks: hooks.Hooks{
+			PreBackup:  "echo prebackup",
+			PostBackup: "echo postbackup",
+		},
+		S3cfg: config.S3Config{
+			Endpoint:   "myendpoint",
+			BucketName: "mybucket",
+			BucketPath: "mybucketpath",
+			Region:     "myregion",
+			AccessKey:  "my-secret-access-key",
+			SecretKey:  "my-secret-secret-key",
+		},
+	}
+
+	redacted := cfg.Redacted()
+
+	// Check that sensitive fields are redacted
+	require.Contains(t, redacted, "gitlabToken: '***REDACTED***'")
+	require.Contains(t, redacted, "accessKey: '***REDACTED***'")
+	require.Contains(t, redacted, "secretKey: '***REDACTED***'")
+
+	// Check that sensitive fields are NOT in the output
+	require.NotContains(t, redacted, "super-secret-token")
+	require.NotContains(t, redacted, "my-secret-access-key")
+	require.NotContains(t, redacted, "my-secret-secret-key")
+
+	// Check that non-sensitive fields are still present
+	require.Contains(t, redacted, "gitlabGroupID: 123")
+	require.Contains(t, redacted, "gitlabProjectID: 456")
+	require.Contains(t, redacted, "gitlabURI: https://gitlab.com")
+	require.Contains(t, redacted, "localpath: /data/gitlab")
+	require.Contains(t, redacted, "tmpdir: /tmp")
+	require.Contains(t, redacted, "prebackup: echo prebackup")
+	require.Contains(t, redacted, "postbackup: echo postbackup")
+	require.Contains(t, redacted, "endpoint: myendpoint")
+	require.Contains(t, redacted, "bucketName: mybucket")
+	require.Contains(t, redacted, "bucketPath: mybucketpath")
+	require.Contains(t, redacted, "region: myregion")
+	require.Contains(t, redacted, "noLogTime: false")
+}
+
+func TestConfigRedactedEmptySecrets(t *testing.T) {
+	// Test that the Redacted method handles empty secrets gracefully
+	cfg := &config.Config{
+		GitlabGroupID:   123,
+		GitlabProjectID: 456,
+		GitlabToken:     "", // empty token
+		GitlabURI:       "https://gitlab.com",
+		LocalPath:       "/data/gitlab",
+		S3cfg: config.S3Config{
+			Endpoint:   "myendpoint",
+			BucketName: "mybucket",
+			BucketPath: "mybucketpath",
+			Region:     "myregion",
+			AccessKey:  "", // empty access key
+			SecretKey:  "", // empty secret key
+		},
+	}
+
+	redacted := cfg.Redacted()
+
+	// Empty fields should remain empty, not redacted
+	require.Contains(t, redacted, "gitlabToken: \"\"")
+	require.Contains(t, redacted, "accessKey: \"\"")
+	require.Contains(t, redacted, "secretKey: \"\"")
+
+	// Should NOT contain the redaction marker
+	require.NotContains(t, redacted, "***REDACTED***")
+}

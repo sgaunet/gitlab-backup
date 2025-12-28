@@ -41,7 +41,7 @@ func printConfiguration() {
 
 	fmt.Println("--------------------------------------------------")
 	fmt.Println("Gitlab-backup configuration:")
-	fmt.Printf("%+v\n", c)
+	fmt.Print(c.Redacted())
 	os.Exit(0)
 }
 

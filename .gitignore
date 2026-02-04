@@ -1,5 +1,9 @@
 /dist
 /gitlab-backup
+/gitlab-restore
 /.task
 data-minio
 /pkg/gitlab/mocks
+/.specify
+/specs
+/.claude

@@ -40,9 +40,20 @@ type Config struct {
 	LocalPath          string      `env:"LOCALPATH"          env-default:""                   yaml:"localpath"`
 	TmpDir             string      `env:"TMPDIR"             env-default:"/tmp"               yaml:"tmpdir"`
 	ExportTimeoutMins  int         `env:"EXPORT_TIMEOUT_MIN" env-default:"10"                 yaml:"exportTimeoutMins"`
+	ExportLabels       bool        `env:"EXPORT_LABELS"      env-default:"true"               yaml:"exportLabels"`
+	ExportIssues       bool        `env:"EXPORT_ISSUES"      env-default:"true"               yaml:"exportIssues"`
 	Hooks              hooks.Hooks `yaml:"hooks"`
 	S3cfg              S3Config    `yaml:"s3cfg"`
 	NoLogTime          bool        `env:"NOLOGTIME"          env-default:"false"              yaml:"noLogTime"`
+	// Restore-specific fields (set via CLI flags, not config file)
+	RestoreSource      string `yaml:"-"` // Archive path (local or s3://)
+	RestoreTargetNS    string `yaml:"-"` // Target namespace/group
+	RestoreTargetPath  string `yaml:"-"` // Target project path
+	RestoreLabels      bool   `yaml:"-"` // Restore labels from archive
+	RestoreIssues      bool   `yaml:"-"` // Restore issues from archive
+	RestoreWithSudo    bool   `yaml:"-"` // Use sudo for author impersonation
+	RestoreOverwrite   bool   `yaml:"-"` // Overwrite existing project content
+	StorageType        string `yaml:"-"` // Storage type: "local" or "s3"
 }
 
 // NewConfigFromFile returns a new Config struct from the given file.

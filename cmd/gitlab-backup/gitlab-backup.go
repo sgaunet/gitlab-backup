@@ -34,8 +34,7 @@ func printVersion() {
 func printConfiguration() {
 	c, err := config.NewConfigFromEnv()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		c = &config.Config{}
 	}
 	c.Usage()
 
@@ -48,7 +47,7 @@ func printConfiguration() {
 func loadConfiguration(cfgFile string) *config.Config {
 	var cfg *config.Config
 	var err error
-	
+
 	if len(cfgFile) > 0 {
 		cfg, err = config.NewConfigFromFile(cfgFile)
 		if err != nil {

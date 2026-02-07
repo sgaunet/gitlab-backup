@@ -35,13 +35,11 @@ type S3Config struct {
 type Config struct {
 	GitlabGroupID      int64       `env:"GITLABGROUPID"      env-default:"0"                  yaml:"gitlabGroupID"`
 	GitlabProjectID    int64       `env:"GITLABPROJECTID"    env-default:"0"                  yaml:"gitlabProjectID"`
-	GitlabToken        string      `env:"GITLAB_TOKEN"       env-required:"true"              yaml:"gitlabToken"`
+	GitlabToken        string      `env:"GITLAB_TOKEN"                                        yaml:"gitlabToken"`
 	GitlabURI          string      `env:"GITLAB_URI"         env-default:"https://gitlab.com" yaml:"gitlabURI"`
 	LocalPath          string      `env:"LOCALPATH"          env-default:""                   yaml:"localpath"`
 	TmpDir             string      `env:"TMPDIR"             env-default:"/tmp"               yaml:"tmpdir"`
 	ExportTimeoutMins  int         `env:"EXPORT_TIMEOUT_MIN" env-default:"10"                 yaml:"exportTimeoutMins"`
-	ExportLabels       bool        `env:"EXPORT_LABELS"      env-default:"true"               yaml:"exportLabels"`
-	ExportIssues       bool        `env:"EXPORT_ISSUES"      env-default:"true"               yaml:"exportIssues"`
 	Hooks              hooks.Hooks `yaml:"hooks"`
 	S3cfg              S3Config    `yaml:"s3cfg"`
 	NoLogTime          bool        `env:"NOLOGTIME"          env-default:"false"              yaml:"noLogTime"`
@@ -49,9 +47,6 @@ type Config struct {
 	RestoreSource      string `yaml:"-"` // Archive path (local or s3://)
 	RestoreTargetNS    string `yaml:"-"` // Target namespace/group
 	RestoreTargetPath  string `yaml:"-"` // Target project path
-	RestoreLabels      bool   `yaml:"-"` // Restore labels from archive
-	RestoreIssues      bool   `yaml:"-"` // Restore issues from archive
-	RestoreWithSudo    bool   `yaml:"-"` // Use sudo for author impersonation
 	RestoreOverwrite   bool   `yaml:"-"` // Overwrite existing project content
 	StorageType        string `yaml:"-"` // Storage type: "local" or "s3"
 }
@@ -72,7 +67,18 @@ func NewConfigFromFile(filePath string) (*Config, error) {
 	return &cfg, nil
 }
 
+// NewConfigFromFileNoValidate loads config without validation (for CLI override pattern).
+func NewConfigFromFileNoValidate(filePath string) (*Config, error) {
+	var cfg Config
+	err := cleanenv.ReadConfig(filePath, &cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config from file %s: %w", filePath, err)
+	}
+	return &cfg, nil
+}
+
 // NewConfigFromEnv returns a new Config struct from the environment variables.
+// It does not perform validation - validation happens after CLI overrides in main().
 func NewConfigFromEnv() (*Config, error) {
 	var cfg Config
 	err := cleanenv.ReadEnv(&cfg)
@@ -80,11 +86,7 @@ func NewConfigFromEnv() (*Config, error) {
 		return nil, fmt.Errorf("failed to read config from environment: %w", err)
 	}
 
-	// Validate the configuration
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("configuration validation failed: %w", err)
-	}
-
+	// Don't validate yet - CLI overrides may fix validation errors
 	return &cfg, nil
 }
 
@@ -163,19 +165,33 @@ func (c *Config) Validate() error {
 
 //nolint:err113,funcorder // validation errors provide user context; grouped with Validate()
 func (c *Config) validateBasicConfig() error {
-	// Must have either group ID or project ID
+	// Must have exactly one of group ID or project ID
 	if c.GitlabGroupID <= 0 && c.GitlabProjectID <= 0 {
-		return errors.New("either gitlabGroupID or gitlabProjectID must be set and greater than 0")
+		return errors.New(
+			"either gitlabGroupID or gitlabProjectID must be set " +
+				"(use --group-id or --project-id flag, config file, or environment variable)",
+		)
+	}
+
+	// Cannot have both group ID and project ID
+	if c.GitlabGroupID > 0 && c.GitlabProjectID > 0 {
+		return errors.New("cannot specify both gitlabGroupID and gitlabProjectID")
 	}
 
 	// Must have GitLab token
 	if c.GitlabToken == "" {
-		return errors.New("gitlabToken is required")
+		return errors.New(
+			"gitlabToken is required " +
+				"(set via config file or GITLAB_TOKEN environment variable)",
+		)
 	}
 
 	// Must have either S3 or local storage configured
 	if !c.IsS3ConfigValid() && !c.IsLocalConfigValid() {
-		return errors.New("either S3 storage or local storage must be configured")
+		return errors.New(
+			"no storage configured: " +
+				"use --output for local storage or configure S3 in config file",
+		)
 	}
 
 	return nil

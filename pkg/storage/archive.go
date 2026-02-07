@@ -26,26 +26,12 @@ type Archive struct {
 	Contents *ArchiveContents
 }
 
-// ArchiveContents represents the extracted contents of a composite archive.
+// ArchiveContents represents the extracted contents of a backup archive.
 type ArchiveContents struct {
 	// ProjectExportPath is the path to GitLab native export (*-gitlab.tar.gz or project.tar.gz).
 	ProjectExportPath string
-	// LabelsJSONPath is the path to labels JSON (labels-*.json or labels.json) (optional).
-	LabelsJSONPath string
-	// IssuesJSONPath is the path to issues JSON (issues-*.json or issues.json) (optional).
-	IssuesJSONPath string
 	// ExtractionDir is the temporary directory for extracted files.
 	ExtractionDir string
-}
-
-// HasLabels returns true if labels.json is present in the archive.
-func (ac *ArchiveContents) HasLabels() bool {
-	return ac.LabelsJSONPath != ""
-}
-
-// HasIssues returns true if issues.json is present in the archive.
-func (ac *ArchiveContents) HasIssues() bool {
-	return ac.IssuesJSONPath != ""
 }
 
 // ExtractArchive extracts a tar.gz archive to a destination directory.
@@ -135,19 +121,17 @@ func ExtractArchive(ctx context.Context, archivePath string, destDir string) (*A
 			}
 			outFile.Close()
 
-			// Track extracted files
-			// gitlab-backup creates files with patterns:
-			// - {projectname}-{projectid}-gitlab.tar.gz
-			// - labels-{projectid}.json
-			// - issues-{projectid}.json
+			// Track extracted GitLab export file
+			// Archives may contain:
+			// - {projectname}-{projectid}.tar.gz (new format - direct GitLab export)
+			// - {projectname}-{projectid}-gitlab.tar.gz (old composite archive format)
+			// - project.tar.gz (generic name)
+			// Old archives may also contain labels.json and issues.json (ignored for backward compatibility)
 			basename := filepath.Base(cleanPath)
-			if strings.HasSuffix(basename, "-gitlab.tar.gz") || basename == "project.tar.gz" {
+			if strings.HasSuffix(basename, ".tar.gz") && !strings.HasPrefix(basename, "labels-") && !strings.HasPrefix(basename, "issues-") {
 				contents.ProjectExportPath = targetPath
-			} else if strings.HasPrefix(basename, "labels-") && strings.HasSuffix(basename, ".json") || basename == "labels.json" {
-				contents.LabelsJSONPath = targetPath
-			} else if strings.HasPrefix(basename, "issues-") && strings.HasSuffix(basename, ".json") || basename == "issues.json" {
-				contents.IssuesJSONPath = targetPath
 			}
+			// Silently ignore labels.json and issues.json (backward compatibility)
 
 		default:
 			// Skip other file types (symlinks, etc.)

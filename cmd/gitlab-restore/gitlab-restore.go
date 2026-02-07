@@ -26,10 +26,7 @@ func main() {
 	archive := flag.String("archive", "", "Archive path (local path or s3://bucket/key)")
 	namespace := flag.String("namespace", "", "Target GitLab namespace/group")
 	project := flag.String("project", "", "Target GitLab project name")
-	skipLabels := flag.Bool("skip-labels", false, "Skip restoring labels from archive")
-	skipIssues := flag.Bool("skip-issues", false, "Skip restoring issues from archive")
 	overwrite := flag.Bool("overwrite", false, "Overwrite existing project content (use with caution)")
-	withSudo := flag.Bool("with-sudo", false, "Use sudo for author impersonation (requires admin token)")
 	showVersion := flag.Bool("version", false, "Show version and exit")
 
 	flag.Parse()
@@ -76,9 +73,6 @@ func main() {
 	cfg.RestoreSource = *archive
 	cfg.RestoreTargetNS = *namespace
 	cfg.RestoreTargetPath = *project
-	cfg.RestoreLabels = !*skipLabels
-	cfg.RestoreIssues = !*skipIssues
-	cfg.RestoreWithSudo = *withSudo
 	cfg.RestoreOverwrite = *overwrite
 
 	// Determine storage type from archive path
@@ -224,9 +218,6 @@ func printRestoreResult(result *restore.RestoreResult, cfg *config.Config) {
 
 	// Print metrics
 	fmt.Println("\nMetrics:")
-	fmt.Printf("  Labels restored: %d (skipped: %d)\n", result.Metrics.LabelsRestored, result.Metrics.LabelsSkipped)
-	fmt.Printf("  Issues restored: %d\n", result.Metrics.IssuesRestored)
-	fmt.Printf("  Notes restored: %d\n", result.Metrics.NotesRestored)
 	fmt.Printf("  Duration: %ds\n", result.Metrics.DurationSeconds)
 
 	if result.Metrics.BytesDownloaded > 0 {

@@ -17,14 +17,12 @@ import (
 // This integration test validates:
 // - Archive extraction
 // - Project validation
-// - Repository import
-// - Labels restoration
-// - Issues restoration
+// - Repository import (GitLab handles labels and issues internally)
 //
 // Prerequisites:
 // - GitLab instance (testcontainers or manual)
 // - Empty target project
-// - Valid backup archive with project.tar.gz, labels.json, issues.json
+// - Valid backup archive with project.tar.gz
 func TestRestoreFromLocalArchive(t *testing.T) {
 	// Skip in short mode as this requires GitLab instance
 	if testing.Short() {
@@ -80,9 +78,7 @@ func TestRestoreFromLocalArchive(t *testing.T) {
 		assert.NotEmpty(t, result.ProjectURL, "Project URL should be set")
 
 		// Verify metrics
-		assert.GreaterOrEqual(t, result.Metrics.LabelsRestored, 0, "Labels count should be non-negative")
-		assert.GreaterOrEqual(t, result.Metrics.IssuesRestored, 0, "Issues count should be non-negative")
-		assert.GreaterOrEqual(t, result.Metrics.NotesRestored, 0, "Notes count should be non-negative")
+		assert.Greater(t, result.Metrics.DurationSeconds, int64(0), "Duration should be positive")
 	})
 
 	t.Run("RestoreToNonEmptyProjectFails", func(t *testing.T) {

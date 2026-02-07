@@ -17,10 +17,6 @@ const (
 	PhaseExtraction RestorePhase = "extraction"
 	// PhaseImport imports the GitLab project repository.
 	PhaseImport RestorePhase = "import"
-	// PhaseLabels restores project labels.
-	PhaseLabels RestorePhase = "labels"
-	// PhaseIssues restores project issues and notes.
-	PhaseIssues RestorePhase = "issues"
 	// PhaseCleanup removes temporary files.
 	PhaseCleanup RestorePhase = "cleanup"
 	// PhaseComplete indicates successful completion.
@@ -45,14 +41,6 @@ type RestoreResult struct {
 
 // RestoreMetrics tracks quantitative restore operation metrics.
 type RestoreMetrics struct {
-	// LabelsRestored is the number of labels successfully created.
-	LabelsRestored int
-	// LabelsSkipped is the number of labels skipped (duplicates).
-	LabelsSkipped int
-	// IssuesRestored is the number of issues successfully created.
-	IssuesRestored int
-	// NotesRestored is the number of issue notes/comments created.
-	NotesRestored int
 	// BytesDownloaded is the bytes downloaded from S3 (if applicable).
 	BytesDownloaded int64
 	// BytesExtracted is the bytes extracted from archive.

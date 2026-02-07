@@ -50,8 +50,8 @@ func NewOrchestrator(gitlabClient *gitlab.Service, storage Storage, cfg *config.
 	}
 }
 
-// Restore executes the complete 7-phase restore workflow.
-// It orchestrates validation, download, extraction, import, and metadata restoration.
+// Restore executes the complete 5-phase restore workflow.
+// It orchestrates validation, download, extraction, and import.
 //
 // Returns RestoreResult with success status, metrics, and any errors encountered.
 // Fatal errors stop the workflow; non-fatal errors are collected but allow continuation.
@@ -154,11 +154,7 @@ func (o *Orchestrator) Restore(ctx context.Context, cfg *config.Config) (*Restor
 	o.progress.StartPhase(PhaseImport)
 	importService := gitlab.NewImportServiceWithRateLimiters(
 		o.gitlabClient.Client().ProjectImportExport(),
-		o.gitlabClient.Client().Labels(),
-		o.gitlabClient.Client().Issues(),
-		o.gitlabClient.Client().Notes(),
 		o.gitlabClient.RateLimitImportAPI(),
-		o.gitlabClient.RateLimitMetadataAPI(),
 	)
 
 	archiveFile, err := os.Open(archiveContents.ProjectExportPath)
@@ -180,42 +176,7 @@ func (o *Orchestrator) Restore(ctx context.Context, cfg *config.Config) (*Restor
 	result.ProjectURL = fmt.Sprintf("%s/%s/%s", cfg.GitlabURI, cfg.RestoreTargetNS, cfg.RestoreTargetPath)
 	o.progress.CompletePhase(PhaseImport)
 
-	// Phase 5: Labels (non-fatal)
-	if cfg.RestoreLabels && archiveContents.HasLabels() {
-		o.progress.StartPhase(PhaseLabels)
-		labelsCreated, labelsSkipped, err := importService.RestoreLabels(ctx, importStatus.ID, archiveContents.LabelsJSONPath)
-		if err != nil {
-			o.progress.FailPhase(PhaseLabels, err)
-			result.addError(PhaseLabels, "LabelRestore", err.Error(), false)
-		} else {
-			result.Metrics.LabelsRestored = labelsCreated
-			result.Metrics.LabelsSkipped = labelsSkipped
-			o.progress.CompletePhase(PhaseLabels)
-		}
-	} else if !cfg.RestoreLabels {
-		o.progress.SkipPhase(PhaseLabels, "disabled via flag")
-	} else {
-		o.progress.SkipPhase(PhaseLabels, "no labels.json in archive")
-	}
-
-	// Phase 6: Issues (non-fatal)
-	if cfg.RestoreIssues && archiveContents.HasIssues() {
-		o.progress.StartPhase(PhaseIssues)
-		issuesCreated, notesCreated, err := importService.RestoreIssues(ctx, importStatus.ID, archiveContents.IssuesJSONPath, cfg.RestoreWithSudo)
-		if err != nil {
-			o.progress.FailPhase(PhaseIssues, err)
-			result.addError(PhaseIssues, "IssueRestore", err.Error(), false)
-		} else {
-			result.Metrics.IssuesRestored = issuesCreated
-			result.Metrics.NotesRestored = notesCreated
-			o.progress.CompletePhase(PhaseIssues)
-		}
-	} else if !cfg.RestoreIssues {
-		o.progress.SkipPhase(PhaseIssues, "disabled via flag")
-	} else {
-		o.progress.SkipPhase(PhaseIssues, "no issues.json in archive")
-	}
-
+	// Phase 5: Cleanup (moved from phase 7, now runs in defer at top of function)
 	// Calculate final metrics
 	result.Metrics.DurationSeconds = int64(time.Since(startTime).Seconds())
 	result.Success = !result.hasFatalErrors()

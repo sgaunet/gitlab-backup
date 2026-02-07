@@ -76,10 +76,6 @@ func getPhaseStartMessage(phase RestorePhase) string {
 		return "Extracting archive"
 	case PhaseImport:
 		return "Importing repository"
-	case PhaseLabels:
-		return "Restoring labels"
-	case PhaseIssues:
-		return "Restoring issues"
 	case PhaseCleanup:
 		return "Cleaning up temporary files"
 	case PhaseComplete:

@@ -17,12 +17,6 @@ type RestoreConfig struct {
 	RestoreTargetNS string `env:"RESTORE_TARGET_NS" yaml:"restoreTargetNS"`
 	// RestoreTargetPath is the target project path
 	RestoreTargetPath string `env:"RESTORE_TARGET_PATH" yaml:"restoreTargetPath"`
-	// RestoreLabels controls whether to restore labels metadata
-	RestoreLabels bool `env:"RESTORE_LABELS" env-default:"true" yaml:"restoreLabels"`
-	// RestoreIssues controls whether to restore issues metadata
-	RestoreIssues bool `env:"RESTORE_ISSUES" env-default:"true" yaml:"restoreIssues"`
-	// RestoreWithSudo enables sudo for author impersonation
-	RestoreWithSudo bool `env:"RESTORE_WITH_SUDO" env-default:"false" yaml:"restoreWithSudo"`
 	// RestoreOverwrite allows overwriting existing project content
 	RestoreOverwrite bool `env:"RESTORE_OVERWRITE" env-default:"false" yaml:"restoreOverwrite"`
 }

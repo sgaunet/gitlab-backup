@@ -15,7 +15,7 @@ func TestNewConfigFromFile(t *testing.T) {
 		cfg, err := config.NewConfigFromFile("testdata/good-cfg.yaml")
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
-		require.Equal(t, int64(123), cfg.GitlabGroupID)
+		require.Equal(t, int64(0), cfg.GitlabGroupID)
 		require.Equal(t, int64(456), cfg.GitlabProjectID)
 		require.Equal(t, "https://gitlab.com", cfg.GitlabURI)
 		// require.Equal(t, "/tmp", cfg.TmpDir)
@@ -73,10 +73,9 @@ func TestNewConfigFromEnv(t *testing.T) {
 }
 
 func TestEmptyGitlabToken(t *testing.T) {
-	t.Setenv("GITLABGROUPID", "123")
-	t.Setenv("GITLABPROJECTID", "456")
+	t.Setenv("GITLABPROJECTID", "123")
 	t.Setenv("GITLAB_URI", "https://gitlab.example.com")
-	t.Setenv("LOCALPATH", "/data/gitlab")
+	t.Setenv("LOCALPATH", "/backup")
 	t.Setenv("TMPDIR", "/tmp")
 	t.Setenv("S3ENDPOINT", "myendpoint")
 	t.Setenv("S3BUCKETNAME", "mybucket")
@@ -88,10 +87,13 @@ func TestEmptyGitlabToken(t *testing.T) {
 	// GITLAB_TOKEN is not set
 	t.Setenv("GITLAB_TOKEN", "")
 	cfg, err := config.NewConfigFromEnv()
-	// With validation enabled, this should fail
+	// NewConfigFromEnv succeeds (reads empty string)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	// But validation should fail
+	err = cfg.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "gitlabToken is required")
-	require.Nil(t, cfg)
 }
 
 func TestIsS3ConfigValid(t *testing.T) {
@@ -444,7 +446,7 @@ func TestConfigValidate_NoStorage(t *testing.T) {
 
 	err := cfg.Validate()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "either S3 storage or local storage must be configured")
+	require.Contains(t, err.Error(), "no storage configured: use --output for local storage or configure S3 in config file")
 }
 
 func TestConfigValidate_TimeoutTooLow(t *testing.T) {
@@ -640,7 +642,7 @@ func TestConfigValidate_S3Region(t *testing.T) {
 			region:     "",
 			bucketPath: "",
 			shouldFail: true,
-			errMsg:     "either S3 storage or local storage must be configured",
+			errMsg:     "no storage configured: use --output for local storage or configure S3 in config file",
 		},
 		{
 			name:       "uppercase letters",
@@ -759,4 +761,86 @@ func TestConfigValidate_PathTraversal(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidate_MutualExclusivity(t *testing.T) {
+	t.Run("both group and project ID set - should fail", func(t *testing.T) {
+		cfg := &config.Config{
+			GitlabGroupID:     100,
+			GitlabProjectID:   200, // Both set - should fail
+			GitlabToken:       "token",
+			GitlabURI:         "https://gitlab.com",
+			LocalPath:         "/backup",
+			TmpDir:            "/tmp",
+			ExportTimeoutMins: 10,
+		}
+
+		err := cfg.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot specify both")
+	})
+
+	t.Run("neither group nor project ID set - should fail", func(t *testing.T) {
+		cfg := &config.Config{
+			GitlabGroupID:     0,
+			GitlabProjectID:   0, // Neither set - should fail
+			GitlabToken:       "token",
+			GitlabURI:         "https://gitlab.com",
+			LocalPath:         "/backup",
+			TmpDir:            "/tmp",
+			ExportTimeoutMins: 10,
+		}
+
+		err := cfg.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "either gitlabGroupID or gitlabProjectID must be set")
+	})
+
+	t.Run("only group ID set - should succeed", func(t *testing.T) {
+		cfg := &config.Config{
+			GitlabGroupID:     100,
+			GitlabProjectID:   0,
+			GitlabToken:       "token",
+			GitlabURI:         "https://gitlab.com",
+			LocalPath:         "/backup",
+			TmpDir:            "/tmp",
+			ExportTimeoutMins: 10,
+		}
+
+		err := cfg.Validate()
+		require.NoError(t, err)
+	})
+
+	t.Run("only project ID set - should succeed", func(t *testing.T) {
+		cfg := &config.Config{
+			GitlabGroupID:     0,
+			GitlabProjectID:   200,
+			GitlabToken:       "token",
+			GitlabURI:         "https://gitlab.com",
+			LocalPath:         "/backup",
+			TmpDir:            "/tmp",
+			ExportTimeoutMins: 10,
+		}
+
+		err := cfg.Validate()
+		require.NoError(t, err)
+	})
+}
+
+func TestNewConfigFromFileNoValidate(t *testing.T) {
+	t.Run("loads config without validation", func(t *testing.T) {
+		t.Setenv("GITLAB_TOKEN", "mytoken")
+		cfg, err := config.NewConfigFromFileNoValidate("testdata/good-cfg.yaml")
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		require.Equal(t, int64(0), cfg.GitlabGroupID)
+		require.Equal(t, int64(456), cfg.GitlabProjectID)
+		// NewConfigFromFileNoValidate loads config without validation
+		// This allows CLI overrides to be applied before validation
+	})
+
+	t.Run("file not found", func(t *testing.T) {
+		_, err := config.NewConfigFromFileNoValidate("testdata/unknown.yaml")
+		require.Error(t, err)
+	})
 }

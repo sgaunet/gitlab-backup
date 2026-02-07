@@ -65,8 +65,6 @@ func TestExtractArchive(t *testing.T) {
 		// Create test archive
 		archivePath := createTestArchive(t, map[string]string{
 			"project.tar.gz": "project export data",
-			"labels.json":    `[{"name":"bug","color":"#FF0000"}]`,
-			"issues.json":    `[{"id":1,"title":"Test issue"}]`,
 		})
 
 		destDir := t.TempDir()
@@ -78,14 +76,10 @@ func TestExtractArchive(t *testing.T) {
 		require.NoError(t, err, "Extraction should succeed")
 		require.NotNil(t, contents, "Contents should not be nil")
 		assert.NotEmpty(t, contents.ProjectExportPath, "Project export path should be set")
-		assert.NotEmpty(t, contents.LabelsJSONPath, "Labels JSON path should be set")
-		assert.NotEmpty(t, contents.IssuesJSONPath, "Issues JSON path should be set")
 		assert.Equal(t, destDir, contents.ExtractionDir, "Extraction dir should match")
 
 		// Verify files exist
 		assert.FileExists(t, contents.ProjectExportPath, "Project export file should exist")
-		assert.FileExists(t, contents.LabelsJSONPath, "Labels JSON file should exist")
-		assert.FileExists(t, contents.IssuesJSONPath, "Issues JSON file should exist")
 
 		// Verify file contents
 		projectData, err := os.ReadFile(contents.ProjectExportPath)
@@ -93,26 +87,34 @@ func TestExtractArchive(t *testing.T) {
 		assert.Equal(t, "project export data", string(projectData))
 	})
 
-	t.Run("MinimalArchive", func(t *testing.T) {
-		// Archive with only project.tar.gz
+	t.Run("BackwardCompatibilityOldArchive", func(t *testing.T) {
+		// Archive with old format (includes labels.json and issues.json)
+		// These files should be silently ignored for backward compatibility
 		archivePath := createTestArchive(t, map[string]string{
-			"project.tar.gz": "minimal project",
+			"myproject-123-gitlab.tar.gz": "gitlab export",
+			"labels.json":                 `[{"name":"bug","color":"#FF0000"}]`,
+			"issues.json":                 `[{"id":1,"title":"Test issue"}]`,
 		})
 
 		destDir := t.TempDir()
 		contents, err := storage.ExtractArchive(ctx, archivePath, destDir)
 
-		require.NoError(t, err, "Extraction should succeed with minimal archive")
+		// Should succeed and only track the GitLab export file
+		require.NoError(t, err, "Extraction should succeed with old archive format")
 		assert.NotEmpty(t, contents.ProjectExportPath, "Project export path should be set")
-		assert.Empty(t, contents.LabelsJSONPath, "Labels path should be empty")
-		assert.Empty(t, contents.IssuesJSONPath, "Issues path should be empty")
+		assert.Contains(t, contents.ProjectExportPath, "gitlab.tar.gz", "Should identify -gitlab.tar.gz file")
+
+		// Verify labels.json and issues.json are extracted but not tracked
+		labelsPath := filepath.Join(destDir, "labels.json")
+		issuesPath := filepath.Join(destDir, "issues.json")
+		assert.FileExists(t, labelsPath, "Labels file should be extracted")
+		assert.FileExists(t, issuesPath, "Issues file should be extracted")
 	})
 
 	t.Run("MissingProjectTarGz", func(t *testing.T) {
-		// Archive without project.tar.gz
+		// Archive without project.tar.gz (invalid archive)
 		archivePath := createTestArchive(t, map[string]string{
-			"labels.json": "[]",
-			"issues.json": "[]",
+			"README.txt": "not a valid backup",
 		})
 
 		destDir := t.TempDir()
@@ -120,7 +122,7 @@ func TestExtractArchive(t *testing.T) {
 
 		require.Error(t, err, "Extraction should fail without project.tar.gz")
 		assert.Nil(t, contents, "Contents should be nil on error")
-		assert.Contains(t, err.Error(), "project.tar.gz", "Error should mention missing project.tar.gz")
+		assert.Contains(t, err.Error(), "GitLab export", "Error should mention missing GitLab export file")
 	})
 
 	t.Run("PathTraversalAbsolutePath", func(t *testing.T) {

@@ -140,28 +140,22 @@ func (a *App) ExportProject(ctx context.Context, projectID int64) error {
 		return err
 	}
 
-	// Export GitLab archive to temporary location with -gitlab suffix
+	// Export GitLab archive directly as final archive
 	//nolint:lll // Line length acceptable for formatting string with multiple variables
-	gitlabArchivePath := fmt.Sprintf("%s%s%s-%d-gitlab.tar.gz", a.cfg.TmpDir, string(os.PathSeparator), project.Name, project.ID)
-	err = a.gitlabService.ExportProject(ctx, &project, gitlabArchivePath)
+	archivePath := fmt.Sprintf("%s%s%s-%d.tar.gz", a.cfg.TmpDir, string(os.PathSeparator), project.Name, project.ID)
+	err = a.gitlabService.ExportProject(ctx, &project, archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to export project %s: %w", project.Name, err)
 	}
 
-	// Export metadata and create final archive
-	finalArchivePath, err := a.createFinalArchive(ctx, &project, gitlabArchivePath)
-	if err != nil {
+	// call postbackup hook with archive path
+	if err := a.executePostBackupHook(archivePath); err != nil {
 		return err
 	}
 
-	// call postbackup hook with final archive path
-	if err := a.executePostBackupHook(finalArchivePath); err != nil {
-		return err
-	}
-
-	err = a.StoreArchive(ctx, finalArchivePath)
+	err = a.StoreArchive(ctx, archivePath)
 	if err != nil {
-		return fmt.Errorf("failed to store archive %s: %w", finalArchivePath, err)
+		return fmt.Errorf("failed to store archive %s: %w", archivePath, err)
 	}
 
 	a.log.Info("project successfully exported", "project", project.Name)
@@ -202,73 +196,4 @@ func (a *App) executePostBackupHook(archivePath string) error {
 		}
 	}
 	return nil
-}
-
-// createFinalArchive exports metadata and creates the final archive.
-func (a *App) createFinalArchive(
-	ctx context.Context, project *gitlab.Project, gitlabArchivePath string,
-) (string, error) {
-	labelsPath, issuesPath, metadataExported := a.exportMetadata(ctx, project)
-
-	finalArchivePath := fmt.Sprintf("%s%s%s-%d.tar.gz", a.cfg.TmpDir, string(os.PathSeparator), project.Name, project.ID)
-
-	if metadataExported {
-		a.log.Info("creating composite archive", "project", project.Name)
-		err := gitlab.CreateCompositeArchive(gitlabArchivePath, labelsPath, issuesPath, finalArchivePath)
-		if err != nil {
-			a.cleanupFiles(gitlabArchivePath, labelsPath, issuesPath)
-			return "", fmt.Errorf("failed to create composite archive: %w", err)
-		}
-		a.cleanupFiles(gitlabArchivePath, labelsPath, issuesPath)
-	} else {
-		// No metadata exported, rename GitLab archive to final name
-		err := os.Rename(gitlabArchivePath, finalArchivePath)
-		if err != nil {
-			_ = os.Remove(gitlabArchivePath)
-			return "", fmt.Errorf("failed to rename archive: %w", err)
-		}
-	}
-
-	return finalArchivePath, nil
-}
-
-// exportMetadata exports labels and issues metadata if enabled.
-func (a *App) exportMetadata(ctx context.Context, project *gitlab.Project) (string, string, bool) {
-	var labelsPath, issuesPath string
-	var exported bool
-
-	if a.cfg.ExportLabels {
-		labelsPath = fmt.Sprintf("%s%slabels-%d.json", a.cfg.TmpDir, string(os.PathSeparator), project.ID)
-		err := a.gitlabService.ExportLabels(ctx, project.ID, labelsPath)
-		if err != nil {
-			a.log.Warn("failed to export labels (non-fatal)", "project", project.Name, "error", err)
-			labelsPath = ""
-		} else {
-			exported = true
-			a.log.Info("labels exported successfully", "project", project.Name)
-		}
-	}
-
-	if a.cfg.ExportIssues {
-		issuesPath = fmt.Sprintf("%s%sissues-%d.json", a.cfg.TmpDir, string(os.PathSeparator), project.ID)
-		err := a.gitlabService.ExportIssues(ctx, project.ID, issuesPath)
-		if err != nil {
-			a.log.Warn("failed to export issues (non-fatal)", "project", project.Name, "error", err)
-			issuesPath = ""
-		} else {
-			exported = true
-			a.log.Info("issues exported successfully", "project", project.Name)
-		}
-	}
-
-	return labelsPath, issuesPath, exported
-}
-
-// cleanupFiles removes temporary files, ignoring errors.
-func (a *App) cleanupFiles(files ...string) {
-	for _, file := range files {
-		if file != "" {
-			_ = os.Remove(file)
-		}
-	}
 }

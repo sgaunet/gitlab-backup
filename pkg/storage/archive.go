@@ -12,6 +12,25 @@ import (
 	"strings"
 )
 
+const (
+	dirPermissions = 0o755
+)
+
+var (
+	// ErrPathTraversal is returned when an archive contains path traversal attempts.
+	ErrPathTraversal = errors.New("path traversal detected in archive")
+	// ErrMissingExportFile is returned when archive doesn't contain required GitLab export file.
+	ErrMissingExportFile = errors.New(
+		"archive does not contain required GitLab export file (*-gitlab.tar.gz or project.tar.gz)",
+	)
+	// ErrArchiveNotFound is returned when archive file doesn't exist.
+	ErrArchiveNotFound = errors.New("archive not found")
+	// ErrArchiveIsDirectory is returned when archive path points to a directory.
+	ErrArchiveIsDirectory = errors.New("archive path is a directory")
+	// ErrArchiveEmpty is returned when archive file is empty.
+	ErrArchiveEmpty = errors.New("archive is empty")
+)
+
 // Archive represents a composite backup archive created by gitlab-backup.
 type Archive struct {
 	// Path is the local filesystem path or S3 key.
@@ -40,35 +59,64 @@ type ArchiveContents struct {
 //
 // Returns ArchiveContents with paths to extracted files.
 // Validates that GitLab export file (*-gitlab.tar.gz or project.tar.gz) is present in the archive.
+//
 func ExtractArchive(ctx context.Context, archivePath string, destDir string) (*ArchiveContents, error) {
-	// Open archive file
-	file, err := os.Open(archivePath)
+	// Open and initialize tar reader
+	tr, cleanup, err := openTarArchive(archivePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open archive: %w", err)
+		return nil, err
 	}
-	defer file.Close()
-
-	// Create gzip reader
-	gzr, err := gzip.NewReader(file)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
-	}
-	defer gzr.Close()
-
-	// Create tar reader
-	tr := tar.NewReader(gzr)
+	defer cleanup()
 
 	// Initialize archive contents
 	contents := &ArchiveContents{
 		ExtractionDir: destDir,
 	}
 
-	// Extract files
+	// Extract all files from archive
+	if err := extractAllFiles(ctx, tr, destDir, contents); err != nil {
+		return nil, err
+	}
+
+	// Validate required files
+	if contents.ProjectExportPath == "" {
+		return nil, ErrMissingExportFile
+	}
+
+	return contents, nil
+}
+
+// openTarArchive opens a tar.gz archive and returns a tar reader and cleanup function.
+func openTarArchive(archivePath string) (*tar.Reader, func(), error) {
+	// Open archive file
+	//nolint:gosec // G304: Archive path is validated by caller
+	file, err := os.Open(archivePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open archive: %w", err)
+	}
+
+	// Create gzip reader
+	gzr, err := gzip.NewReader(file)
+	if err != nil {
+		_ = file.Close()
+		return nil, nil, fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+
+	cleanup := func() {
+		_ = gzr.Close()
+		_ = file.Close()
+	}
+
+	return tar.NewReader(gzr), cleanup, nil
+}
+
+// extractAllFiles extracts all files from the tar reader to the destination directory.
+func extractAllFiles(ctx context.Context, tr *tar.Reader, destDir string, contents *ArchiveContents) error {
 	for {
 		// Check context cancellation
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return fmt.Errorf("extraction cancelled: %w", ctx.Err())
 		default:
 		}
 
@@ -77,74 +125,103 @@ func ExtractArchive(ctx context.Context, archivePath string, destDir string) (*A
 			break // End of archive
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to read tar header: %w", err)
+			return fmt.Errorf("failed to read tar header: %w", err)
 		}
 
-		// Validate and clean the path to prevent traversal attacks
-		cleanPath := filepath.Clean(header.Name)
-		if !isValidPath(cleanPath) {
-			return nil, fmt.Errorf("invalid path in archive (path traversal detected): %s", header.Name)
-		}
-
-		// Build full destination path
-		targetPath := filepath.Join(destDir, cleanPath)
-
-		// Ensure target path is within destDir (defense in depth)
-		if !strings.HasPrefix(targetPath, filepath.Clean(destDir)+string(os.PathSeparator)) {
-			return nil, fmt.Errorf("path traversal detected: %s", header.Name)
-		}
-
-		// Extract based on file type
-		switch header.Typeflag {
-		case tar.TypeDir:
-			// Create directory
-			if err := os.MkdirAll(targetPath, 0755); err != nil {
-				return nil, fmt.Errorf("failed to create directory %s: %w", targetPath, err)
-			}
-
-		case tar.TypeReg:
-			// Ensure parent directory exists
-			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-				return nil, fmt.Errorf("failed to create parent directory for %s: %w", targetPath, err)
-			}
-
-			// Create file
-			outFile, err := os.Create(targetPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create file %s: %w", targetPath, err)
-			}
-
-			// Copy file contents
-			if _, err := io.Copy(outFile, tr); err != nil {
-				outFile.Close()
-				return nil, fmt.Errorf("failed to write file %s: %w", targetPath, err)
-			}
-			outFile.Close()
-
-			// Track extracted GitLab export file
-			// Archives may contain:
-			// - {projectname}-{projectid}.tar.gz (new format - direct GitLab export)
-			// - {projectname}-{projectid}-gitlab.tar.gz (old composite archive format)
-			// - project.tar.gz (generic name)
-			// Old archives may also contain labels.json and issues.json (ignored for backward compatibility)
-			basename := filepath.Base(cleanPath)
-			if strings.HasSuffix(basename, ".tar.gz") && !strings.HasPrefix(basename, "labels-") && !strings.HasPrefix(basename, "issues-") {
-				contents.ProjectExportPath = targetPath
-			}
-			// Silently ignore labels.json and issues.json (backward compatibility)
-
-		default:
-			// Skip other file types (symlinks, etc.)
-			continue
+		// Validate and extract entry
+		if err := extractTarEntry(tr, header, destDir, contents); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	// Validate required files
-	if contents.ProjectExportPath == "" {
-		return nil, errors.New("archive does not contain required GitLab export file (*-gitlab.tar.gz or project.tar.gz)")
+// extractTarEntry extracts a single tar entry to the destination directory.
+func extractTarEntry(tr *tar.Reader, header *tar.Header, destDir string, contents *ArchiveContents) error {
+	// Validate path
+	targetPath, err := validateTarPath(header.Name, destDir)
+	if err != nil {
+		return err
 	}
 
-	return contents, nil
+	// Extract based on file type
+	switch header.Typeflag {
+	case tar.TypeDir:
+		return extractDirectory(targetPath)
+	case tar.TypeReg:
+		return extractRegularFile(tr, targetPath, contents)
+	default:
+		// Skip other file types (symlinks, etc.)
+		return nil
+	}
+}
+
+// validateTarPath validates a tar entry path and returns the target extraction path.
+func validateTarPath(name, destDir string) (string, error) {
+	cleanPath := filepath.Clean(name)
+	if !isValidPath(cleanPath) {
+		return "", fmt.Errorf("%w: %s", ErrPathTraversal, name)
+	}
+
+	targetPath := filepath.Join(destDir, cleanPath)
+
+	// Ensure target path is within destDir (defense in depth)
+	if !strings.HasPrefix(targetPath, filepath.Clean(destDir)+string(os.PathSeparator)) {
+		return "", fmt.Errorf("%w: %s", ErrPathTraversal, name)
+	}
+
+	return targetPath, nil
+}
+
+// extractDirectory creates a directory at the target path.
+func extractDirectory(targetPath string) error {
+	if err := os.MkdirAll(targetPath, dirPermissions); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", targetPath, err)
+	}
+	return nil
+}
+
+// extractRegularFile extracts a regular file from the tar reader.
+func extractRegularFile(tr *tar.Reader, targetPath string, contents *ArchiveContents) error {
+	// Ensure parent directory exists
+	if err := os.MkdirAll(filepath.Dir(targetPath), dirPermissions); err != nil {
+		return fmt.Errorf("failed to create parent directory for %s: %w", targetPath, err)
+	}
+
+	// Create and write file
+	//nolint:gosec // G304: Target path is validated for path traversal
+	outFile, err := os.Create(targetPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", targetPath, err)
+	}
+
+	if _, err := io.Copy(outFile, tr); err != nil {
+		_ = outFile.Close()
+		return fmt.Errorf("failed to write file %s: %w", targetPath, err)
+	}
+
+	if err := outFile.Close(); err != nil {
+		return fmt.Errorf("failed to close file %s: %w", targetPath, err)
+	}
+
+	// Track GitLab export file
+	trackExportFile(targetPath, contents)
+	return nil
+}
+
+// trackExportFile identifies and tracks GitLab export files.
+func trackExportFile(targetPath string, contents *ArchiveContents) {
+	// Archives may contain:
+	// - {projectname}-{projectid}.tar.gz (new format - direct GitLab export)
+	// - {projectname}-{projectid}-gitlab.tar.gz (old composite archive format)
+	// - project.tar.gz (generic name)
+	// Old archives may also contain labels.json and issues.json (ignored for backward compatibility)
+	basename := filepath.Base(targetPath)
+	isGzipArchive := strings.HasSuffix(basename, ".tar.gz")
+	isMetadataFile := strings.HasPrefix(basename, "labels-") || strings.HasPrefix(basename, "issues-")
+	if isGzipArchive && !isMetadataFile {
+		contents.ProjectExportPath = targetPath
+	}
 }
 
 // isValidPath checks if a path is valid and does not contain traversal sequences.
@@ -161,11 +238,7 @@ func isValidPath(path string) bool {
 
 	// Clean and check again
 	cleaned := filepath.Clean(path)
-	if strings.HasPrefix(cleaned, "..") {
-		return false
-	}
-
-	return true
+	return !strings.HasPrefix(cleaned, "..")
 }
 
 // ValidateArchive validates that a file is a valid tar.gz archive.
@@ -176,39 +249,44 @@ func ValidateArchive(archivePath string) error {
 	info, err := os.Stat(archivePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("archive not found: %s", archivePath)
+			return fmt.Errorf("%w: %s", ErrArchiveNotFound, archivePath)
 		}
 		return fmt.Errorf("failed to stat archive: %w", err)
 	}
 
 	// Check it's a regular file
 	if info.IsDir() {
-		return fmt.Errorf("archive path is a directory: %s", archivePath)
+		return fmt.Errorf("%w: %s", ErrArchiveIsDirectory, archivePath)
 	}
 
 	// Check file size is reasonable (not empty)
 	if info.Size() == 0 {
-		return fmt.Errorf("archive is empty: %s", archivePath)
+		return fmt.Errorf("%w: %s", ErrArchiveEmpty, archivePath)
 	}
 
 	// Open file
+	//nolint:gosec // G304: Archive path is provided by caller and validated
 	file, err := os.Open(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to open archive: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	// Validate gzip format by creating reader
 	gzr, err := gzip.NewReader(file)
 	if err != nil {
 		return fmt.Errorf("invalid gzip format: %w", err)
 	}
-	defer gzr.Close()
+	defer func() {
+		_ = gzr.Close()
+	}()
 
 	// Validate tar format by reading first header
 	tr := tar.NewReader(gzr)
 	_, err = tr.Next()
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return fmt.Errorf("invalid tar format: %w", err)
 	}
 

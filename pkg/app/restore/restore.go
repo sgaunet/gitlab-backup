@@ -32,7 +32,7 @@ func NewOrchestrator(gitlabClient *gitlab.Service, storage Storage, cfg *config.
 	var logger *slog.Logger
 	if cfg.NoLogTime {
 		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 				if a.Key == slog.TimeKey {
 					return slog.Attr{}
 				}
@@ -53,14 +53,16 @@ func NewOrchestrator(gitlabClient *gitlab.Service, storage Storage, cfg *config.
 // Restore executes the complete 5-phase restore workflow.
 // It orchestrates validation, download, extraction, and import.
 //
-// Returns RestoreResult with success status, metrics, and any errors encountered.
+// Returns Result with success status, metrics, and any errors encountered.
 // Fatal errors stop the workflow; non-fatal errors are collected but allow continuation.
-func (o *Orchestrator) Restore(ctx context.Context, cfg *config.Config) (*RestoreResult, error) {
+//
+//nolint:funlen // Orchestration function complexity is acceptable
+func (o *Orchestrator) Restore(ctx context.Context, cfg *config.Config) (*Result, error) {
 	startTime := time.Now()
-	result := &RestoreResult{
+	result := &Result{
 		Success: false,
-		Metrics: RestoreMetrics{},
-		Errors:  []RestoreError{},
+		Metrics: Metrics{},
+		Errors:  []Error{},
 	}
 
 	// Determine local archive path (may need download from S3)
@@ -68,58 +70,18 @@ func (o *Orchestrator) Restore(ctx context.Context, cfg *config.Config) (*Restor
 	var tempDownloadPath string
 
 	// Phase 1: Validation (skip if --overwrite flag set)
-	if !cfg.RestoreOverwrite {
-		o.progress.StartPhase(PhaseValidation)
-
-		// Get or create project to obtain ID
-		projectFullPath := fmt.Sprintf("%s/%s", cfg.RestoreTargetNS, cfg.RestoreTargetPath)
-		project, _, err := o.gitlabClient.Client().Projects().GetProject(projectFullPath, nil)
-
-		var projectID int64
-		if err != nil {
-			// Project doesn't exist - this is OK, validation passes
-			o.progress.CompletePhase(PhaseValidation)
-		} else {
-			projectID = int64(project.ID)
-
-			// Validate project is empty
-			validator := NewValidator(
-				o.gitlabClient.Client().Commits(),
-				o.gitlabClient.Client().Issues(),
-				o.gitlabClient.Client().Labels(),
-			)
-			emptiness, err := validator.ValidateProjectEmpty(ctx, projectID)
-			if err != nil {
-				o.progress.FailPhase(PhaseValidation, err)
-				result.addError(PhaseValidation, "Validator", err.Error(), true)
-				return result, err
-			}
-
-			if !emptiness.IsEmpty() {
-				err := fmt.Errorf("project is not empty (commits: %d, issues: %d, labels: %d) - use --overwrite to skip validation",
-					emptiness.CommitCount, emptiness.IssueCount, emptiness.LabelCount)
-				o.progress.FailPhase(PhaseValidation, err)
-				result.addError(PhaseValidation, "Validator", err.Error(), true)
-				return result, err
-			}
-			o.progress.CompletePhase(PhaseValidation)
-		}
-	} else {
-		o.progress.SkipPhase(PhaseValidation, "overwrite flag set")
+	if err := o.validateProject(ctx, cfg, result); err != nil {
+		return result, err
 	}
 
 	// Phase 2: Download (S3 only)
 	if cfg.StorageType == "s3" {
-		o.progress.StartPhase(PhaseDownload)
-		downloadedPath, err := o.storage.Get(ctx, cfg.RestoreSource)
+		downloadedPath, err := o.downloadFromS3(ctx, cfg, result)
 		if err != nil {
-			o.progress.FailPhase(PhaseDownload, err)
-			result.addError(PhaseDownload, "S3Storage", err.Error(), true)
 			return result, err
 		}
 		localArchivePath = downloadedPath
 		tempDownloadPath = downloadedPath
-		o.progress.CompletePhase(PhaseDownload)
 	}
 
 	// Phase 3: Extraction
@@ -127,26 +89,16 @@ func (o *Orchestrator) Restore(ctx context.Context, cfg *config.Config) (*Restor
 	tempDir, err := os.MkdirTemp(cfg.TmpDir, "gitlab-restore-*")
 	if err != nil {
 		o.progress.FailPhase(PhaseExtraction, err)
-		result.addError(PhaseExtraction, "TempDir", err.Error(), true)
-		return result, err
+		result.addError(PhaseExtraction, "TempDir", err.Error())
+		return result, fmt.Errorf("failed to create temp directory: %w", err)
 	}
-	defer func() {
-		// Phase 7: Cleanup (always runs)
-		if err := os.RemoveAll(tempDir); err != nil {
-			result.addWarning(fmt.Sprintf("Failed to cleanup temp dir %s: %v", tempDir, err))
-		}
-		if tempDownloadPath != "" {
-			if err := os.Remove(tempDownloadPath); err != nil {
-				result.addWarning(fmt.Sprintf("Failed to cleanup downloaded archive %s: %v", tempDownloadPath, err))
-			}
-		}
-	}()
+	defer o.cleanup(result, tempDir, tempDownloadPath)
 
 	archiveContents, err := storage.ExtractArchive(ctx, localArchivePath, tempDir)
 	if err != nil {
 		o.progress.FailPhase(PhaseExtraction, err)
-		result.addError(PhaseExtraction, "ArchiveExtractor", err.Error(), true)
-		return result, err
+		result.addError(PhaseExtraction, "ArchiveExtractor", err.Error())
+		return result, fmt.Errorf("archive extraction failed: %w", err)
 	}
 	o.progress.CompletePhase(PhaseExtraction)
 
@@ -160,16 +112,18 @@ func (o *Orchestrator) Restore(ctx context.Context, cfg *config.Config) (*Restor
 	archiveFile, err := os.Open(archiveContents.ProjectExportPath)
 	if err != nil {
 		o.progress.FailPhase(PhaseImport, err)
-		result.addError(PhaseImport, "FileIO", err.Error(), true)
-		return result, err
+		result.addError(PhaseImport, "FileIO", err.Error())
+		return result, fmt.Errorf("failed to open archive file: %w", err)
 	}
-	defer archiveFile.Close()
+	defer func() {
+		_ = archiveFile.Close()
+	}()
 
 	importStatus, err := importService.ImportProject(ctx, archiveFile, cfg.RestoreTargetNS, cfg.RestoreTargetPath)
 	if err != nil {
 		o.progress.FailPhase(PhaseImport, err)
-		result.addError(PhaseImport, "GitLabImport", err.Error(), true)
-		return result, err
+		result.addError(PhaseImport, "GitLabImport", err.Error())
+		return result, fmt.Errorf("import failed: %w", err)
 	}
 
 	result.ProjectID = importStatus.ID
@@ -184,24 +138,24 @@ func (o *Orchestrator) Restore(ctx context.Context, cfg *config.Config) (*Restor
 	return result, nil
 }
 
-// addError adds an error to the result.
-func (r *RestoreResult) addError(phase RestorePhase, component string, message string, fatal bool) {
-	r.Errors = append(r.Errors, RestoreError{
+// addError adds a fatal error to the result.
+func (r *Result) addError(phase Phase, component string, message string) {
+	r.Errors = append(r.Errors, Error{
 		Phase:     phase,
 		Component: component,
 		Message:   message,
-		Fatal:     fatal,
+		Fatal:     true,
 		Timestamp: time.Now(),
 	})
 }
 
 // addWarning adds a warning to the result.
-func (r *RestoreResult) addWarning(warning string) {
+func (r *Result) addWarning(warning string) {
 	r.Warnings = append(r.Warnings, warning)
 }
 
 // hasFatalErrors returns true if any errors are fatal.
-func (r *RestoreResult) hasFatalErrors() bool {
+func (r *Result) hasFatalErrors() bool {
 	for _, err := range r.Errors {
 		if err.Fatal {
 			return true
@@ -212,3 +166,76 @@ func (r *RestoreResult) hasFatalErrors() bool {
 
 // ErrProjectNotEmpty is returned when trying to restore to a non-empty project.
 var ErrProjectNotEmpty = errors.New("target project is not empty")
+
+// ErrProjectHasContent is returned when project is not empty (has commits, issues, or labels).
+var ErrProjectHasContent = errors.New("project is not empty - use --overwrite to skip validation")
+
+// validateProject validates that the target project is empty (if not overwriting).
+func (o *Orchestrator) validateProject(ctx context.Context, cfg *config.Config, result *Result) error {
+	if !cfg.RestoreOverwrite {
+		o.progress.StartPhase(PhaseValidation)
+
+		// Get or create project to obtain ID
+		projectFullPath := fmt.Sprintf("%s/%s", cfg.RestoreTargetNS, cfg.RestoreTargetPath)
+		project, _, err := o.gitlabClient.Client().Projects().GetProject(projectFullPath, nil)
+
+		//nolint:nilerr // Project not existing is expected and not an error
+		if err != nil {
+			// Project doesn't exist - this is OK, validation passes
+			o.progress.CompletePhase(PhaseValidation)
+			return nil
+		}
+
+		projectID := project.ID
+
+		// Validate project is empty
+		validator := NewValidator(
+			o.gitlabClient.Client().Commits(),
+			o.gitlabClient.Client().Issues(),
+			o.gitlabClient.Client().Labels(),
+		)
+		emptiness, err := validator.ValidateProjectEmpty(ctx, projectID)
+		if err != nil {
+			o.progress.FailPhase(PhaseValidation, err)
+			result.addError(PhaseValidation, "Validator", err.Error())
+			return err
+		}
+
+		if !emptiness.IsEmpty() {
+			err := fmt.Errorf("%w (commits: %d, issues: %d, labels: %d)",
+				ErrProjectHasContent, emptiness.CommitCount, emptiness.IssueCount, emptiness.LabelCount)
+			o.progress.FailPhase(PhaseValidation, err)
+			result.addError(PhaseValidation, "Validator", err.Error())
+			return err
+		}
+		o.progress.CompletePhase(PhaseValidation)
+	} else {
+		o.progress.SkipPhase(PhaseValidation, "overwrite flag set")
+	}
+	return nil
+}
+
+// downloadFromS3 downloads the archive from S3 storage.
+func (o *Orchestrator) downloadFromS3(ctx context.Context, cfg *config.Config, result *Result) (string, error) {
+	o.progress.StartPhase(PhaseDownload)
+	downloadedPath, err := o.storage.Get(ctx, cfg.RestoreSource)
+	if err != nil {
+		o.progress.FailPhase(PhaseDownload, err)
+		result.addError(PhaseDownload, "S3Storage", err.Error())
+		return "", fmt.Errorf("download failed: %w", err)
+	}
+	o.progress.CompletePhase(PhaseDownload)
+	return downloadedPath, nil
+}
+
+// cleanup removes temporary files and directories.
+func (o *Orchestrator) cleanup(result *Result, tempDir, tempDownloadPath string) {
+	if err := os.RemoveAll(tempDir); err != nil {
+		result.addWarning(fmt.Sprintf("Failed to cleanup temp dir %s: %v", tempDir, err))
+	}
+	if tempDownloadPath != "" {
+		if err := os.Remove(tempDownloadPath); err != nil {
+			result.addWarning(fmt.Sprintf("Failed to cleanup downloaded archive %s: %v", tempDownloadPath, err))
+		}
+	}
+}

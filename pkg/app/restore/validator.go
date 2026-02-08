@@ -16,7 +16,11 @@ type Validator struct {
 }
 
 // NewValidator creates a new Validator instance.
-func NewValidator(commitsService gitlab.CommitsService, issuesService gitlab.IssuesService, labelsService gitlab.LabelsService) *Validator {
+func NewValidator(
+	commitsService gitlab.CommitsService,
+	issuesService gitlab.IssuesService,
+	labelsService gitlab.LabelsService,
+) *Validator {
 	return &Validator{
 		commitsService: commitsService,
 		issuesService:  issuesService,
@@ -27,7 +31,7 @@ func NewValidator(commitsService gitlab.CommitsService, issuesService gitlab.Iss
 // ValidateProjectEmpty checks if a GitLab project is empty (no commits, issues, or labels).
 // It returns EmptinessChecks with detailed information about what exists in the project.
 // This is used to ensure a project is empty before restore to avoid overwriting data.
-func (v *Validator) ValidateProjectEmpty(ctx context.Context, projectID int64) (*EmptinessChecks, error) {
+func (v *Validator) ValidateProjectEmpty(_ context.Context, projectID int64) (*EmptinessChecks, error) {
 	checks := &EmptinessChecks{}
 
 	// Check for commits
@@ -81,15 +85,3 @@ func (v *Validator) ValidateProjectEmpty(ctx context.Context, projectID int64) (
 	return checks, nil
 }
 
-// buildEmptinessChecks constructs an EmptinessChecks struct from API responses.
-// This helper function is used internally to build the checks result.
-func buildEmptinessChecks(commits []*gitlabapi.Commit, issues []*gitlabapi.Issue, labels []*gitlabapi.Label) *EmptinessChecks {
-	return &EmptinessChecks{
-		HasCommits:  len(commits) > 0,
-		HasIssues:   len(issues) > 0,
-		HasLabels:   len(labels) > 0,
-		CommitCount: len(commits),
-		IssueCount:  len(issues),
-		LabelCount:  len(labels),
-	}
-}

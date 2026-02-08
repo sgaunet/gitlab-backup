@@ -192,6 +192,7 @@ func (r *Service) GetProject(ctx context.Context, projectID int64) (Project, err
 }
 
 // Client returns the underlying GitLab client for advanced operations.
+//nolint:ireturn // Returning interface is intentional for abstraction
 func (r *Service) Client() GitLabClient {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

@@ -2,12 +2,25 @@ package gitlab
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
 
 	"golang.org/x/time/rate"
 	gitlabapi "gitlab.com/gitlab-org/api/client-go"
+)
+
+const (
+	importTimeoutMinutes = 10
+	importPollSeconds    = 5
+)
+
+var (
+	// ErrImportFailed is returned when GitLab import fails.
+	ErrImportFailed = errors.New("import failed")
+	// ErrUnexpectedImportStatus is returned when import reaches an unexpected status.
+	ErrUnexpectedImportStatus = errors.New("unexpected import status")
 )
 
 // ImportService provides GitLab project import functionality.
@@ -43,7 +56,12 @@ func NewImportServiceWithRateLimiters(
 //
 // Returns the final ImportStatus on success.
 // Returns error if import initiation fails, import status becomes "failed", or timeout occurs.
-func (s *ImportService) ImportProject(ctx context.Context, archive io.Reader, namespace string, projectPath string) (*gitlabapi.ImportStatus, error) {
+func (s *ImportService) ImportProject(
+	ctx context.Context,
+	archive io.Reader,
+	namespace string,
+	projectPath string,
+) (*gitlabapi.ImportStatus, error) {
 	// Wait for rate limit
 	if err := s.rateLimiterImport.Wait(ctx); err != nil {
 		return nil, fmt.Errorf("rate limit wait failed: %w", err)
@@ -62,7 +80,7 @@ func (s *ImportService) ImportProject(ctx context.Context, archive io.Reader, na
 	}
 
 	// Wait for import to complete (10 minute default timeout)
-	finalStatus, err := s.WaitForImport(ctx, importStatus.ID, 10*time.Minute)
+	finalStatus, err := s.WaitForImport(ctx, importStatus.ID, importTimeoutMinutes*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("import did not complete successfully: %w", err)
 	}
@@ -75,13 +93,17 @@ func (s *ImportService) ImportProject(ctx context.Context, archive io.Reader, na
 //
 // Returns the final ImportStatus when import reaches "finished" state.
 // Returns error if import fails, times out, or API errors occur.
-func (s *ImportService) WaitForImport(ctx context.Context, projectID int64, timeout time.Duration) (*gitlabapi.ImportStatus, error) {
+func (s *ImportService) WaitForImport(
+	ctx context.Context,
+	projectID int64,
+	timeout time.Duration,
+) (*gitlabapi.ImportStatus, error) {
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Poll every 5 seconds
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(importPollSeconds * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -101,17 +123,17 @@ func (s *ImportService) WaitForImport(ctx context.Context, projectID int64, time
 		case "finished":
 			return status, nil
 		case "failed":
-			return nil, fmt.Errorf("import failed: %s", status.ImportError)
+			return nil, fmt.Errorf("%w: %s", ErrImportFailed, status.ImportError)
 		case "scheduled", "started":
 			// Continue polling
 		default:
-			return nil, fmt.Errorf("unexpected import status: %s", status.ImportStatus)
+			return nil, fmt.Errorf("%w: %s", ErrUnexpectedImportStatus, status.ImportStatus)
 		}
 
 		// Wait for next poll or context cancellation
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, fmt.Errorf("import cancelled or timed out: %w", ctx.Err())
 		case <-ticker.C:
 			// Continue to next iteration
 		}

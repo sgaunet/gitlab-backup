@@ -141,7 +141,9 @@ func (s *S3Storage) GetFile(ctx context.Context, key string, localPath string) e
 	if err != nil {
 		return fmt.Errorf("failed to create local file %s: %w", localPath, err)
 	}
-	defer outFile.Close()
+	defer func() {
+		_ = outFile.Close()
+	}()
 
 	// Construct full S3 key
 	fullKey := s.path + "/" + key
@@ -157,7 +159,9 @@ func (s *S3Storage) GetFile(ctx context.Context, key string, localPath string) e
 	if err != nil {
 		return fmt.Errorf("failed to download file %s from S3: %w", fullKey, err)
 	}
-	defer result.Body.Close()
+	defer func() {
+		_ = result.Body.Close()
+	}()
 
 	// Copy to local file
 	_, err = io.Copy(outFile, result.Body)

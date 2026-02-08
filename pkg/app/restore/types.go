@@ -5,26 +5,26 @@ import (
 	"time"
 )
 
-// RestorePhase represents the current phase of the restore operation.
-type RestorePhase string
+// Phase represents the current phase of the restore operation.
+type Phase string
 
 const (
 	// PhaseValidation validates configuration and target project emptiness.
-	PhaseValidation RestorePhase = "validation"
+	PhaseValidation Phase = "validation"
 	// PhaseDownload downloads archive from S3 (if applicable).
-	PhaseDownload RestorePhase = "download"
+	PhaseDownload Phase = "download"
 	// PhaseExtraction extracts archive contents to temporary directory.
-	PhaseExtraction RestorePhase = "extraction"
+	PhaseExtraction Phase = "extraction"
 	// PhaseImport imports the GitLab project repository.
-	PhaseImport RestorePhase = "import"
+	PhaseImport Phase = "import"
 	// PhaseCleanup removes temporary files.
-	PhaseCleanup RestorePhase = "cleanup"
+	PhaseCleanup Phase = "cleanup"
 	// PhaseComplete indicates successful completion.
-	PhaseComplete RestorePhase = "complete"
+	PhaseComplete Phase = "complete"
 )
 
-// RestoreResult represents the final outcome of a restore operation.
-type RestoreResult struct {
+// Result represents the final outcome of a restore operation.
+type Result struct {
 	// Success indicates whether the restore completed successfully.
 	Success bool
 	// ProjectID is the ID of the restored project.
@@ -32,15 +32,15 @@ type RestoreResult struct {
 	// ProjectURL is the web URL of the restored project.
 	ProjectURL string
 	// Metrics contains quantitative restore metrics.
-	Metrics RestoreMetrics
+	Metrics Metrics
 	// Errors contains all errors encountered during restore.
-	Errors []RestoreError
+	Errors []Error
 	// Warnings contains non-fatal warnings.
 	Warnings []string
 }
 
-// RestoreMetrics tracks quantitative restore operation metrics.
-type RestoreMetrics struct {
+// Metrics tracks quantitative restore operation metrics.
+type Metrics struct {
 	// BytesDownloaded is the bytes downloaded from S3 (if applicable).
 	BytesDownloaded int64
 	// BytesExtracted is the bytes extracted from archive.
@@ -49,10 +49,10 @@ type RestoreMetrics struct {
 	DurationSeconds int64
 }
 
-// RestoreError represents an error that occurred during restore.
-type RestoreError struct {
+// Error represents an error that occurred during restore.
+type Error struct {
 	// Phase indicates which phase the error occurred in.
-	Phase RestorePhase
+	Phase Phase
 	// Component identifies the component that failed (e.g., "import", "labels", "issues").
 	Component string
 	// Message is the error message.
@@ -84,16 +84,16 @@ func (e *EmptinessChecks) IsEmpty() bool {
 	return !e.HasCommits && !e.HasIssues && !e.HasLabels
 }
 
-// RestoreProgress tracks restore operation progress.
-type RestoreProgress struct {
+// Progress tracks restore operation progress.
+type Progress struct {
 	// CurrentPhase is the active phase.
-	CurrentPhase RestorePhase
+	CurrentPhase Phase
 	// CompletedPhases contains successfully completed phases.
-	CompletedPhases []RestorePhase
+	CompletedPhases []Phase
 	// StartTime is the restore start timestamp.
 	StartTime time.Time
 	// PhaseStartTime is the current phase start timestamp.
 	PhaseStartTime time.Time
 	// Metrics contains current progress metrics.
-	Metrics RestoreMetrics
+	Metrics Metrics
 }

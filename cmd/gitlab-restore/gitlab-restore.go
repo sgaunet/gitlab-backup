@@ -1,7 +1,9 @@
+// Package main provides the gitlab-restore CLI tool for restoring GitLab projects.
 package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -16,10 +18,18 @@ import (
 	"github.com/sgaunet/gitlab-backup/pkg/storage/s3storage"
 )
 
+const (
+	s3PathParts    = 2
+	separatorWidth = 60
+	bytesPerKB     = 1024
+	bytesPerMB     = bytesPerKB * bytesPerKB
+)
+
 var (
 	version = "development" // Set by GoReleaser ldflags
 )
 
+//nolint:funlen // Main function complexity is acceptable
 func main() {
 	// Define flags
 	configFile := flag.String("config", "", "Path to configuration file (YAML)")
@@ -37,49 +47,11 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Validate required flags
-	if *configFile == "" {
-		fmt.Fprintln(os.Stderr, "Error: --config flag is required")
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	if *archive == "" {
-		fmt.Fprintln(os.Stderr, "Error: --archive flag is required")
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	if *namespace == "" {
-		fmt.Fprintln(os.Stderr, "Error: --namespace flag is required")
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	if *project == "" {
-		fmt.Fprintln(os.Stderr, "Error: --project flag is required")
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	// Load configuration
-	cfg, err := config.NewConfigFromFile(*configFile)
+	// Validate and load configuration
+	cfg, err := validateAndLoadConfig(*configFile, *archive, *namespace, *project, *overwrite)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
-	}
-
-	// Override config with CLI flags
-	cfg.RestoreSource = *archive
-	cfg.RestoreTargetNS = *namespace
-	cfg.RestoreTargetPath = *project
-	cfg.RestoreOverwrite = *overwrite
-
-	// Determine storage type from archive path
-	if strings.HasPrefix(*archive, "s3://") {
-		cfg.StorageType = "s3"
-	} else {
-		cfg.StorageType = "local"
 	}
 
 	// Setup context with cancellation (Ctrl+C handling)
@@ -99,22 +71,18 @@ func main() {
 	gitlabClient := gitlab.NewGitlabServiceWithTimeout(cfg.ExportTimeoutMins)
 	if gitlabClient == nil {
 		fmt.Fprintf(os.Stderr, "Error initializing GitLab client\n")
+		cancel() // Ensure deferred cleanup runs
+		//nolint:gocritic // Must exit after cleanup
 		os.Exit(1)
 	}
 	gitlabClient.SetToken(cfg.GitlabToken)
 	gitlabClient.SetGitlabEndpoint(cfg.GitlabURI)
 
 	// Initialize storage
-	var storage restore.Storage
-	if cfg.StorageType == "s3" {
-		s3Store, err := s3storage.NewS3Storage(cfg.S3cfg.Region, cfg.S3cfg.Endpoint, cfg.S3cfg.BucketName, cfg.S3cfg.BucketPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error initializing S3 storage: %v\n", redactCredentials(err.Error(), cfg))
-			os.Exit(1)
-		}
-		storage = &s3StorageAdapter{s3Store}
-	} else {
-		storage = &localStorageAdapter{localstorage.NewLocalStorage(cfg.LocalPath)}
+	storage, err := initializeStorage(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing storage: %v\n", redactCredentials(err.Error(), cfg))
+		os.Exit(1)
 	}
 
 	// Create restore orchestrator
@@ -136,7 +104,70 @@ func main() {
 	}
 }
 
-// redactCredentials removes sensitive information from error messages
+var (
+	errConfigRequired    = errors.New("--config flag is required")
+	errArchiveRequired   = errors.New("--archive flag is required")
+	errNamespaceRequired = errors.New("--namespace flag is required")
+	errProjectRequired   = errors.New("--project flag is required")
+)
+
+// validateAndLoadConfig validates required flags and loads configuration.
+func validateAndLoadConfig(configFile, archive, namespace, project string, overwrite bool) (*config.Config, error) {
+	// Validate required flags
+	if configFile == "" {
+		flag.Usage()
+		return nil, errConfigRequired
+	}
+	if archive == "" {
+		flag.Usage()
+		return nil, errArchiveRequired
+	}
+	if namespace == "" {
+		flag.Usage()
+		return nil, errNamespaceRequired
+	}
+	if project == "" {
+		flag.Usage()
+		return nil, errProjectRequired
+	}
+
+	// Load configuration
+	cfg, err := config.NewConfigFromFile(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("loading configuration: %w", err)
+	}
+
+	// Override config with CLI flags
+	cfg.RestoreSource = archive
+	cfg.RestoreTargetNS = namespace
+	cfg.RestoreTargetPath = project
+	cfg.RestoreOverwrite = overwrite
+
+	// Determine storage type from archive path
+	if strings.HasPrefix(archive, "s3://") {
+		cfg.StorageType = "s3"
+	} else {
+		cfg.StorageType = "local"
+	}
+
+	return cfg, nil
+}
+
+// initializeStorage creates the appropriate storage backend.
+//nolint:ireturn // Returning interface is intentional for abstraction
+func initializeStorage(cfg *config.Config) (restore.Storage, error) {
+	if cfg.StorageType == "s3" {
+		//nolint:lll // Function call with multiple parameters
+		s3Store, err := s3storage.NewS3Storage(cfg.S3cfg.Region, cfg.S3cfg.Endpoint, cfg.S3cfg.BucketName, cfg.S3cfg.BucketPath)
+		if err != nil {
+			return nil, fmt.Errorf("initializing S3 storage: %w", err)
+		}
+		return &s3StorageAdapter{s3Store}, nil
+	}
+	return &localStorageAdapter{localstorage.NewLocalStorage(cfg.LocalPath)}, nil
+}
+
+// redactCredentials removes sensitive information from error messages.
 func redactCredentials(message string, cfg *config.Config) string {
 	redacted := message
 
@@ -165,10 +196,10 @@ type s3StorageAdapter struct {
 func (a *s3StorageAdapter) Get(ctx context.Context, key string) (string, error) {
 	// Extract S3 key from s3:// URL if needed
 	s3Key := key
-	if strings.HasPrefix(key, "s3://") {
+	if afterPrefix, found := strings.CutPrefix(key, "s3://"); found {
 		// Format: s3://bucket/key
-		parts := strings.SplitN(strings.TrimPrefix(key, "s3://"), "/", 2)
-		if len(parts) == 2 {
+		parts := strings.SplitN(afterPrefix, "/", s3PathParts)
+		if len(parts) == s3PathParts {
 			s3Key = parts[1]
 		}
 	}
@@ -178,11 +209,13 @@ func (a *s3StorageAdapter) Get(ctx context.Context, key string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer tempFile.Close()
+	defer func() {
+		_ = tempFile.Close()
+	}()
 
 	// Use S3Storage's GetFile method
-	if err := a.S3Storage.GetFile(ctx, s3Key, tempFile.Name()); err != nil {
-		os.Remove(tempFile.Name())
+	if err := a.GetFile(ctx, s3Key, tempFile.Name()); err != nil {
+		_ = os.Remove(tempFile.Name())
 		return "", fmt.Errorf("failed to download from S3: %w", err)
 	}
 
@@ -195,20 +228,20 @@ type localStorageAdapter struct {
 }
 
 // Get returns the local file path (already local, no download needed).
-func (a *localStorageAdapter) Get(ctx context.Context, key string) (string, error) {
+func (a *localStorageAdapter) Get(_ context.Context, key string) (string, error) {
 	// For local storage, the key IS the path
 	return key, nil
 }
 
-// printRestoreResult displays the final restore outcome
-func printRestoreResult(result *restore.RestoreResult, cfg *config.Config) {
-	fmt.Println("\n" + strings.Repeat("=", 60))
+// printRestoreResult displays the final restore outcome.
+func printRestoreResult(result *restore.Result, cfg *config.Config) {
+	fmt.Println("\n" + strings.Repeat("=", separatorWidth))
 	if result.Success {
 		fmt.Println("✓ RESTORE SUCCESSFUL")
 	} else {
 		fmt.Println("✗ RESTORE FAILED")
 	}
-	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println(strings.Repeat("=", separatorWidth))
 
 	// Print project information
 	if result.ProjectID != 0 {
@@ -221,10 +254,10 @@ func printRestoreResult(result *restore.RestoreResult, cfg *config.Config) {
 	fmt.Printf("  Duration: %ds\n", result.Metrics.DurationSeconds)
 
 	if result.Metrics.BytesDownloaded > 0 {
-		fmt.Printf("  Downloaded: %.2f MB\n", float64(result.Metrics.BytesDownloaded)/(1024*1024))
+		fmt.Printf("  Downloaded: %.2f MB\n", float64(result.Metrics.BytesDownloaded)/bytesPerMB)
 	}
 	if result.Metrics.BytesExtracted > 0 {
-		fmt.Printf("  Extracted: %.2f MB\n", float64(result.Metrics.BytesExtracted)/(1024*1024))
+		fmt.Printf("  Extracted: %.2f MB\n", float64(result.Metrics.BytesExtracted)/bytesPerMB)
 	}
 
 	// Print errors if any
@@ -247,5 +280,5 @@ func printRestoreResult(result *restore.RestoreResult, cfg *config.Config) {
 		}
 	}
 
-	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println(strings.Repeat("=", separatorWidth))
 }

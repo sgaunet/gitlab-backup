@@ -8,9 +8,19 @@ import (
 	"strings"
 )
 
+var (
+	// ErrNotS3Source is returned when trying to parse a non-S3 source as S3.
+	ErrNotS3Source = errors.New("not an S3 source")
+	// ErrInvalidS3PathFormat is returned when S3 path format is invalid.
+	ErrInvalidS3PathFormat = errors.New("invalid S3 path format (expected s3://bucket/key)")
+	// ErrInvalidS3Path is returned when S3 bucket or key is empty.
+	ErrInvalidS3Path = errors.New("invalid S3 path: bucket and key cannot be empty")
+)
+
 // RestoreConfig extends Config with restore-specific fields.
 type RestoreConfig struct {
 	Config
+
 	// RestoreSource is the path to the archive (local or S3)
 	RestoreSource string `env:"RESTORE_SOURCE" yaml:"restoreSource"`
 	// RestoreTargetNS is the target namespace/group path
@@ -24,7 +34,7 @@ type RestoreConfig struct {
 // ValidateRestore performs validation specific to restore operations.
 func (c *RestoreConfig) ValidateRestore() error {
 	// First validate base configuration
-	if err := c.Config.Validate(); err != nil {
+	if err := c.Validate(); err != nil {
 		return err
 	}
 
@@ -38,6 +48,45 @@ func (c *RestoreConfig) ValidateRestore() error {
 	}
 
 	return nil
+}
+
+// GetFullProjectPath returns the full project path including namespace.
+func (c *RestoreConfig) GetFullProjectPath() string {
+	if c.RestoreTargetNS == "" {
+		return c.RestoreTargetPath
+	}
+	return filepath.Join(c.RestoreTargetNS, c.RestoreTargetPath)
+}
+
+// IsS3Source returns true if the restore source is an S3 path.
+func (c *RestoreConfig) IsS3Source() bool {
+	return strings.HasPrefix(c.RestoreSource, "s3://")
+}
+
+// ParseS3Source extracts bucket and key from an S3 path (s3://bucket/key).
+func (c *RestoreConfig) ParseS3Source() (string, string, error) {
+	if !c.IsS3Source() {
+		return "", "", ErrNotS3Source
+	}
+
+	// Remove s3:// prefix
+	path := strings.TrimPrefix(c.RestoreSource, "s3://")
+
+	// Split into bucket and key
+	const expectedParts = 2
+	parts := strings.SplitN(path, "/", expectedParts)
+	if len(parts) != expectedParts {
+		return "", "", fmt.Errorf("%w: %s", ErrInvalidS3PathFormat, c.RestoreSource)
+	}
+
+	bucketName := parts[0]
+	keyPath := parts[1]
+
+	if bucketName == "" || keyPath == "" {
+		return "", "", fmt.Errorf("%w in %s", ErrInvalidS3Path, c.RestoreSource)
+	}
+
+	return bucketName, keyPath, nil
 }
 
 //nolint:err113 // validation errors are intentionally dynamic to include context
@@ -90,8 +139,7 @@ func (c *RestoreConfig) validateRestoreTarget() error {
 		}
 
 		// Check for valid namespace format
-		parts := strings.Split(c.RestoreTargetNS, "/")
-		for _, part := range parts {
+		for part := range strings.SplitSeq(c.RestoreTargetNS, "/") {
 			if part == "" {
 				return errors.New("restoreTargetNS cannot contain empty path segments")
 			}
@@ -105,42 +153,4 @@ func (c *RestoreConfig) validateRestoreTarget() error {
 	}
 
 	return nil
-}
-
-// GetFullProjectPath returns the full project path including namespace.
-func (c *RestoreConfig) GetFullProjectPath() string {
-	if c.RestoreTargetNS == "" {
-		return c.RestoreTargetPath
-	}
-	return filepath.Join(c.RestoreTargetNS, c.RestoreTargetPath)
-}
-
-// IsS3Source returns true if the restore source is an S3 path.
-func (c *RestoreConfig) IsS3Source() bool {
-	return strings.HasPrefix(c.RestoreSource, "s3://")
-}
-
-// ParseS3Source extracts bucket and key from an S3 path (s3://bucket/key).
-func (c *RestoreConfig) ParseS3Source() (bucket, key string, err error) {
-	if !c.IsS3Source() {
-		return "", "", errors.New("not an S3 source")
-	}
-
-	// Remove s3:// prefix
-	path := strings.TrimPrefix(c.RestoreSource, "s3://")
-
-	// Split into bucket and key
-	parts := strings.SplitN(path, "/", 2)
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("invalid S3 path format: %s (expected s3://bucket/key)", c.RestoreSource)
-	}
-
-	bucket = parts[0]
-	key = parts[1]
-
-	if bucket == "" || key == "" {
-		return "", "", fmt.Errorf("invalid S3 path: bucket and key cannot be empty in %s", c.RestoreSource)
-	}
-
-	return bucket, key, nil
 }

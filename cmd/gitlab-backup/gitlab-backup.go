@@ -67,13 +67,14 @@ func loadConfiguration(cfgFile string) *config.Config {
 		}
 	} else {
 		// Try loading from environment
+		const defaultExportTimeout = 10
 		cfg, err = config.NewConfigFromEnv()
 		if err != nil {
 			// If env loading fails, start with empty config with defaults
 			cfg = &config.Config{
 				GitlabURI:         "https://gitlab.com",
 				TmpDir:            "/tmp",
-				ExportTimeoutMins: 10,
+				ExportTimeoutMins: defaultExportTimeout,
 			}
 		}
 	}
@@ -131,6 +132,7 @@ func init() {
 	}
 }
 
+//nolint:funlen // Main function complexity is acceptable for CLI entry point
 func main() {
 	// Define flags
 	configFile := flag.String("config", "", "Path to configuration file (YAML)")

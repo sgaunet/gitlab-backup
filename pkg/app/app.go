@@ -141,7 +141,6 @@ func (a *App) ExportProject(ctx context.Context, projectID int64) error {
 	}
 
 	// Export GitLab archive directly as final archive
-	//nolint:lll // Line length acceptable for formatting string with multiple variables
 	archivePath := fmt.Sprintf("%s%s%s-%d.tar.gz", a.cfg.TmpDir, string(os.PathSeparator), project.Name, project.ID)
 	err = a.gitlabService.ExportProject(ctx, &project, archivePath)
 	if err != nil {

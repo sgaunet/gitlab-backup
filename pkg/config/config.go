@@ -35,7 +35,7 @@ type S3Config struct {
 type Config struct {
 	GitlabGroupID      int64       `env:"GITLABGROUPID"      env-default:"0"                  yaml:"gitlabGroupID"`
 	GitlabProjectID    int64       `env:"GITLABPROJECTID"    env-default:"0"                  yaml:"gitlabProjectID"`
-	GitlabToken        string      `env:"GITLAB_TOKEN"                                        yaml:"gitlabToken"`
+	GitlabToken        string      `env:"GITLAB_TOKEN"       yaml:"gitlabToken"`
 	GitlabURI          string      `env:"GITLAB_URI"         env-default:"https://gitlab.com" yaml:"gitlabURI"`
 	LocalPath          string      `env:"LOCALPATH"          env-default:""                   yaml:"localpath"`
 	TmpDir             string      `env:"TMPDIR"             env-default:"/tmp"               yaml:"tmpdir"`

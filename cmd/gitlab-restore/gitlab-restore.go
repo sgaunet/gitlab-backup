@@ -32,7 +32,7 @@ var (
 //nolint:funlen // Main function complexity is acceptable
 func main() {
 	// Define flags
-	configFile := flag.String("config", "", "Path to configuration file (YAML)")
+	configFile := flag.String("config", "", "Path to configuration file (YAML). Optional if using environment variables.")
 	archive := flag.String("archive", "", "Archive path (local path or s3://bucket/key)")
 	namespace := flag.String("namespace", "", "Target GitLab namespace/group")
 	project := flag.String("project", "", "Target GitLab project name")
@@ -105,19 +105,15 @@ func main() {
 }
 
 var (
-	errConfigRequired    = errors.New("--config flag is required")
 	errArchiveRequired   = errors.New("--archive flag is required")
 	errNamespaceRequired = errors.New("--namespace flag is required")
 	errProjectRequired   = errors.New("--project flag is required")
 )
 
 // validateAndLoadConfig validates required flags and loads configuration.
+// Configuration can be loaded from a YAML file (--config) or from environment variables.
 func validateAndLoadConfig(configFile, archive, namespace, project string, overwrite bool) (*config.Config, error) {
-	// Validate required flags
-	if configFile == "" {
-		flag.Usage()
-		return nil, errConfigRequired
-	}
+	// Validate required restore flags
 	if archive == "" {
 		flag.Usage()
 		return nil, errArchiveRequired
@@ -131,10 +127,22 @@ func validateAndLoadConfig(configFile, archive, namespace, project string, overw
 		return nil, errProjectRequired
 	}
 
-	// Load configuration
-	cfg, err := config.NewConfigFromFile(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("loading configuration: %w", err)
+	// Load configuration from file or environment
+	var cfg *config.Config
+	var err error
+
+	if configFile != "" {
+		// Load from config file if provided
+		cfg, err = config.NewConfigFromFile(configFile)
+		if err != nil {
+			return nil, fmt.Errorf("loading configuration from file: %w", err)
+		}
+	} else {
+		// Load from environment variables if no config file
+		cfg, err = config.NewConfigFromEnv()
+		if err != nil {
+			return nil, fmt.Errorf("loading configuration from environment: %w", err)
+		}
 	}
 
 	// Override config with CLI flags
@@ -148,6 +156,11 @@ func validateAndLoadConfig(configFile, archive, namespace, project string, overw
 		cfg.StorageType = "s3"
 	} else {
 		cfg.StorageType = "local"
+	}
+
+	// Validate the final configuration for restore operations
+	if err := cfg.ValidateForRestore(); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
 	}
 
 	return cfg, nil

@@ -202,8 +202,8 @@ func (o *Orchestrator) validateProject(ctx context.Context, cfg *config.Config, 
 		}
 
 		if !emptiness.IsEmpty() {
-			err := fmt.Errorf("%w (commits: %d, issues: %d, labels: %d)",
-				ErrProjectHasContent, emptiness.CommitCount, emptiness.IssueCount, emptiness.LabelCount)
+			err := fmt.Errorf("%w (issues: %d, labels: %d)",
+				ErrProjectHasContent, emptiness.IssueCount, emptiness.LabelCount)
 			o.progress.FailPhase(PhaseValidation, err)
 			result.addError(PhaseValidation, "Validator", err.Error())
 			return err

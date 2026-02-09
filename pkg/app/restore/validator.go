@@ -35,7 +35,7 @@ func (v *Validator) ValidateProjectEmpty(_ context.Context, projectID int64) (*E
 	checks := &EmptinessChecks{}
 
 	// Check for commits
-	commits, _, err := v.commitsService.ListCommits(
+	commits, resp, err := v.commitsService.ListCommits(
 		projectID,
 		&gitlabapi.ListCommitsOptions{
 			ListOptions: gitlabapi.ListOptions{
@@ -48,10 +48,10 @@ func (v *Validator) ValidateProjectEmpty(_ context.Context, projectID int64) (*E
 		return nil, fmt.Errorf("failed to list commits: %w", err)
 	}
 	checks.HasCommits = len(commits) > 0
-	checks.CommitCount = len(commits)
+	checks.CommitCount = getTotalCount(resp, len(commits))
 
 	// Check for issues
-	issues, _, err := v.issuesService.ListProjectIssues(
+	issues, resp, err := v.issuesService.ListProjectIssues(
 		projectID,
 		&gitlabapi.ListProjectIssuesOptions{
 			ListOptions: gitlabapi.ListOptions{
@@ -64,10 +64,10 @@ func (v *Validator) ValidateProjectEmpty(_ context.Context, projectID int64) (*E
 		return nil, fmt.Errorf("failed to list issues: %w", err)
 	}
 	checks.HasIssues = len(issues) > 0
-	checks.IssueCount = len(issues)
+	checks.IssueCount = getTotalCount(resp, len(issues))
 
 	// Check for labels
-	labels, _, err := v.labelsService.ListLabels(
+	labels, resp, err := v.labelsService.ListLabels(
 		projectID,
 		&gitlabapi.ListLabelsOptions{
 			ListOptions: gitlabapi.ListOptions{
@@ -80,8 +80,17 @@ func (v *Validator) ValidateProjectEmpty(_ context.Context, projectID int64) (*E
 		return nil, fmt.Errorf("failed to list labels: %w", err)
 	}
 	checks.HasLabels = len(labels) > 0
-	checks.LabelCount = len(labels)
+	checks.LabelCount = getTotalCount(resp, len(labels))
 
 	return checks, nil
+}
+
+// getTotalCount extracts the total count from GitLab API response headers.
+// Falls back to the length of returned items if header is not available.
+func getTotalCount(resp *gitlabapi.Response, itemCount int) int {
+	if resp != nil && resp.TotalItems > 0 {
+		return int(resp.TotalItems)
+	}
+	return itemCount
 }
 

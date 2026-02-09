@@ -134,6 +134,7 @@ func (c *Config) Redacted() string {
 }
 
 // Validate performs comprehensive validation of configuration parameters.
+// This validation is for backup operations which require gitlabGroupID or gitlabProjectID.
 func (c *Config) Validate() error {
 	// Validate basic configuration requirements
 	if err := c.validateBasicConfig(); err != nil {
@@ -159,6 +160,40 @@ func (c *Config) Validate() error {
 	if err := c.validateStorageConfig(); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// ValidateForRestore validates configuration for restore operations.
+// Unlike Validate(), this does not require gitlabGroupID or gitlabProjectID.
+//
+//nolint:err113 // validation errors provide user context
+func (c *Config) ValidateForRestore() error {
+	// Validate GitLab token (required for restore)
+	if c.GitlabToken == "" {
+		return errors.New(
+			"gitlabToken is required " +
+				"(set via config file or GITLAB_TOKEN environment variable)",
+		)
+	}
+
+	// Validate timeout range
+	if err := c.validateTimeout(); err != nil {
+		return err
+	}
+
+	// Validate TmpDir
+	if err := c.validateTmpDir(); err != nil {
+		return err
+	}
+
+	// Validate GitLab URI
+	if err := c.validateGitlabURI(); err != nil {
+		return err
+	}
+
+	// For restore, storage validation is handled separately based on archive path
+	// (local vs S3), so we don't validate storage here
 
 	return nil
 }

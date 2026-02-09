@@ -61,7 +61,21 @@ type ArchiveContents struct {
 // Validates that GitLab export file (*-gitlab.tar.gz or project.tar.gz) is present in the archive.
 //
 func ExtractArchive(ctx context.Context, archivePath string, destDir string) (*ArchiveContents, error) {
-	// Open and initialize tar reader
+	// First, check if this archive is a direct GitLab export (not a composite archive)
+	isDirectExport, err := isDirectGitLabExport(archivePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// If it's a direct GitLab export, no extraction needed - use the archive itself
+	if isDirectExport {
+		return &ArchiveContents{
+			ProjectExportPath: archivePath,
+			ExtractionDir:     destDir,
+		}, nil
+	}
+
+	// Otherwise, extract the composite archive to find nested export file
 	tr, cleanup, err := openTarArchive(archivePath)
 	if err != nil {
 		return nil, err
@@ -164,9 +178,11 @@ func validateTarPath(name, destDir string) (string, error) {
 	}
 
 	targetPath := filepath.Join(destDir, cleanPath)
+	cleanDestDir := filepath.Clean(destDir)
 
 	// Ensure target path is within destDir (defense in depth)
-	if !strings.HasPrefix(targetPath, filepath.Clean(destDir)+string(os.PathSeparator)) {
+	// Allow targetPath == destDir (happens when archive contains "./" root directory entry)
+	if targetPath != cleanDestDir && !strings.HasPrefix(targetPath, cleanDestDir+string(os.PathSeparator)) {
 		return "", fmt.Errorf("%w: %s", ErrPathTraversal, name)
 	}
 
@@ -239,6 +255,50 @@ func isValidPath(path string) bool {
 	// Clean and check again
 	cleaned := filepath.Clean(path)
 	return !strings.HasPrefix(cleaned, "..")
+}
+
+// isDirectGitLabExport checks if an archive is a direct GitLab export (not a composite archive).
+// Direct exports contain VERSION file and tree/ directory structure at the root level.
+func isDirectGitLabExport(archivePath string) (bool, error) {
+	tr, cleanup, err := openTarArchive(archivePath)
+	if err != nil {
+		return false, err
+	}
+	defer cleanup()
+
+	hasVersion := false
+	hasTreeDir := false
+
+	// Check first few entries for GitLab export markers
+	const maxEntriesToCheck = 20
+	for range maxEntriesToCheck {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return false, fmt.Errorf("failed to read tar header: %w", err)
+		}
+
+		cleanName := filepath.Clean(header.Name)
+
+		// Look for VERSION file (all GitLab exports have this)
+		if cleanName == "VERSION" {
+			hasVersion = true
+		}
+
+		// Look for tree/ directory (GitLab export structure)
+		if cleanName == "tree" && header.Typeflag == tar.TypeDir {
+			hasTreeDir = true
+		}
+
+		// If we found both markers, it's a direct export
+		if hasVersion && hasTreeDir {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // ValidateArchive validates that a file is a valid tar.gz archive.

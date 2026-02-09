@@ -1,0 +1,40 @@
+# Full configuration example for gitlab-backup
+#
+# All settings can be overridden by CLI flags or environment variables
+#
+# Usage:
+#   gitlab-backup --config backup-full.yml
+
+# GitLab connection settings
+gitlabtoken: "glpat-xxxxxxxxxxxxxxxxxxxx"
+gitlaburi: "https://gitlab.com"
+
+# Backup target (choose one)
+gitlabGroupID: 0       # Set to backup entire group
+gitlabProjectID: 123   # Set to backup single project
+
+# Local storage configuration
+localpath: "/backup"
+
+# OR S3 storage configuration
+# s3cfg:
+#   endpoint: "https://s3.amazonaws.com"
+#   bucketName: "gitlab-backups"
+#   bucketPath: "production"
+#   region: "us-east-1"
+#   accesskey: ""  # Or use AWS_ACCESS_KEY_ID env var
+#   secretkey: ""  # Or use AWS_SECRET_ACCESS_KEY env var
+
+# Export settings
+exportTimeoutMins: 10   # CLI: --timeout
+
+# Temporary directory
+tmpdir: "/tmp"          # CLI: --tmpdir
+
+# Pre/post backup hooks
+hooks:
+  prebackup: ""         # Script to run before backup
+  postbackup: ""        # Script to run after backup
+
+# Logging
+noLogTime: false        # Disable timestamps in logs

@@ -3,6 +3,7 @@ package gitlab
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -17,9 +18,13 @@ import (
 
 // mockGitLabClient is a manual mock implementation of GitLabClient
 type mockGitLabClient struct {
-	groupsService            GroupsService
-	projectsService          ProjectsService
+	groupsService              GroupsService
+	projectsService            ProjectsService
 	projectImportExportService ProjectImportExportService
+	labelsService              LabelsService
+	issuesService              IssuesService
+	notesService               NotesService
+	commitsService             CommitsService
 }
 
 func (m *mockGitLabClient) Groups() GroupsService {
@@ -32,6 +37,22 @@ func (m *mockGitLabClient) Projects() ProjectsService {
 
 func (m *mockGitLabClient) ProjectImportExport() ProjectImportExportService {
 	return m.projectImportExportService
+}
+
+func (m *mockGitLabClient) Labels() LabelsService {
+	return m.labelsService
+}
+
+func (m *mockGitLabClient) Issues() IssuesService {
+	return m.issuesService
+}
+
+func (m *mockGitLabClient) Notes() NotesService {
+	return m.notesService
+}
+
+func (m *mockGitLabClient) Commits() CommitsService {
+	return m.commitsService
 }
 
 // mockGroupsService is a manual mock implementation of GroupsService
@@ -79,6 +100,8 @@ type mockProjectImportExportService struct {
 	scheduleExportFunc  func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
 	exportStatusFunc    func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error)
 	exportDownloadFunc  func(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error)
+	importFromFileFunc  func(archive io.Reader, opt *gitlab.ImportFileOptions, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
+	importStatusFunc    func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
 }
 
 func (m *mockProjectImportExportService) ScheduleExport(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
@@ -98,6 +121,21 @@ func (m *mockProjectImportExportService) ExportStatus(pid any, options ...gitlab
 func (m *mockProjectImportExportService) ExportDownload(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
 	if m.exportDownloadFunc != nil {
 		return m.exportDownloadFunc(pid, options...)
+	}
+	return nil, nil, nil
+}
+
+//nolint:ireturn // Mock method signature must match interface
+func (m *mockProjectImportExportService) ImportFromFile(archive io.Reader, opt *gitlab.ImportFileOptions, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error) {
+	if m.importFromFileFunc != nil {
+		return m.importFromFileFunc(archive, opt, options...)
+	}
+	return nil, nil, nil
+}
+
+func (m *mockProjectImportExportService) ImportStatus(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error) {
+	if m.importStatusFunc != nil {
+		return m.importStatusFunc(pid, options...)
 	}
 	return nil, nil, nil
 }

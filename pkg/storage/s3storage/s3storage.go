@@ -133,3 +133,41 @@ func (s *S3Storage) SaveFile(ctx context.Context, archiveFilePath string, dstFil
 	}
 	return nil
 }
+
+// GetFile downloads a file from S3 and saves it to the specified local path.
+func (s *S3Storage) GetFile(ctx context.Context, key string, localPath string) error {
+	// Create local file
+	outFile, err := os.Create(localPath) //nolint:gosec // G304: File creation is intentional for restore functionality
+	if err != nil {
+		return fmt.Errorf("failed to create local file %s: %w", localPath, err)
+	}
+	defer func() {
+		_ = outFile.Close()
+	}()
+
+	// Construct full S3 key
+	fullKey := s.path + "/" + key
+	if s.path == "" {
+		fullKey = key
+	}
+
+	// Download from S3
+	result, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(fullKey),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to download file %s from S3: %w", fullKey, err)
+	}
+	defer func() {
+		_ = result.Body.Close()
+	}()
+
+	// Copy to local file
+	_, err = io.Copy(outFile, result.Body)
+	if err != nil {
+		return fmt.Errorf("failed to write downloaded file to %s: %w", localPath, err)
+	}
+
+	return nil
+}

@@ -134,31 +134,29 @@ func (a *App) ExportProject(ctx context.Context, projectID int64) error {
 	if err != nil {
 		return fmt.Errorf("failed to get project %d: %w", projectID, err)
 	}
+
 	// call prebackup hook
-	if a.cfg.Hooks.HasPreBackup() {
-		a.log.Info("SaveProject (call prebackup hook)", "project name", project.Name)
-		err = a.cfg.Hooks.ExecutePreBackup()
-		if err != nil {
-			return fmt.Errorf("pre-backup hook failed: %w", err)
-		}
+	if err := a.executePreBackupHook(project.Name); err != nil {
+		return err
 	}
+
+	// Export GitLab archive directly as final archive
 	archivePath := fmt.Sprintf("%s%s%s-%d.tar.gz", a.cfg.TmpDir, string(os.PathSeparator), project.Name, project.ID)
 	err = a.gitlabService.ExportProject(ctx, &project, archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to export project %s: %w", project.Name, err)
 	}
-	// call postbackup hook
-	if a.cfg.Hooks.HasPostBackup() {
-		a.log.Info("SaveProject (call postbackup hook)", "archivePath", archivePath)
-		err = a.cfg.Hooks.ExecutePostBackup(archivePath)
-		if err != nil {
-			return fmt.Errorf("post-backup hook failed: %w", err)
-		}
+
+	// call postbackup hook with archive path
+	if err := a.executePostBackupHook(archivePath); err != nil {
+		return err
 	}
+
 	err = a.StoreArchive(ctx, archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to store archive %s: %w", archivePath, err)
 	}
+
 	a.log.Info("project successfully exported", "project", project.Name)
 	return nil
 }
@@ -171,6 +169,30 @@ func (a *App) StoreArchive(ctx context.Context, archiveFilePath string) error {
 	}
 	if err != nil {
 		return fmt.Errorf("failed to save file to storage: %w", err)
+	}
+	return nil
+}
+
+// executePreBackupHook executes the pre-backup hook if configured.
+func (a *App) executePreBackupHook(projectName string) error {
+	if a.cfg.Hooks.HasPreBackup() {
+		a.log.Info("SaveProject (call prebackup hook)", "project name", projectName)
+		err := a.cfg.Hooks.ExecutePreBackup()
+		if err != nil {
+			return fmt.Errorf("pre-backup hook failed: %w", err)
+		}
+	}
+	return nil
+}
+
+// executePostBackupHook executes the post-backup hook if configured.
+func (a *App) executePostBackupHook(archivePath string) error {
+	if a.cfg.Hooks.HasPostBackup() {
+		a.log.Info("SaveProject (call postbackup hook)", "archivePath", archivePath)
+		err := a.cfg.Hooks.ExecutePostBackup(archivePath)
+		if err != nil {
+			return fmt.Errorf("post-backup hook failed: %w", err)
+		}
 	}
 	return nil
 }

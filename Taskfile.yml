@@ -15,9 +15,10 @@ tasks:
       - golangci-lint run
 
   build:
-    desc: "Build the binary"
+    desc: "Build both binaries (gitlab-backup and gitlab-restore)"
     cmds:
-      - CGO_ENABLED=0 go build cmd/*.go
+      - CGO_ENABLED=0 go build -o gitlab-backup ./cmd/gitlab-backup
+      - CGO_ENABLED=0 go build -o gitlab-restore ./cmd/gitlab-restore
 
   image:
     desc: "Build/push the docker image"

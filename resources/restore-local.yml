@@ -1,0 +1,56 @@
+# Example configuration for gitlab-restore (local archive)
+#
+# This configuration file demonstrates how to restore a GitLab project
+# from a local archive file created by gitlab-backup.
+#
+# Usage:
+#   gitlab-restore \
+#     --config restore-local.yml \
+#     --archive /path/to/backup.tar.gz \
+#     --namespace mygroup \
+#     --project restored-project
+
+# GitLab connection settings (required)
+gitlabtoken: "your-gitlab-personal-access-token"
+gitlaburi: "https://gitlab.com"
+
+# Temporary directory for archive extraction (optional)
+# Default: /tmp
+tmpdir: "/tmp"
+
+# Export timeout in minutes (applies to import operations)
+# Default: 10 minutes
+# Increase for large projects (>1GB)
+exportTimeoutMins: 10
+
+# Disable log timestamps (useful for cleaner output)
+# Default: false
+noLogTime: false
+
+# Restore options (can be overridden by CLI flags)
+# These can also be set via environment variables:
+#   RESTORE_SOURCE, RESTORE_TARGET_NS, RESTORE_TARGET_PATH, RESTORE_OVERWRITE
+
+# Archive source (local path or s3://bucket/key)
+# CLI flag: --archive
+# restoreSource: "/path/to/backup.tar.gz"
+
+# Target GitLab namespace/group
+# CLI flag: --namespace
+# restoreTargetNS: "mygroup"
+
+# Target GitLab project name
+# CLI flag: --project
+# restoreTargetPath: "restored-project"
+
+# Skip emptiness validation (allows restoring to non-empty projects)
+# ⚠️  Use with caution - can overwrite existing content
+# CLI flag: --overwrite
+# Default: false
+# restoreOverwrite: false
+
+# Notes:
+# 1. Target project must exist before restore (create via GitLab UI or API)
+# 2. User must have Maintainer or Owner permissions on target project
+# 3. Archive must be created by gitlab-backup (tar.gz format)
+# 4. GitLab's native import handles all project content including labels and issues

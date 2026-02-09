@@ -1,0 +1,21 @@
+# Minimal configuration for gitlab-backup with CLI flags
+#
+# This demonstrates using a minimal config file with most
+# settings provided via CLI flags.
+#
+# Usage:
+#   gitlab-backup \
+#     --config backup-minimal.yml \
+#     --project-id 123 \
+#     --output /backup
+
+# GitLab connection settings (required)
+gitlabtoken: "your-gitlab-personal-access-token"
+
+# All other settings can be provided via CLI flags:
+#   --group-id 456              # Backup entire group
+#   --project-id 123            # Backup single project
+#   --output /path/to/backup    # Local storage path
+#   --gitlab-url https://...    # Custom GitLab instance
+#   --timeout 30                # Export timeout (minutes)
+#   --tmpdir /tmp               # Temporary directory

@@ -7,14 +7,17 @@ before:
     # you may remove this if you don't need go generate
     - go generate ./...
 builds:
-  - env:
+  - id: gitlab-backup
+    binary: gitlab-backup
+    main: ./cmd/gitlab-backup
+    env:
       - CGO_ENABLED=0
-    dir: cmd
     ldflags:
       - -X main.version={{.Version}}
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm
@@ -22,10 +25,42 @@ builds:
     goarm:
       - "6"
       - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+  - id: gitlab-restore
+    binary: gitlab-restore
+    main: ./cmd/gitlab-restore
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -X main.version={{.Version}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "6"
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
 
 archives:
-  - name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
-    formats: ["binary"]
+  - id: gitlab-backup-archive
+    ids:
+      - gitlab-backup
+    formats: [binary]
+    name_template: 'gitlab-backup_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+  - id: gitlab-restore-archive
+    ids:
+      - gitlab-restore
+    formats: [binary]
+    name_template: 'gitlab-restore_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
 
 checksum:
   name_template: 'checksums.txt'
@@ -117,10 +152,15 @@ docker_manifests:
       - ghcr.io/sgaunet/{{ .ProjectName }}:latest-armv7
 
 
-brews:
-  - homepage: 'https://github.com/sgaunet/gitlab-backup'
+homebrew_casks:
+  - name: gitlab-backup
+    ids:
+      - gitlab-backup-archive
+    homepage: 'https://github.com/sgaunet/gitlab-backup'
     description: 'A tool for backing up GitLab projects'
-    directory: Formula
+    directory: Casks
+    binaries:
+      - gitlab-backup
     commit_author:
       name: sgaunet
       email: 1552102+sgaunet@users.noreply.github.com
@@ -129,8 +169,19 @@ brews:
       name: homebrew-tools
       # Token with 'repo' scope is required for pushing to a different repository
       token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
-    url_template: 'https://github.com/sgaunet/gitlab-backup/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
-    install: |
-      bin.install "{{ .ArtifactName }}" => "gitlab-backup"
-    test: |
-      system "#{bin}/gitlab-backup", "--help"
+  - name: gitlab-restore
+    ids:
+      - gitlab-restore-archive
+    homepage: 'https://github.com/sgaunet/gitlab-backup'
+    description: 'A tool for restoring GitLab projects from backups'
+    directory: Casks
+    binaries:
+      - gitlab-restore
+    commit_author:
+      name: sgaunet
+      email: 1552102+sgaunet@users.noreply.github.com
+    repository:
+      owner: sgaunet
+      name: homebrew-tools
+      # Token with 'repo' scope is required for pushing to a different repository
+      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'

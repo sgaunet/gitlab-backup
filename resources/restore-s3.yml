@@ -1,0 +1,91 @@
+# Example configuration for gitlab-restore (S3 archive)
+#
+# This configuration file demonstrates how to restore a GitLab project
+# from an S3-stored archive created by gitlab-backup.
+#
+# Usage:
+#   gitlab-restore \
+#     --config restore-s3.yml \
+#     --archive s3://bucket/path/to/backup.tar.gz \
+#     --namespace mygroup \
+#     --project restored-project
+
+# GitLab connection settings (required)
+gitlabtoken: "your-gitlab-personal-access-token"
+gitlaburi: "https://gitlab.com"
+
+# Temporary directory for archive extraction and S3 download (optional)
+# Default: /tmp
+tmpdir: "/tmp"
+
+# Export timeout in minutes (applies to import operations)
+# Default: 10 minutes
+# Increase for large projects (>1GB)
+exportTimeoutMins: 10
+
+# Disable log timestamps (useful for cleaner output)
+# Default: false
+noLogTime: false
+
+# S3 storage configuration (required for S3 restores)
+# Storage type will be automatically set to "s3" when using s3:// archive paths
+s3cfg:
+  # S3 endpoint URL
+  # For AWS S3: use default AWS endpoint
+  # For MinIO or custom S3: specify full URL (e.g., "http://localhost:9000")
+  endpoint: "https://s3.amazonaws.com"
+
+  # S3 bucket name
+  bucketName: "gitlab-backups"
+
+  # Optional: Base path within bucket
+  # If set, archive paths will be relative to this path
+  # Leave empty to use bucket root
+  bucketPath: "prod-backups"
+
+  # AWS region
+  region: "us-east-1"
+
+  # AWS credentials (can also be set via environment variables)
+  # AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY take precedence
+  # If not set, will use AWS default credential chain
+  accesskey: ""
+  secretkey: ""
+
+# Restore options (can be overridden by CLI flags)
+# These can also be set via environment variables:
+#   RESTORE_SOURCE, RESTORE_TARGET_NS, RESTORE_TARGET_PATH, RESTORE_OVERWRITE
+
+# Archive source (s3://bucket/key format)
+# CLI flag: --archive
+# If bucketPath is set in s3cfg, the key will be relative to that path
+# Example: s3://gitlab-backups/myproject-123.tar.gz
+# With bucketPath "prod-backups", actual path: prod-backups/myproject-123.tar.gz
+# restoreSource: "s3://gitlab-backups/myproject-123.tar.gz"
+
+# Target GitLab namespace/group
+# CLI flag: --namespace
+# restoreTargetNS: "mygroup"
+
+# Target GitLab project name
+# CLI flag: --project
+# restoreTargetPath: "restored-project"
+
+# Skip emptiness validation (allows restoring to non-empty projects)
+# ⚠️  Use with caution - can overwrite existing content
+# CLI flag: --overwrite
+# Default: false
+# restoreOverwrite: false
+
+# Notes:
+# 1. Target project must exist before restore (create via GitLab UI or API)
+# 2. User must have Maintainer or Owner permissions on target project
+# 3. AWS credentials required with read permissions on S3 bucket
+# 4. Archive must be created by gitlab-backup (tar.gz format)
+# 5. Large archives may take time to download from S3
+# 6. GitLab's native import handles all project content including labels and issues
+#
+# AWS Credential Options (in priority order):
+# 1. AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables
+# 2. accesskey/secretkey in this config file
+# 3. AWS default credential chain (~/.aws/credentials, IAM role, etc.)

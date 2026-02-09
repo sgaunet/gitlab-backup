@@ -61,166 +61,23 @@ func TestValidateArchive(t *testing.T) {
 func TestExtractArchive(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("ValidArchive", func(t *testing.T) {
+	t.Run("ReturnsArchivePath", func(t *testing.T) {
 		// Create test archive
 		archivePath := createTestArchive(t, map[string]string{
-			"project.tar.gz": "project export data",
+			"VERSION": "0.1",
+			"tree/":   "",
 		})
 
 		destDir := t.TempDir()
 
-		// Extract archive
+		// ExtractArchive should return the archive path as-is (no extraction)
 		contents, err := storage.ExtractArchive(ctx, archivePath, destDir)
 
 		// Assertions
-		require.NoError(t, err, "Extraction should succeed")
+		require.NoError(t, err, "Should always succeed")
 		require.NotNil(t, contents, "Contents should not be nil")
-		assert.NotEmpty(t, contents.ProjectExportPath, "Project export path should be set")
+		assert.Equal(t, archivePath, contents.ProjectExportPath, "Should return archive path as-is")
 		assert.Equal(t, destDir, contents.ExtractionDir, "Extraction dir should match")
-
-		// Verify files exist
-		assert.FileExists(t, contents.ProjectExportPath, "Project export file should exist")
-
-		// Verify file contents
-		projectData, err := os.ReadFile(contents.ProjectExportPath)
-		require.NoError(t, err)
-		assert.Equal(t, "project export data", string(projectData))
-	})
-
-	t.Run("BackwardCompatibilityOldArchive", func(t *testing.T) {
-		// Archive with old format (includes labels.json and issues.json)
-		// These files should be silently ignored for backward compatibility
-		archivePath := createTestArchive(t, map[string]string{
-			"myproject-123-gitlab.tar.gz": "gitlab export",
-			"labels.json":                 `[{"name":"bug","color":"#FF0000"}]`,
-			"issues.json":                 `[{"id":1,"title":"Test issue"}]`,
-		})
-
-		destDir := t.TempDir()
-		contents, err := storage.ExtractArchive(ctx, archivePath, destDir)
-
-		// Should succeed and only track the GitLab export file
-		require.NoError(t, err, "Extraction should succeed with old archive format")
-		assert.NotEmpty(t, contents.ProjectExportPath, "Project export path should be set")
-		assert.Contains(t, contents.ProjectExportPath, "gitlab.tar.gz", "Should identify -gitlab.tar.gz file")
-
-		// Verify labels.json and issues.json are extracted but not tracked
-		labelsPath := filepath.Join(destDir, "labels.json")
-		issuesPath := filepath.Join(destDir, "issues.json")
-		assert.FileExists(t, labelsPath, "Labels file should be extracted")
-		assert.FileExists(t, issuesPath, "Issues file should be extracted")
-	})
-
-	t.Run("MissingProjectTarGz", func(t *testing.T) {
-		// Archive without project.tar.gz (invalid archive)
-		archivePath := createTestArchive(t, map[string]string{
-			"README.txt": "not a valid backup",
-		})
-
-		destDir := t.TempDir()
-		contents, err := storage.ExtractArchive(ctx, archivePath, destDir)
-
-		require.Error(t, err, "Extraction should fail without project.tar.gz")
-		assert.Nil(t, contents, "Contents should be nil on error")
-		assert.Contains(t, err.Error(), "GitLab export", "Error should mention missing GitLab export file")
-	})
-
-	t.Run("PathTraversalAbsolutePath", func(t *testing.T) {
-		// Create archive with absolute path (security test)
-		tmpDir := t.TempDir()
-		archivePath := filepath.Join(tmpDir, "malicious.tar.gz")
-
-		file, err := os.Create(archivePath)
-		require.NoError(t, err)
-		defer file.Close()
-
-		gzw := gzip.NewWriter(file)
-		defer gzw.Close()
-
-		tw := tar.NewWriter(gzw)
-		defer tw.Close()
-
-		// Try to write to absolute path
-		maliciousPath := "/etc/passwd"
-		header := &tar.Header{
-			Name: maliciousPath,
-			Mode: 0644,
-			Size: int64(len("malicious content")),
-		}
-		require.NoError(t, tw.WriteHeader(header))
-		_, err = tw.Write([]byte("malicious content"))
-		require.NoError(t, err)
-
-		tw.Close()
-		gzw.Close()
-		file.Close()
-
-		// Attempt extraction
-		destDir := t.TempDir()
-		contents, err := storage.ExtractArchive(ctx, archivePath, destDir)
-
-		// Should fail with path traversal error
-		require.Error(t, err, "Extraction should fail for absolute paths")
-		assert.Nil(t, contents, "Contents should be nil on security error")
-		assert.Contains(t, err.Error(), "path traversal", "Error should indicate path traversal")
-	})
-
-	t.Run("PathTraversalDotDot", func(t *testing.T) {
-		// Create archive with .. in path (security test)
-		tmpDir := t.TempDir()
-		archivePath := filepath.Join(tmpDir, "malicious2.tar.gz")
-
-		file, err := os.Create(archivePath)
-		require.NoError(t, err)
-		defer file.Close()
-
-		gzw := gzip.NewWriter(file)
-		defer gzw.Close()
-
-		tw := tar.NewWriter(gzw)
-		defer tw.Close()
-
-		// Try to write outside destDir using ..
-		maliciousPath := "../../../etc/passwd"
-		header := &tar.Header{
-			Name: maliciousPath,
-			Mode: 0644,
-			Size: int64(len("malicious content")),
-		}
-		require.NoError(t, tw.WriteHeader(header))
-		_, err = tw.Write([]byte("malicious content"))
-		require.NoError(t, err)
-
-		tw.Close()
-		gzw.Close()
-		file.Close()
-
-		// Attempt extraction
-		destDir := t.TempDir()
-		contents, err := storage.ExtractArchive(ctx, archivePath, destDir)
-
-		// Should fail with path traversal error
-		require.Error(t, err, "Extraction should fail for paths with ..")
-		assert.Nil(t, contents, "Contents should be nil on security error")
-		assert.Contains(t, err.Error(), "path traversal", "Error should indicate path traversal")
-	})
-
-	t.Run("ContextCancellation", func(t *testing.T) {
-		// Create large archive
-		archivePath := createTestArchive(t, map[string]string{
-			"project.tar.gz": "data",
-		})
-
-		// Create cancelled context
-		ctx, cancel := context.WithCancel(ctx)
-		cancel() // Cancel immediately
-
-		destDir := t.TempDir()
-		contents, err := storage.ExtractArchive(ctx, archivePath, destDir)
-
-		// Should fail with context error
-		require.Error(t, err, "Extraction should fail with cancelled context")
-		assert.Nil(t, contents, "Contents should be nil on context cancellation")
 	})
 }
 

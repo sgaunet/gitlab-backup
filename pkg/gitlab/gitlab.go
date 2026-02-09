@@ -37,11 +37,6 @@ const (
 	ImportRateLimitIntervalSeconds = 60
 	// ImportRateLimitBurst defines the burst limit for import API calls.
 	ImportRateLimitBurst = 6
-	// MetadataRateLimitIntervalSeconds defines the rate limit interval for metadata API calls.
-	// Conservative rate limit for labels and issues API: 5 requests per minute per user.
-	MetadataRateLimitIntervalSeconds = 60
-	// MetadataRateLimitBurst defines the burst limit for metadata API calls.
-	MetadataRateLimitBurst = 5
 	// DefaultExportTimeoutMins defines the default export timeout in minutes.
 	DefaultExportTimeoutMins = 10
 )
@@ -65,7 +60,6 @@ type Service struct {
 	rateLimitDownloadAPI  *rate.Limiter
 	rateLimitExportAPI    *rate.Limiter
 	rateLimitImportAPI    *rate.Limiter
-	rateLimitMetadataAPI  *rate.Limiter
 	exportTimeoutDuration time.Duration
 }
 
@@ -106,10 +100,6 @@ func NewGitlabServiceWithTimeout(timeoutMins int) *Service {
 		rateLimitImportAPI: rate.NewLimiter(
 			rate.Every(ImportRateLimitIntervalSeconds*time.Second),
 			ImportRateLimitBurst,
-		),
-		rateLimitMetadataAPI: rate.NewLimiter(
-			rate.Every(MetadataRateLimitIntervalSeconds*time.Second),
-			MetadataRateLimitBurst,
 		),
 	}
 	return gs
@@ -202,9 +192,4 @@ func (r *Service) Client() GitLabClient {
 // RateLimitImportAPI returns the import API rate limiter.
 func (r *Service) RateLimitImportAPI() *rate.Limiter {
 	return r.rateLimitImportAPI
-}
-
-// RateLimitMetadataAPI returns the metadata API rate limiter.
-func (r *Service) RateLimitMetadataAPI() *rate.Limiter {
-	return r.rateLimitMetadataAPI
 }

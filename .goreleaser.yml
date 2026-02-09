@@ -25,6 +25,9 @@ builds:
     goarm:
       - "6"
       - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
   - id: gitlab-restore
     binary: gitlab-restore
     main: ./cmd/gitlab-restore
@@ -43,6 +46,9 @@ builds:
     goarm:
       - "6"
       - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
 
 archives:
   - id: gitlab-backup-archive
@@ -147,7 +153,8 @@ docker_manifests:
 
 
 brews:
-  - ids:
+  - name: gitlab-backup
+    ids:
       - gitlab-backup-archive
     homepage: 'https://github.com/sgaunet/gitlab-backup'
     description: 'A tool for backing up GitLab projects'
@@ -165,7 +172,8 @@ brews:
       bin.install "{{ .ArtifactName }}" => "gitlab-backup"
     test: |
       system "#{bin}/gitlab-backup", "--help"
-  - ids:
+  - name: gitlab-restore
+    ids:
       - gitlab-restore-archive
     homepage: 'https://github.com/sgaunet/gitlab-backup'
     description: 'A tool for restoring GitLab projects from backups'

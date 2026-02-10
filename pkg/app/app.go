@@ -43,7 +43,8 @@ type Logger interface {
 }
 
 // NewApp returns a new App struct.
-func NewApp(cfg *config.Config) (*App, error) {
+// The context is used for S3 client initialization and may respect timeout/cancellation.
+func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
 	var err error
 	app := &App{
 		cfg:           cfg,
@@ -53,6 +54,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	gitlab.SetLogger(app.log)
 	if cfg.IsS3ConfigValid() {
 		app.storage, err = s3storage.NewS3Storage(
+			ctx,
 			cfg.S3cfg.Region,
 			cfg.S3cfg.Endpoint,
 			cfg.S3cfg.BucketName,

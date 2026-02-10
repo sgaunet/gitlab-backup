@@ -31,10 +31,11 @@ func NewValidator(
 // ValidateProjectEmpty checks if a GitLab project is empty (no commits, issues, or labels).
 // It returns EmptinessChecks with detailed information about what exists in the project.
 // This is used to ensure a project is empty before restore to avoid overwriting data.
-func (v *Validator) ValidateProjectEmpty(_ context.Context, projectID int64) (*EmptinessChecks, error) {
+// The context is propagated to GitLab API calls and allows for cancellation.
+func (v *Validator) ValidateProjectEmpty(ctx context.Context, projectID int64) (*EmptinessChecks, error) {
 	checks := &EmptinessChecks{}
 
-	// Check for commits
+	// Check for commits (with context support)
 	commits, resp, err := v.commitsService.ListCommits(
 		projectID,
 		&gitlabapi.ListCommitsOptions{
@@ -43,14 +44,24 @@ func (v *Validator) ValidateProjectEmpty(_ context.Context, projectID int64) (*E
 				Page:    1,
 			},
 		},
+		gitlabapi.WithContext(ctx),
 	)
 	if err != nil {
+		// Check if cancellation caused the error
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("validation cancelled: %w", ctx.Err())
+		}
 		return nil, fmt.Errorf("failed to list commits: %w", err)
 	}
 	checks.HasCommits = len(commits) > 0
 	checks.CommitCount = getTotalCount(resp, len(commits))
 
-	// Check for issues
+	// Early exit if context cancelled
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("validation cancelled: %w", ctx.Err())
+	}
+
+	// Check for issues (with context support)
 	issues, resp, err := v.issuesService.ListProjectIssues(
 		projectID,
 		&gitlabapi.ListProjectIssuesOptions{
@@ -59,14 +70,24 @@ func (v *Validator) ValidateProjectEmpty(_ context.Context, projectID int64) (*E
 				Page:    1,
 			},
 		},
+		gitlabapi.WithContext(ctx),
 	)
 	if err != nil {
+		// Check if cancellation caused the error
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("validation cancelled: %w", ctx.Err())
+		}
 		return nil, fmt.Errorf("failed to list issues: %w", err)
 	}
 	checks.HasIssues = len(issues) > 0
 	checks.IssueCount = getTotalCount(resp, len(issues))
 
-	// Check for labels
+	// Early exit if context cancelled
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("validation cancelled: %w", ctx.Err())
+	}
+
+	// Check for labels (with context support)
 	labels, resp, err := v.labelsService.ListLabels(
 		projectID,
 		&gitlabapi.ListLabelsOptions{
@@ -75,8 +96,13 @@ func (v *Validator) ValidateProjectEmpty(_ context.Context, projectID int64) (*E
 				Page:    1,
 			},
 		},
+		gitlabapi.WithContext(ctx),
 	)
 	if err != nil {
+		// Check if cancellation caused the error
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("validation cancelled: %w", ctx.Err())
+		}
 		return nil, fmt.Errorf("failed to list labels: %w", err)
 	}
 	checks.HasLabels = len(labels) > 0

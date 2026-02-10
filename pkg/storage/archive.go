@@ -45,8 +45,13 @@ type ArchiveContents struct {
 // All archives created by gitlab-backup are direct GitLab exports and require no extraction.
 //
 // Returns ArchiveContents with the archive path.
-// The ctx parameter is kept for API compatibility but not currently used.
-func ExtractArchive(_ context.Context, archivePath string, destDir string) (*ArchiveContents, error) {
+// The context is checked for cancellation before validation for consistency with other operations.
+func ExtractArchive(ctx context.Context, archivePath string, destDir string) (*ArchiveContents, error) {
+	// Check cancellation before validation
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("operation cancelled: %w", ctx.Err())
+	}
+
 	// Validate archive format first
 	if err := ValidateArchive(archivePath); err != nil {
 		return nil, fmt.Errorf("invalid archive format: %w", err)

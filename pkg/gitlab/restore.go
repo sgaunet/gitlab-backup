@@ -67,15 +67,20 @@ func (s *ImportService) ImportProject(
 		return nil, fmt.Errorf("rate limit wait failed: %w", err)
 	}
 
-	// Initiate import
+	// Initiate import (with context support)
 	importStatus, _, err := s.importExportService.ImportFromFile(
 		archive,
 		&gitlabapi.ImportFileOptions{
 			Namespace: &namespace,
 			Path:      &projectPath,
 		},
+		gitlabapi.WithContext(ctx),
 	)
 	if err != nil {
+		// Check if cancellation caused the error
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("import initiation cancelled: %w", ctx.Err())
+		}
 		return nil, fmt.Errorf("failed to initiate import: %w", err)
 	}
 
@@ -112,9 +117,13 @@ func (s *ImportService) WaitForImport(
 			return nil, fmt.Errorf("rate limit wait failed: %w", err)
 		}
 
-		// Check import status
-		status, _, err := s.importExportService.ImportStatus(projectID)
+		// Check import status (with context support)
+		status, _, err := s.importExportService.ImportStatus(projectID, gitlabapi.WithContext(ctx))
 		if err != nil {
+			// Check if cancellation caused the error
+			if ctx.Err() != nil {
+				return nil, fmt.Errorf("import status check cancelled: %w", ctx.Err())
+			}
 			return nil, fmt.Errorf("failed to get import status: %w", err)
 		}
 

@@ -188,8 +188,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Create context for app initialization and execution
+	ctx := context.Background()
+
 	// Initialize app
-	app, err := app.NewApp(cfg)
+	app, err := app.NewApp(ctx, cfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
@@ -197,7 +200,6 @@ func main() {
 
 	l := initTrace(os.Getenv("DEBUGLEVEL"), cfg.NoLogTime)
 	app.SetLogger(l)
-	ctx := context.Background()
 	err = app.Run(ctx)
 
 	if err != nil {

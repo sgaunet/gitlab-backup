@@ -28,7 +28,8 @@ type S3Storage struct {
 }
 
 // NewS3Storage creates a new S3Storage.
-func NewS3Storage(region string, endpoint string, bucket string, path string) (*S3Storage, error) {
+// The context is used for AWS SDK configuration loading and may respect timeout/cancellation.
+func NewS3Storage(ctx context.Context, region string, endpoint string, bucket string, path string) (*S3Storage, error) {
 	var err error
 
 	s := &S3Storage{
@@ -37,15 +38,15 @@ func NewS3Storage(region string, endpoint string, bucket string, path string) (*
 		bucket:   bucket,
 		path:     path,
 	}
-	err = s.InitClient()
+	err = s.initClient(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return s, nil
 }
 
-// InitClient initializes the s3 client.
-func (s *S3Storage) InitClient() error {
+// initClient initializes the s3 client with context support.
+func (s *S3Storage) initClient(ctx context.Context) error {
 	if os.Getenv("AWS_ACCESS_KEY_ID") != "" {
 		//nolint:staticcheck // SA1019: Using deprecated AWS endpoint resolver for compatibility
 		staticResolver := aws.EndpointResolverFunc(func(_, _ string) (aws.Endpoint, error) {
@@ -81,7 +82,7 @@ func (s *S3Storage) InitClient() error {
 	// 	return
 	// }
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(s.region))
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(s.region))
 	if err != nil {
 		return fmt.Errorf("failed to load AWS config: %w", err)
 	}

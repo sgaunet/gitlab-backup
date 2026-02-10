@@ -85,3 +85,45 @@ func TestSaveFileWithWrontDestinationFolder(t *testing.T) {
 	err = storage.SaveFile(context.Background(), srcFile.Name(), dstFilename)
 	require.Error(t, err)
 }
+
+// TestSaveFile_ContextCancellation verifies that SaveFile respects context cancellation.
+func TestSaveFile_ContextCancellation(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("/tmp", "localstorage_test_cancel")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create a temporary source file with some content
+	srcFile, err := os.CreateTemp(tempDir, "source_large")
+	require.NoError(t, err)
+	defer os.Remove(srcFile.Name())
+
+	// Write content to the source file
+	content := make([]byte, 1024*100) // 100KB
+	for i := range content {
+		content[i] = byte(i % 256)
+	}
+	_, err = srcFile.Write(content)
+	require.NoError(t, err)
+	srcFile.Close()
+
+	// Initialize LocalStorage
+	storage := NewLocalStorage(tempDir)
+
+	// Create a cancelled context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	// Attempt to save file with cancelled context
+	dstFilename := "dstFile"
+	err = storage.SaveFile(ctx, srcFile.Name(), dstFilename)
+
+	// Should fail due to context cancellation
+	require.Error(t, err, "Expected error due to context cancellation")
+	require.ErrorIs(t, err, context.Canceled, "Error should be context.Canceled")
+
+	// Verify the destination file was cleaned up
+	dstFilePath := filepath.Join(tempDir, dstFilename)
+	_, statErr := os.Stat(dstFilePath)
+	require.True(t, os.IsNotExist(statErr), "Destination file should be cleaned up after cancellation")
+}

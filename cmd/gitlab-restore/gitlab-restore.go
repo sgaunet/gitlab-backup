@@ -79,7 +79,7 @@ func main() {
 	gitlabClient.SetGitlabEndpoint(cfg.GitlabURI)
 
 	// Initialize storage
-	storage, err := initializeStorage(cfg)
+	storage, err := initializeStorage(ctx, cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error initializing storage: %v\n", redactCredentials(err.Error(), cfg))
 		os.Exit(1)
@@ -167,11 +167,12 @@ func validateAndLoadConfig(configFile, archive, namespace, project string, overw
 }
 
 // initializeStorage creates the appropriate storage backend.
+// The context is used for S3 client initialization and may respect timeout/cancellation.
 //nolint:ireturn // Returning interface is intentional for abstraction
-func initializeStorage(cfg *config.Config) (restore.Storage, error) {
+func initializeStorage(ctx context.Context, cfg *config.Config) (restore.Storage, error) {
 	if cfg.StorageType == "s3" {
 		//nolint:lll // Function call with multiple parameters
-		s3Store, err := s3storage.NewS3Storage(cfg.S3cfg.Region, cfg.S3cfg.Endpoint, cfg.S3cfg.BucketName, cfg.S3cfg.BucketPath)
+		s3Store, err := s3storage.NewS3Storage(ctx, cfg.S3cfg.Region, cfg.S3cfg.Endpoint, cfg.S3cfg.BucketName, cfg.S3cfg.BucketPath)
 		if err != nil {
 			return nil, fmt.Errorf("initializing S3 storage: %w", err)
 		}

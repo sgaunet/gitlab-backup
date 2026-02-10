@@ -81,6 +81,84 @@ func TestExtractArchive(t *testing.T) {
 	})
 }
 
+func TestExtractArchive_ValidationErrors(t *testing.T) {
+	ctx := context.Background()
+	destDir := t.TempDir()
+
+	testCases := []struct {
+		name        string
+		setupFile   func(t *testing.T) string
+		expectError string
+	}{
+		{
+			name: "non-existent file",
+			setupFile: func(t *testing.T) string {
+				return "/nonexistent/archive.tar.gz"
+			},
+			expectError: "archive not found",
+		},
+		{
+			name: "directory instead of file",
+			setupFile: func(t *testing.T) string {
+				dir := t.TempDir()
+				return dir
+			},
+			expectError: "is a directory",
+		},
+		{
+			name: "empty file",
+			setupFile: func(t *testing.T) string {
+				emptyFile := filepath.Join(t.TempDir(), "empty.tar.gz")
+				err := os.WriteFile(emptyFile, []byte{}, 0644)
+				require.NoError(t, err)
+				return emptyFile
+			},
+			expectError: "archive is empty",
+		},
+		{
+			name: "invalid gzip format",
+			setupFile: func(t *testing.T) string {
+				invalidFile := filepath.Join(t.TempDir(), "invalid.tar.gz")
+				err := os.WriteFile(invalidFile, []byte("not a gzip file"), 0644)
+				require.NoError(t, err)
+				return invalidFile
+			},
+			expectError: "invalid gzip format",
+		},
+		{
+			name: "corrupted tar header",
+			setupFile: func(t *testing.T) string {
+				// Create a valid gzip file with invalid tar content
+				corruptedFile := filepath.Join(t.TempDir(), "corrupted.tar.gz")
+				f, err := os.Create(corruptedFile)
+				require.NoError(t, err)
+				defer f.Close()
+
+				gzw := gzip.NewWriter(f)
+				_, err = gzw.Write([]byte("invalid tar content"))
+				require.NoError(t, err)
+				err = gzw.Close()
+				require.NoError(t, err)
+
+				return corruptedFile
+			},
+			expectError: "invalid tar format",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			archivePath := tc.setupFile(t)
+
+			_, err := storage.ExtractArchive(ctx, archivePath, destDir)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.expectError)
+			assert.Contains(t, err.Error(), "invalid archive format")
+		})
+	}
+}
+
 // createTestArchive creates a test tar.gz archive with the given files.
 // Returns the path to the created archive.
 func createTestArchive(t *testing.T, files map[string]string) string {

@@ -47,6 +47,11 @@ type ArchiveContents struct {
 // Returns ArchiveContents with the archive path.
 // The ctx parameter is kept for API compatibility but not currently used.
 func ExtractArchive(_ context.Context, archivePath string, destDir string) (*ArchiveContents, error) {
+	// Validate archive format first
+	if err := ValidateArchive(archivePath); err != nil {
+		return nil, fmt.Errorf("invalid archive format: %w", err)
+	}
+
 	// All archives are direct GitLab exports - no extraction needed
 	return &ArchiveContents{
 		ProjectExportPath: archivePath,

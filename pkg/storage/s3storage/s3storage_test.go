@@ -128,3 +128,177 @@ func TestNewS3Storage_ContextAccepted(t *testing.T) {
 		t.Error("Expected non-nil S3Storage instance")
 	}
 }
+
+// TestS3Storage_SaveFile_SingleOpen verifies the seek-based approach works correctly.
+// This test validates the fix for issue #301 - optimize double file open in S3 SaveFile.
+// The implementation now opens the file once, calculates MD5, seeks back to start,
+// and uploads, rather than opening the file twice.
+func TestS3Storage_SaveFile_SingleOpen(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup MinIO container
+	req := testcontainers.ContainerRequest{
+		Image:        "minio/minio:RELEASE.2023-04-13T03-08-07Z.fips",
+		ExposedPorts: []string{"9000/tcp"},
+		WaitingFor:   wait.ForLog("Console: http://0.0.0.0:8080"),
+		Env: map[string]string{
+			"MINIO_ROOT_USER":     "minioadminn",
+			"MINIO_ROOT_PASSWORD": "minioadminn",
+			"MINIO_BUCKET":        "tests",
+		},
+		Cmd: []string{"server", "/export", "--console-address", "0.0.0.0:8080"},
+	}
+	minio, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		t.Fatalf("Failed to start MinIO container: %v", err)
+	}
+	defer func() {
+		if err := minio.Terminate(ctx); err != nil {
+			t.Errorf("Failed to terminate MinIO container: %v", err)
+		}
+	}()
+
+	endpoint, err := minio.Endpoint(ctx, "")
+	if err != nil {
+		t.Fatalf("Failed to get MinIO endpoint: %v", err)
+	}
+
+	os.Setenv("AWS_ACCESS_KEY_ID", "minioadminn")
+	os.Setenv("AWS_SECRET_ACCESS_KEY", "minioadminn")
+
+	// Create S3Storage
+	s3, err := s3storage.NewS3Storage(ctx, "us-east-1", fmt.Sprintf("http://%s", endpoint), "tests", "tests")
+	if err != nil {
+		t.Fatalf("Failed to create S3Storage: %v", err)
+	}
+
+	// Create bucket
+	err = s3.CreateBucket(ctx)
+	if err != nil {
+		t.Fatalf("Failed to create bucket: %v", err)
+	}
+
+	// Create a temporary test file with known content
+	tmpFile, err := os.CreateTemp("", "s3test-*.txt")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	testContent := []byte("This is test content for verifying single file open optimization (issue #301)")
+	_, err = tmpFile.Write(testContent)
+	if err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	// Upload using the optimized SaveFile method
+	err = s3.SaveFile(ctx, tmpFile.Name(), "test-single-open.txt")
+	if err != nil {
+		t.Fatalf("SaveFile failed: %v", err)
+	}
+
+	// Verify the file was uploaded successfully by downloading it back
+	downloadPath := tmpFile.Name() + ".download"
+	defer os.Remove(downloadPath)
+
+	err = s3.GetFile(ctx, "test-single-open.txt", downloadPath)
+	if err != nil {
+		t.Fatalf("GetFile failed: %v", err)
+	}
+
+	// Verify content matches
+	downloadedContent, err := os.ReadFile(downloadPath)
+	if err != nil {
+		t.Fatalf("Failed to read downloaded file: %v", err)
+	}
+
+	if string(downloadedContent) != string(testContent) {
+		t.Errorf("Content mismatch.\nExpected: %s\nGot: %s", testContent, downloadedContent)
+	}
+}
+
+// BenchmarkSaveFile measures upload performance for the optimized single-open implementation.
+// This benchmark helps verify that the fix for issue #301 provides performance benefits
+// by eliminating the double file open overhead.
+func BenchmarkSaveFile(b *testing.B) {
+	ctx := context.Background()
+
+	// Setup MinIO container
+	req := testcontainers.ContainerRequest{
+		Image:        "minio/minio:RELEASE.2023-04-13T03-08-07Z.fips",
+		ExposedPorts: []string{"9000/tcp"},
+		WaitingFor:   wait.ForLog("Console: http://0.0.0.0:8080"),
+		Env: map[string]string{
+			"MINIO_ROOT_USER":     "minioadminn",
+			"MINIO_ROOT_PASSWORD": "minioadminn",
+			"MINIO_BUCKET":        "bench",
+		},
+		Cmd: []string{"server", "/export", "--console-address", "0.0.0.0:8080"},
+	}
+	minio, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		b.Fatalf("Failed to start MinIO container: %v", err)
+	}
+	defer func() {
+		if err := minio.Terminate(ctx); err != nil {
+			b.Errorf("Failed to terminate MinIO container: %v", err)
+		}
+	}()
+
+	endpoint, err := minio.Endpoint(ctx, "")
+	if err != nil {
+		b.Fatalf("Failed to get MinIO endpoint: %v", err)
+	}
+
+	os.Setenv("AWS_ACCESS_KEY_ID", "minioadminn")
+	os.Setenv("AWS_SECRET_ACCESS_KEY", "minioadminn")
+
+	// Create S3Storage
+	s3, err := s3storage.NewS3Storage(ctx, "us-east-1", fmt.Sprintf("http://%s", endpoint), "bench", "bench")
+	if err != nil {
+		b.Fatalf("Failed to create S3Storage: %v", err)
+	}
+
+	// Create bucket
+	err = s3.CreateBucket(ctx)
+	if err != nil {
+		b.Fatalf("Failed to create bucket: %v", err)
+	}
+
+	// Create a test file of realistic size (10MB)
+	tmpFile, err := os.CreateTemp("", "s3bench-*.dat")
+	if err != nil {
+		b.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	// Write 10MB of data
+	data := make([]byte, 10*1024*1024) // 10MB
+	for i := range data {
+		data[i] = byte(i % 256)
+	}
+	_, err = tmpFile.Write(data)
+	if err != nil {
+		b.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	// Reset timer to exclude setup time
+	b.ResetTimer()
+
+	// Run benchmark
+	for i := 0; i < b.N; i++ {
+		filename := fmt.Sprintf("bench-%d.dat", i)
+		err = s3.SaveFile(ctx, tmpFile.Name(), filename)
+		if err != nil {
+			b.Fatalf("SaveFile failed: %v", err)
+		}
+	}
+}

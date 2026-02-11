@@ -14,32 +14,34 @@ tasks:
     cmds:
       - task -a
 
-  lint:
-    desc: "Run linter"
+  check-before-commit:
+    desc: "Run checks before committing"
     preconditions:
       - test -f .git/hooks/pre-commit
+    deps:
+      - test
+      - snapshot
+    cmds:
+      - task: lint
+
+  lint:
+    desc: "Run golangci-lint"
     cmds:
       - golangci-lint run
 
   test:
-    desc: "Run tests"
-    preconditions:
-      - test -f .git/hooks/pre-commit
+    desc: "Run unit tests with race detection"
     cmds:
       - go test -count=2 -race ./...
 
   build:
     desc: "Build both binaries (gitlab-backup and gitlab-restore)"
-    preconditions:
-      - test -f .git/hooks/pre-commit
     cmds:
       - CGO_ENABLED=0 go build -o gitlab-backup ./cmd/gitlab-backup
       - CGO_ENABLED=0 go build -o gitlab-restore ./cmd/gitlab-restore
 
   image:
-    desc: "Build/push the docker image"
-    preconditions:
-      - test -f .git/hooks/pre-commit
+    desc: "Build and push Docker image"
     deps:
       - build
     cmds:
@@ -47,22 +49,18 @@ tasks:
       - docker push ghcr.io/sgaunet/gitlab-backup:latest
 
   doc:
-    desc: "Start godoc server"
+    desc: "Start godoc documentation server"
     cmds:
-      - echo http://localhost:6060 
+      - echo http://localhost:6060
       - godoc -http=:6060
 
   snapshot:
-    desc: "Create a snapshot release"
-    preconditions:
-      - test -f .git/hooks/pre-commit
+    desc: "Create snapshot release with goreleaser"
     cmds:
       - GITLAB_TOKEN="" goreleaser --clean --snapshot
-    
+
   release:
-    desc: "Create a release"
-    preconditions:
-      - test -f .git/hooks/pre-commit
+    desc: "Create production release with goreleaser"
     cmds:
       - GITLAB_TOKEN="" goreleaser --clean
     

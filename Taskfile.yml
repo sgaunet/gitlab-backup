@@ -1,27 +1,45 @@
 # https://taskfile.dev
 version: '3'
+includes:
+  dev: ./Taskfile_dev.yml
+
 vars:
   BINFILE: gitlab-backup
 
 tasks:
   default:
     desc: "List tasks"
+    preconditions:
+      - test -f .git/hooks/pre-commit
     cmds:
       - task -a
 
   lint:
     desc: "Run linter"
+    preconditions:
+      - test -f .git/hooks/pre-commit
     cmds:
       - golangci-lint run
 
+  test:
+    desc: "Run tests"
+    preconditions:
+      - test -f .git/hooks/pre-commit
+    cmds:
+      - go test -count=2 -race ./...
+
   build:
     desc: "Build both binaries (gitlab-backup and gitlab-restore)"
+    preconditions:
+      - test -f .git/hooks/pre-commit
     cmds:
       - CGO_ENABLED=0 go build -o gitlab-backup ./cmd/gitlab-backup
       - CGO_ENABLED=0 go build -o gitlab-restore ./cmd/gitlab-restore
 
   image:
     desc: "Build/push the docker image"
+    preconditions:
+      - test -f .git/hooks/pre-commit
     deps:
       - build
     cmds:
@@ -36,11 +54,15 @@ tasks:
 
   snapshot:
     desc: "Create a snapshot release"
+    preconditions:
+      - test -f .git/hooks/pre-commit
     cmds:
       - GITLAB_TOKEN="" goreleaser --clean --snapshot
     
   release:
     desc: "Create a release"
+    preconditions:
+      - test -f .git/hooks/pre-commit
     cmds:
       - GITLAB_TOKEN="" goreleaser --clean
     

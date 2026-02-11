@@ -128,15 +128,12 @@ func (s *ImportService) WaitForImport(
 		}
 
 		// Check terminal states
-		switch status.ImportStatus {
-		case "finished":
+		terminal, err := checkImportStatus(status)
+		if err != nil {
+			return nil, err
+		}
+		if terminal {
 			return status, nil
-		case "failed":
-			return nil, fmt.Errorf("%w: %s", ErrImportFailed, status.ImportError)
-		case "scheduled", "started":
-			// Continue polling
-		default:
-			return nil, fmt.Errorf("%w: %s", ErrUnexpectedImportStatus, status.ImportStatus)
 		}
 
 		// Wait for next poll or context cancellation
@@ -146,5 +143,21 @@ func (s *ImportService) WaitForImport(
 		case <-ticker.C:
 			// Continue to next iteration
 		}
+	}
+}
+
+// checkImportStatus evaluates the import status and determines if it's terminal.
+// Returns true if import is finished successfully, false if still in progress.
+// Returns error if import failed or reached unexpected status.
+func checkImportStatus(status *gitlabapi.ImportStatus) (bool, error) {
+	switch status.ImportStatus {
+	case "finished":
+		return true, nil
+	case "failed":
+		return false, fmt.Errorf("%w: %s", ErrImportFailed, status.ImportError)
+	case "scheduled", "started":
+		return false, nil
+	default:
+		return false, fmt.Errorf("%w: %s", ErrUnexpectedImportStatus, status.ImportStatus)
 	}
 }

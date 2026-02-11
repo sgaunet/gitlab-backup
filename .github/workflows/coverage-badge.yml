@@ -21,6 +21,7 @@ jobs:
       - name: coverage
         id: coverage
         run: |
+          go generate ./...
           go test -coverpkg=./... -coverprofile=profile.cov ./...
           sed -i '/cmd/d' profile.cov    # remove cmd package from coverage
           total=$(go tool cover -func profile.cov | grep '^total:' | awk '{print $3}' | sed "s/%//")

@@ -1,184 +1,94 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
-## Project Overview
+## Repository Overview
 
-This repository contains two complementary Go CLI tools for GitLab project backup and restore operations. The project follows clean architecture principles with clear separation between API client, business logic, and storage layers.
+Two complementary Go CLI tools for GitLab backup and restore operations. Uses GitLab's native export/import API with clean architecture, interface-driven design, and AWS S3 support. Built with Go 1.24.0+ using Task for build automation.
 
-### gitlab-backup
+**gitlab-backup**: Exports GitLab projects with rate limiting, concurrent group exports, and local/S3 storage.
 
-**Key Features:**
-- Exports GitLab projects using the native GitLab export API
-- Supports both local filesystem and AWS S3 storage
-- Implements rate limiting for all GitLab API endpoints
-- Concurrent group exports with proper error handling
+**gitlab-restore**: Restores from archives with 5-phase workflow (validation, download, extraction, import, cleanup). Validates target emptiness before restore.
 
-### gitlab-restore
+## Architecture
 
-**Key Features:**
-- Restores GitLab projects from archives created by gitlab-backup
-- Validates target project is empty before restoring (with optional override)
-- Restores complete project using GitLab's native Import/Export API (includes repository, wiki, issues, merge requests, labels, and all project data)
-- Progress reporting for each restore phase (validation, download, extraction, import, cleanup)
-- Graceful interruption handling (Ctrl+C)
-- Supports both local and S3-stored archives
+**Clean Architecture with Interface-Driven Design**:
+- `cmd/` - CLI entry points (gitlab-backup, gitlab-restore)
+- `pkg/app/` - Application orchestration and business logic
+- `pkg/config/` - Configuration management (YAML/ENV)
+- `pkg/gitlab/` - GitLab API client with rate limiting and service interfaces
+- `pkg/storage/` - Storage abstraction (local/S3 implementations)
+- `pkg/hooks/` - Pre/post backup hook execution
+
+**Key Patterns**:
+- Interface-based dependency injection (`GitLabClient`, `Storage`)
+- Sentinel errors with wrapping (`pkg/gitlab/error.go`)
+- Rate limiting per API endpoint (golang.org/x/time/rate)
+- Structured concurrency (golang.org/x/sync/errgroup)
+- White-box, black-box, and integration testing strategies
+
+See [docs/architecture.md](docs/architecture.md) for detailed design, component overview, and restore workflow.
 
 ## Development Commands
 
 **Build & Development** (using [Task](https://taskfile.dev/)):
-- `task build` - Build both binaries (gitlab-backup and gitlab-restore)
-- `task linter` - Run golangci-lint with project configuration
-- `task doc` - Start godoc server for documentation
-- `task image` - Build Docker image
-- `task snapshot` - Create snapshot release with goreleaser (both binaries)
-- `task release` - Create production release (both binaries)
+```bash
+task build        # Build both binaries
+task test         # Run tests with race detection
+task lint         # Run golangci-lint
+task doc          # Start godoc server
+task snapshot     # Create snapshot release
+task release      # Create production release
+```
 
 **Testing**:
-- `go test ./...` - Run all tests
-- Tests use testify framework and testcontainers for integration testing
+- `go test -count=2 -race ./...` - Run all tests
+- Uses testify framework and testcontainers for integration tests
 
-**Prerequisites**: Go 1.23.0+, Task, Docker (for images)
+**Prerequisites**: Go 1.24.0+, Task, Docker (for images)
 
-## Architecture
+## Code Quality Standards
 
-**Clean Architecture Pattern**:
-- `cmd/` - CLI entry points and argument parsing
-  - `cmd/gitlab-backup/` - Backup CLI tool
-  - `cmd/gitlab-restore/` - Restore CLI tool
-- `pkg/app/` - Application orchestration and business logic
-  - `pkg/app/restore/` - Restore workflow orchestration, validation, and progress reporting
-- `pkg/config/` - Configuration management (YAML/ENV)
-  - `restore_config.go` - Restore-specific configuration and validation
-- `pkg/gitlab/` - GitLab API client with rate limiting
-  - `client_interface.go` - Interface definitions and wrappers for GitLab API services
-  - `gitlab.go` - Service initialization and rate limiter configuration
-  - `project.go` - Project export orchestration
-  - `restore.go` - Project import via GitLab's native Import/Export API
-- `pkg/storage/` - Storage abstraction (local/S3 implementations)
-  - `archive.go` - Archive validation and extraction with path traversal protection (backward compatible with old archive formats)
-- `pkg/hooks/` - Pre/post backup hook execution
+**Linter configured** (do not duplicate rules):
+- **golangci-lint**: See [.golangci.yml](.golangci.yml) for complete rule set (all linters enabled, 11 disabled)
 
-**Key Interfaces**:
-- `Storage` interface with `localstorage` and `s3storage` implementations
-  - Backup: `SaveFile()` - Store archives to local or S3
-  - Restore: `Get()` - Retrieve archives from local or S3
-- `GitLabClient` interface with service-specific interfaces:
-  - `GroupsService` - Group operations
-  - `ProjectsService` - Project metadata
-  - `ProjectImportExportService` - Project export/import operations
-    - Export: `ExportProject()`, `ExportStatus()`
-    - Import: `ImportFromFile()`, `ImportStatus()`
-  - `LabelsService` - Used for restore validation (checking project emptiness)
-  - `IssuesService` - Used for restore validation (checking project emptiness)
-  - `CommitsService` - Used for restore validation (checking project emptiness)
-- Interface-based design enables easy testing and extensibility
+**Key conventions**:
+- Test files: `_test.go` suffix with white-box/black-box approaches
+- Errors: Sentinel errors (exported vars) with `fmt.Errorf("%w")` wrapping
+- Mocks: Generated via `go:generate` directives using moq
 
-**Rate Limiting**:
-- Download API: 5 requests/minute (GitLab repository files API limit)
-- Export API: 6 requests/minute (GitLab project import/export API limit)
-- Import API: 6 requests/minute (GitLab project import/export API limit)
+## File Locations
 
-**Concurrency**: Uses `golang.org/x/sync/errgroup` for concurrent project exports with GitLab API rate limiting
-
-**Archive Strategy**: Creates standard tar.gz archives using GitLab's native export API. The archive contains the complete project including repository, wiki, issues, merge requests, labels, and all other project data.
+- **Source**: `pkg/` (app, config, gitlab, storage, hooks packages)
+- **Tests**: `tests/integration/` + unit tests co-located with source
+- **Docs**: `docs/` (architecture, workflows, patterns)
+- **Config**: `resources/` (example configs), `pkg/config/testdata/`
+- **Binaries**: `cmd/gitlab-backup/`, `cmd/gitlab-restore/`
 
 ## Configuration
 
-Configuration supports both YAML files and environment variables with override capability. The config package handles validation for different storage backends and restore options.
+Supports YAML files and environment variables with override capability. Config package handles validation for storage backends and restore options.
 
-**Restore Configuration** (`restore_config.go`):
-- `restoreSource` (RESTORE_SOURCE): Archive path (local or s3://bucket/key)
-- `restoreTargetNS` (RESTORE_TARGET_NS): Target GitLab namespace/group path
-- `restoreTargetPath` (RESTORE_TARGET_PATH): Target GitLab project name
-- `restoreOverwrite` (RESTORE_OVERWRITE): Skip emptiness validation (default: false)
+**Key restore options**: `restoreSource` (local/S3), `restoreTargetNS`, `restoreTargetPath`, `restoreOverwrite` (skip emptiness check).
 
-The restore configuration extends the base Config struct and includes validation for:
-- S3 path parsing (s3://bucket/key format)
-- Project path format validation (alphanumeric, underscores, dots, hyphens)
-- Path traversal prevention
-- S3 configuration requirements when using S3 sources
+See [docs/architecture.md](docs/architecture.md) for detailed configuration reference.
 
-## Restore Architecture
+## Documentation
 
-**5-Phase Restore Workflow** (`pkg/app/restore/restore.go`):
-
-1. **Phase 1: Validation** - Verify target project is empty
-   - Check for commits (via CommitsService)
-   - Check for issues (via IssuesService)
-   - Check for labels (via LabelsService)
-   - Skip if `--overwrite` flag set
-
-2. **Phase 2: Download** - Download archive from S3 (if S3 source)
-   - Parse S3 path (s3://bucket/key)
-   - Download to temporary file
-   - Track download progress
-
-3. **Phase 3: Extraction** - Extract archive contents
-   - Validate tar.gz format
-   - Extract to temporary directory with path traversal protection
-   - Verify presence of required files (project.tar.gz)
-   - Backward compatible: silently ignores old labels.json/issues.json files
-
-4. **Phase 4: Import** - Import complete GitLab project
-   - Upload project export via ImportFromFile API
-   - Poll ImportStatus with 5-second interval, 10-minute timeout
-   - Wait for completion or failure
-   - GitLab's native import handles repository, wiki, issues, merge requests, labels, and all project data
-
-5. **Phase 5: Cleanup** - Remove temporary files
-   - Delete extraction directory
-   - Delete downloaded S3 archive (if applicable)
-   - Always runs (defer)
-
-**Error Handling**:
-- **Fatal errors** (phases 1-4): Stop restore, return error
-- GitLab's native import is atomic - either succeeds completely or fails
-
-**Validation** (`pkg/app/restore/validator.go`):
-- `ValidateProjectEmpty()` checks three conditions:
-  - No commits in repository
-  - No issues in project
-  - No labels in project
-- Returns `EmptinessChecks` struct with counts for each category
-- Prevents accidental data overwrite
-
-**Progress Reporting** (`pkg/app/restore/progress.go`):
-- Console logger implementation with phase-based progress
-- Reports: phase start, phase complete, phase fail, phase skip
-- Tracks metrics: labels/issues restored, notes created, duration
-
-## Testing Strategy
-
-- Unit tests for each package using testify
-- Integration tests with testcontainers-go
-- Both white-box and black-box testing approaches
-- GitHub Actions workflow maintains coverage badges
+- [docs/architecture.md](docs/architecture.md): System design, components, restore workflow, rate limits, configuration
+- [docs/workflows.md](docs/workflows.md): Development processes, testing strategy, git workflow, CI/CD
+- [docs/patterns.md](docs/patterns.md): Code patterns, error handling, testing approaches, concurrency
 
 ## Docker
 
 Multi-stage builds create minimal scratch-based images with non-root user. Images use GitHub Container Registry (ghcr.io).
 
 ## Active Technologies
-- Go 1.24.0+
+- Go 1.24.0+ (toolchain: go1.24.3)
+- GitLab API client (gitlab.com/gitlab-org/api/client-go)
+- AWS SDK v2 (S3 storage)
+- testify, testcontainers-go (testing)
 
 ## Recent Changes
-- **002-remove-metadata-export** (2026-02): Removed separate labels/issues export/restore
-  - Simplified to use GitLab's native export/import exclusively
-  - Removed 800+ lines of metadata export/restore code
-  - Changed from 7-phase to 5-phase restore workflow
-  - Removed composite archive creation
-  - Backward compatible: old archives with labels.json/issues.json still work
-  - Faster backups and restores (fewer API calls)
-  - More reliable (GitLab handles all data relationships internally)
-
-- **001-gitlab-restore** (2026-02): Added gitlab-restore CLI tool
-  - Complete restore workflow with 5-phase orchestration
-  - Project emptiness validation
-  - GitLab Import/Export API integration
-  - S3 archive support
-  - Progress reporting and graceful interruption handling
-  - Multi-platform binary releases via GoReleaser
-  - Extended GitLab client interfaces for import/restore operations
-  - Archive extraction with path traversal protection
-  - Comprehensive test coverage with testify and testcontainers
+- **002-remove-metadata-export** (2026-02): Simplified to GitLab native export/import, removed 800+ lines, faster and more reliable
+- **001-gitlab-restore** (2026-02): Added restore CLI with 5-phase workflow, emptiness validation, S3 support, progress reporting

@@ -59,33 +59,38 @@ func (s *S3Storage) CreateBucket(ctx context.Context) error {
 
 // SaveFile saves the file in s3.
 func (s *S3Storage) SaveFile(ctx context.Context, archiveFilePath string, dstFilename string) error {
+	// Open file once
 	f, err := os.Open(archiveFilePath) //nolint:gosec // G304: File access is intentional for backup functionality
 	if err != nil {
 		return fmt.Errorf("failed to open archive file %s: %w", archiveFilePath, err)
 	}
-	// calculate md5 of f
+	defer func() { _ = f.Close() }()
+
+	// First pass: calculate MD5
 	hash := md5.New() //nolint:gosec // G401: MD5 required for S3 Content-MD5 header
 	_, err = io.Copy(hash, f)
 	if err != nil {
 		return fmt.Errorf("failed to calculate MD5 hash: %w", err)
 	}
-	_ = f.Close()
-	fsrc, err := os.Open(archiveFilePath) //nolint:gosec // G304: File access is intentional for backup functionality
-	if err != nil {
-		return fmt.Errorf("failed to reopen archive file %s: %w", archiveFilePath, err)
-	}
-	defer func() { _ = fsrc.Close() }()
 
+	// Seek back to beginning for upload
+	_, err = f.Seek(0, 0)
+	if err != nil {
+		return fmt.Errorf("failed to seek to file start: %w", err)
+	}
+
+	// Second pass: upload with ContentMD5
 	md5b64 := base64.StdEncoding.EncodeToString(hash.Sum(nil))
 	_, err = s.s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:     aws.String(s.bucket),
 		Key:        aws.String(s.path + "/" + dstFilename),
-		Body:       fsrc,
+		Body:       f,
 		ContentMD5: aws.String(md5b64),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to upload file %s to S3: %w", dstFilename, err)
 	}
+
 	return nil
 }
 

@@ -45,52 +45,6 @@ func NewS3Storage(ctx context.Context, region string, endpoint string, bucket st
 	return s, nil
 }
 
-// initClient initializes the s3 client with context support.
-func (s *S3Storage) initClient(ctx context.Context) error {
-	if os.Getenv("AWS_ACCESS_KEY_ID") != "" {
-		//nolint:staticcheck // SA1019: Using deprecated AWS endpoint resolver for compatibility
-		staticResolver := aws.EndpointResolverFunc(func(_, _ string) (aws.Endpoint, error) {
-			return aws.Endpoint{ //nolint:staticcheck // SA1019: aws.Endpoint is deprecated but still needed for custom endpoints
-				PartitionID:       "aws",
-				URL:               s.endpoint, // or where ever you ran minio
-				SigningRegion:     s.region,
-				HostnameImmutable: true,
-			}, nil
-		})
-
-		cfg := aws.Config{
-			Region:           s.region,
-			Credentials: credentials.NewStaticCredentialsProvider(
-				os.Getenv("AWS_ACCESS_KEY_ID"),
-				os.Getenv("AWS_SECRET_ACCESS_KEY"),
-				"",
-			),
-			EndpointResolver: staticResolver,
-		}
-		s.s3Client = s3.NewFromConfig(cfg, func(o *s3.Options) {
-			o.BaseEndpoint = aws.String(s.endpoint)
-		})
-		return nil
-	}
-
-	// if s.cfg.SsoAwsProfile != "" {
-	// 	fmt.Println("Try to use SSO profile")
-	// 	cfg, err = config.LoadDefaultConfig(
-	// 		context.TODO(),
-	// 		config.WithSharedConfigProfile(s.cfg.SsoAwsProfile),
-	// 	)
-	// 	return
-	// }
-
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(s.region))
-	if err != nil {
-		return fmt.Errorf("failed to load AWS config: %w", err)
-	}
-	s.s3Client = s3.NewFromConfig(cfg)
-	return nil
-}
-
-
 // CreateBucket creates the bucket.
 func (s *S3Storage) CreateBucket(ctx context.Context) error {
 	// return s.s3Client.MakeBucket(ctx, s.bucket, minio.MakeBucketOptions{Region: s.region})
@@ -170,5 +124,50 @@ func (s *S3Storage) GetFile(ctx context.Context, key string, localPath string) e
 		return fmt.Errorf("failed to write downloaded file to %s: %w", localPath, err)
 	}
 
+	return nil
+}
+
+// initClient initializes the s3 client with context support.
+func (s *S3Storage) initClient(ctx context.Context) error {
+	if os.Getenv("AWS_ACCESS_KEY_ID") != "" {
+		//nolint:staticcheck // SA1019: Using deprecated AWS endpoint resolver for compatibility
+		staticResolver := aws.EndpointResolverFunc(func(_, _ string) (aws.Endpoint, error) {
+			return aws.Endpoint{ //nolint:staticcheck // SA1019: aws.Endpoint is deprecated but still needed for custom endpoints
+				PartitionID:       "aws",
+				URL:               s.endpoint, // or where ever you ran minio
+				SigningRegion:     s.region,
+				HostnameImmutable: true,
+			}, nil
+		})
+
+		cfg := aws.Config{
+			Region:           s.region,
+			Credentials: credentials.NewStaticCredentialsProvider(
+				os.Getenv("AWS_ACCESS_KEY_ID"),
+				os.Getenv("AWS_SECRET_ACCESS_KEY"),
+				"",
+			),
+			EndpointResolver: staticResolver,
+		}
+		s.s3Client = s3.NewFromConfig(cfg, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(s.endpoint)
+		})
+		return nil
+	}
+
+	// if s.cfg.SsoAwsProfile != "" {
+	// 	fmt.Println("Try to use SSO profile")
+	// 	cfg, err = config.LoadDefaultConfig(
+	// 		context.TODO(),
+	// 		config.WithSharedConfigProfile(s.cfg.SsoAwsProfile),
+	// 	)
+	// 	return
+	// }
+
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(s.region))
+	if err != nil {
+		return fmt.Errorf("failed to load AWS config: %w", err)
+	}
+	s.s3Client = s3.NewFromConfig(cfg)
 	return nil
 }

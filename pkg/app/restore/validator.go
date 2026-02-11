@@ -35,7 +35,41 @@ func NewValidator(
 func (v *Validator) ValidateProjectEmpty(ctx context.Context, projectID int64) (*EmptinessChecks, error) {
 	checks := &EmptinessChecks{}
 
-	// Check for commits (with context support)
+	// Check for commits
+	hasCommits, commitCount, err := v.checkCommits(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	checks.HasCommits = hasCommits
+	checks.CommitCount = commitCount
+
+	// Check for issues
+	hasIssues, issueCount, err := v.checkIssues(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	checks.HasIssues = hasIssues
+	checks.IssueCount = issueCount
+
+	// Check for labels
+	hasLabels, labelCount, err := v.checkLabels(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	checks.HasLabels = hasLabels
+	checks.LabelCount = labelCount
+
+	return checks, nil
+}
+
+// checkCommits checks if a project has any commits.
+// Returns whether commits exist, the total count, and any error encountered.
+func (v *Validator) checkCommits(ctx context.Context, projectID int64) (bool, int, error) {
+	// Early exit if context cancelled
+	if ctx.Err() != nil {
+		return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
+	}
+
 	commits, resp, err := v.commitsService.ListCommits(
 		projectID,
 		&gitlabapi.ListCommitsOptions{
@@ -47,21 +81,23 @@ func (v *Validator) ValidateProjectEmpty(ctx context.Context, projectID int64) (
 		gitlabapi.WithContext(ctx),
 	)
 	if err != nil {
-		// Check if cancellation caused the error
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("validation cancelled: %w", ctx.Err())
+			return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
 		}
-		return nil, fmt.Errorf("failed to list commits: %w", err)
+		return false, 0, fmt.Errorf("failed to list commits: %w", err)
 	}
-	checks.HasCommits = len(commits) > 0
-	checks.CommitCount = getTotalCount(resp, len(commits))
 
+	return len(commits) > 0, getTotalCount(resp, len(commits)), nil
+}
+
+// checkIssues checks if a project has any issues.
+// Returns whether issues exist, the total count, and any error encountered.
+func (v *Validator) checkIssues(ctx context.Context, projectID int64) (bool, int, error) {
 	// Early exit if context cancelled
 	if ctx.Err() != nil {
-		return nil, fmt.Errorf("validation cancelled: %w", ctx.Err())
+		return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
 	}
 
-	// Check for issues (with context support)
 	issues, resp, err := v.issuesService.ListProjectIssues(
 		projectID,
 		&gitlabapi.ListProjectIssuesOptions{
@@ -73,21 +109,23 @@ func (v *Validator) ValidateProjectEmpty(ctx context.Context, projectID int64) (
 		gitlabapi.WithContext(ctx),
 	)
 	if err != nil {
-		// Check if cancellation caused the error
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("validation cancelled: %w", ctx.Err())
+			return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
 		}
-		return nil, fmt.Errorf("failed to list issues: %w", err)
+		return false, 0, fmt.Errorf("failed to list issues: %w", err)
 	}
-	checks.HasIssues = len(issues) > 0
-	checks.IssueCount = getTotalCount(resp, len(issues))
 
+	return len(issues) > 0, getTotalCount(resp, len(issues)), nil
+}
+
+// checkLabels checks if a project has any labels.
+// Returns whether labels exist, the total count, and any error encountered.
+func (v *Validator) checkLabels(ctx context.Context, projectID int64) (bool, int, error) {
 	// Early exit if context cancelled
 	if ctx.Err() != nil {
-		return nil, fmt.Errorf("validation cancelled: %w", ctx.Err())
+		return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
 	}
 
-	// Check for labels (with context support)
 	labels, resp, err := v.labelsService.ListLabels(
 		projectID,
 		&gitlabapi.ListLabelsOptions{
@@ -99,16 +137,13 @@ func (v *Validator) ValidateProjectEmpty(ctx context.Context, projectID int64) (
 		gitlabapi.WithContext(ctx),
 	)
 	if err != nil {
-		// Check if cancellation caused the error
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("validation cancelled: %w", ctx.Err())
+			return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
 		}
-		return nil, fmt.Errorf("failed to list labels: %w", err)
+		return false, 0, fmt.Errorf("failed to list labels: %w", err)
 	}
-	checks.HasLabels = len(labels) > 0
-	checks.LabelCount = getTotalCount(resp, len(labels))
 
-	return checks, nil
+	return len(labels) > 0, getTotalCount(resp, len(labels)), nil
 }
 
 // getTotalCount extracts the total count from GitLab API response headers.

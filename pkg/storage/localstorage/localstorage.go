@@ -3,9 +3,20 @@ package localstorage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+)
+
+const (
+	// copyBufferSize is the buffer size for file copy operations (32KB).
+	copyBufferSize = 32 * 1024
+)
+
+var (
+	// ErrShortWrite is returned when a write operation copies fewer bytes than expected.
+	ErrShortWrite = errors.New("short write")
 )
 
 // LocalStorage implements storage interface for local file system.
@@ -35,34 +46,38 @@ func (s *LocalStorage) SaveFile(ctx context.Context, archiveFilePath string, dst
 	defer func() { _ = src.Close() }()
 
 	// save file in localstorage
-	//nolint:gosec // G304: File creation is intentional for backup functionality
 	dstPath := s.dirpath + "/" + dstFilename
-	fDst, err := os.Create(dstPath)
+	fDst, err := os.Create(dstPath) //nolint:gosec // G304: File creation is intentional for backup functionality
 	if err != nil {
 		return fmt.Errorf("failed to create destination file %s/%s: %w", s.dirpath, dstFilename, err)
 	}
 	defer func() { _ = fDst.Close() }()
 
 	// Use context-aware copy with periodic cancellation checks
-	buf := make([]byte, 32*1024) // 32KB buffer
+	return copyWithContext(ctx, fDst, src, dstPath)
+}
+
+// copyWithContext performs a buffered copy with periodic context cancellation checks.
+// It cleans up the destination file on error or cancellation.
+func copyWithContext(ctx context.Context, dst io.Writer, src io.Reader, dstPath string) error {
+	buf := make([]byte, copyBufferSize)
 	for {
 		// Check context before each chunk
 		if ctx.Err() != nil {
-			_ = fDst.Close()
 			_ = os.Remove(dstPath) // Clean up partial file
 			return fmt.Errorf("copy cancelled: %w", ctx.Err())
 		}
 
 		nr, er := src.Read(buf)
 		if nr > 0 {
-			nw, ew := fDst.Write(buf[0:nr])
+			nw, ew := dst.Write(buf[0:nr])
 			if ew != nil {
 				_ = os.Remove(dstPath) // Clean up on write error
 				return fmt.Errorf("failed to write to destination: %w", ew)
 			}
 			if nr != nw {
 				_ = os.Remove(dstPath) // Clean up on short write
-				return fmt.Errorf("short write: wrote %d bytes, expected %d", nw, nr)
+				return fmt.Errorf("%w: wrote %d bytes, expected %d", ErrShortWrite, nw, nr)
 			}
 		}
 		if er != nil {

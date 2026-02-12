@@ -1,3 +1,32 @@
+// Package restore implements the 5-phase GitLab project restore workflow.
+//
+// The restore process consists of:
+//   1. Validation - Verify target project is empty (unless --overwrite)
+//   2. Download - Fetch archive from S3 if needed
+//   3. Extraction - Extract and validate archive contents
+//   4. Import - Import project via GitLab Import/Export API
+//   5. Cleanup - Remove temporary files
+//
+// The package provides:
+//   - Orchestrator: Main restore workflow coordination
+//   - Validator: Project emptiness validation
+//   - ProgressReporter: Console progress reporting
+//
+// Architecture:
+//
+//	Orchestrator
+//	    ├─> Validator (GitLab API)
+//	    ├─> Storage (Local/S3)
+//	    ├─> GitLabClient (Import API)
+//	    └─> ProgressReporter (Console)
+//
+// Example usage:
+//
+//	validator := restore.NewValidator(gitlabClient, progress, projectPath)
+//	orchestrator := restore.NewOrchestrator(validator, storage, gitlabClient, ...)
+//	if err := orchestrator.Restore(ctx); err != nil {
+//	    log.Fatal(err)
+//	}
 package restore
 
 import (

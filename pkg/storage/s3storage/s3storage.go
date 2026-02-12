@@ -58,13 +58,17 @@ func (s *S3Storage) CreateBucket(ctx context.Context) error {
 }
 
 // SaveFile saves the file in s3.
-func (s *S3Storage) SaveFile(ctx context.Context, archiveFilePath string, dstFilename string) error {
+func (s *S3Storage) SaveFile(ctx context.Context, archiveFilePath string, dstFilename string) (err error) {
 	// Open file once
-	f, err := os.Open(archiveFilePath) //nolint:gosec // G304: File access is intentional for backup functionality
-	if err != nil {
-		return fmt.Errorf("failed to open archive file %s: %w", archiveFilePath, err)
+	f, openErr := os.Open(archiveFilePath) //nolint:gosec // G304: File access is intentional for backup functionality
+	if openErr != nil {
+		return fmt.Errorf("failed to open archive file %s: %w", archiveFilePath, openErr)
 	}
-	defer func() { _ = f.Close() }()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close archive file %s: %w", archiveFilePath, closeErr)
+		}
+	}()
 
 	// First pass: calculate MD5
 	hash := md5.New() //nolint:gosec // G401: MD5 required for S3 Content-MD5 header
@@ -81,28 +85,33 @@ func (s *S3Storage) SaveFile(ctx context.Context, archiveFilePath string, dstFil
 
 	// Second pass: upload with ContentMD5
 	md5b64 := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+	fullKey := s.path + "/" + dstFilename
 	_, err = s.s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:     aws.String(s.bucket),
-		Key:        aws.String(s.path + "/" + dstFilename),
+		Key:        aws.String(fullKey),
 		Body:       f,
 		ContentMD5: aws.String(md5b64),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to upload file %s to S3: %w", dstFilename, err)
+		return fmt.Errorf("failed to upload file %s to S3 bucket %s (key: %s): %w",
+			dstFilename, s.bucket, fullKey, err)
 	}
 
 	return nil
 }
 
 // GetFile downloads a file from S3 and saves it to the specified local path.
-func (s *S3Storage) GetFile(ctx context.Context, key string, localPath string) error {
+func (s *S3Storage) GetFile(ctx context.Context, key string, localPath string) (err error) {
 	// Create local file
-	outFile, err := os.Create(localPath) //nolint:gosec // G304: File creation is intentional for restore functionality
-	if err != nil {
-		return fmt.Errorf("failed to create local file %s: %w", localPath, err)
+	//nolint:gosec // G304: File creation is intentional for restore functionality
+	outFile, createErr := os.Create(localPath)
+	if createErr != nil {
+		return fmt.Errorf("failed to create local file %s: %w", localPath, createErr)
 	}
 	defer func() {
-		_ = outFile.Close()
+		if closeErr := outFile.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close local file %s: %w", localPath, closeErr)
+		}
 	}()
 
 	// Construct full S3 key
@@ -112,15 +121,18 @@ func (s *S3Storage) GetFile(ctx context.Context, key string, localPath string) e
 	}
 
 	// Download from S3
-	result, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
+	result, getErr := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(fullKey),
 	})
-	if err != nil {
-		return fmt.Errorf("failed to download file %s from S3: %w", fullKey, err)
+	if getErr != nil {
+		return fmt.Errorf("failed to download file %s from S3 bucket %s (key: %s): %w",
+			key, s.bucket, fullKey, getErr)
 	}
 	defer func() {
-		_ = result.Body.Close()
+		if closeErr := result.Body.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close S3 response body for key %s: %w", fullKey, closeErr)
+		}
 	}()
 
 	// Copy to local file

@@ -67,7 +67,8 @@ func (v *Validator) ValidateProjectEmpty(ctx context.Context, projectID int64) (
 func (v *Validator) checkCommits(ctx context.Context, projectID int64) (bool, int, error) {
 	// Early exit if context cancelled
 	if ctx.Err() != nil {
-		return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
+		return false, 0, fmt.Errorf("validation cancelled while checking commits for project %d: %w",
+			projectID, ctx.Err())
 	}
 
 	commits, resp, err := v.commitsService.ListCommits(
@@ -82,9 +83,10 @@ func (v *Validator) checkCommits(ctx context.Context, projectID int64) (bool, in
 	)
 	if err != nil {
 		if ctx.Err() != nil {
-			return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
+			return false, 0, fmt.Errorf("validation cancelled while checking commits for project %d: %w",
+				projectID, ctx.Err())
 		}
-		return false, 0, fmt.Errorf("failed to list commits: %w", err)
+		return false, 0, fmt.Errorf("failed to list commits for project %d: %w", projectID, err)
 	}
 
 	return len(commits) > 0, getTotalCount(resp, len(commits)), nil
@@ -95,7 +97,8 @@ func (v *Validator) checkCommits(ctx context.Context, projectID int64) (bool, in
 func (v *Validator) checkIssues(ctx context.Context, projectID int64) (bool, int, error) {
 	// Early exit if context cancelled
 	if ctx.Err() != nil {
-		return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
+		return false, 0, fmt.Errorf("validation cancelled while checking issues for project %d: %w",
+			projectID, ctx.Err())
 	}
 
 	issues, resp, err := v.issuesService.ListProjectIssues(
@@ -110,9 +113,10 @@ func (v *Validator) checkIssues(ctx context.Context, projectID int64) (bool, int
 	)
 	if err != nil {
 		if ctx.Err() != nil {
-			return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
+			return false, 0, fmt.Errorf("validation cancelled while checking issues for project %d: %w",
+				projectID, ctx.Err())
 		}
-		return false, 0, fmt.Errorf("failed to list issues: %w", err)
+		return false, 0, fmt.Errorf("failed to list issues for project %d: %w", projectID, err)
 	}
 
 	return len(issues) > 0, getTotalCount(resp, len(issues)), nil
@@ -123,7 +127,8 @@ func (v *Validator) checkIssues(ctx context.Context, projectID int64) (bool, int
 func (v *Validator) checkLabels(ctx context.Context, projectID int64) (bool, int, error) {
 	// Early exit if context cancelled
 	if ctx.Err() != nil {
-		return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
+		return false, 0, fmt.Errorf("validation cancelled while checking labels for project %d: %w",
+			projectID, ctx.Err())
 	}
 
 	labels, resp, err := v.labelsService.ListLabels(
@@ -138,9 +143,10 @@ func (v *Validator) checkLabels(ctx context.Context, projectID int64) (bool, int
 	)
 	if err != nil {
 		if ctx.Err() != nil {
-			return false, 0, fmt.Errorf("validation cancelled: %w", ctx.Err())
+			return false, 0, fmt.Errorf("validation cancelled while checking labels for project %d: %w",
+				projectID, ctx.Err())
 		}
-		return false, 0, fmt.Errorf("failed to list labels: %w", err)
+		return false, 0, fmt.Errorf("failed to list labels for project %d: %w", projectID, err)
 	}
 
 	return len(labels) > 0, getTotalCount(resp, len(labels)), nil

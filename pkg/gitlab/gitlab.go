@@ -212,7 +212,8 @@ func NewGitlabServiceWithTimeout(timeoutMins int) *Service {
 	token := os.Getenv("GITLAB_TOKEN")
 	glClient, err := gitlab.NewClient(token)
 	if err != nil {
-		log.Error("failed to create GitLab client", "error", err)
+		log.Error("failed to create GitLab client - check GITLAB_TOKEN environment variable",
+			"error", err, "has_token", token != "")
 		return nil
 	}
 
@@ -257,7 +258,8 @@ func (r *Service) SetGitlabEndpoint(gitlabAPIEndpoint string) {
 	// Create a new client with the custom base URL
 	glClient, err := gitlab.NewClient(r.token, gitlab.WithBaseURL(gitlabAPIEndpoint))
 	if err != nil {
-		log.Error("failed to create GitLab client with custom base URL", "error", err, "url", gitlabAPIEndpoint)
+		log.Error("failed to create GitLab client with custom base URL - check endpoint and token",
+			"error", err, "url", gitlabAPIEndpoint, "has_token", r.token != "")
 		return
 	}
 	r.client = NewGitLabClientWrapper(glClient)
@@ -282,7 +284,8 @@ func (r *Service) SetToken(token string) {
 		glClient, err = gitlab.NewClient(token)
 	}
 	if err != nil {
-		log.Error("failed to create GitLab client with new token", "error", err)
+		log.Error("failed to create GitLab client with new token - check token validity",
+			"error", err, "endpoint", r.gitlabAPIEndpoint, "has_token", token != "")
 		return
 	}
 	r.client = NewGitLabClientWrapper(glClient)

@@ -30,7 +30,7 @@ func (s *Service) GetSubgroups(ctx context.Context, groupID int64) ([]Group, err
 	for {
 		subgroups, resp, err := s.client.Groups().ListSubGroups(groupID, opt, gitlab.WithContext(ctx))
 		if err != nil {
-			return nil, fmt.Errorf("error listing subgroups: %w", err)
+			return nil, fmt.Errorf("error listing subgroups for group %d: %w", groupID, err)
 		}
 		
 		// Convert to our Group type
@@ -85,7 +85,7 @@ func (s *Service) GetProjectsOfGroup(ctx context.Context, groupID int64) ([]Proj
 	// Get projects for the main group
 	projects, err := s.GetProjectsLst(ctx, groupID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("got error when listing projects of group %d: %w", groupID, err)
 	}
 	// Filter out archived projects from the main group as well
 	for _, project := range projects {
@@ -111,7 +111,7 @@ func (s *Service) GetProjectsLst(ctx context.Context, groupID int64) ([]Project,
 	for {
 		projects, resp, err := s.client.Groups().ListGroupProjects(groupID, opt, gitlab.WithContext(ctx))
 		if err != nil {
-			return nil, fmt.Errorf("error listing group projects: %w", err)
+			return nil, fmt.Errorf("error listing group projects for group %d: %w", groupID, err)
 		}
 		
 		// Convert to our Project type

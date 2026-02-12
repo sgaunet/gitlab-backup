@@ -176,7 +176,7 @@ func (a *App) ExportGroup(ctx context.Context) error {
 	}
 	err = eg.Wait()
 	if err != nil {
-		return ErrBackupErrors
+		return fmt.Errorf("%w for group %d: %w", ErrBackupErrors, a.cfg.GitlabGroupID, err)
 	}
 	return nil
 }

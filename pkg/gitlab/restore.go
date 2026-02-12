@@ -7,13 +7,9 @@ import (
 	"io"
 	"time"
 
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 	"golang.org/x/time/rate"
 	gitlabapi "gitlab.com/gitlab-org/api/client-go"
-)
-
-const (
-	importTimeoutMinutes = 10
-	importPollSeconds    = 5
 )
 
 var (
@@ -34,8 +30,8 @@ func NewImportService(importExportService ProjectImportExportService) *ImportSer
 	return &ImportService{
 		importExportService: importExportService,
 		rateLimiterImport: rate.NewLimiter(
-			rate.Every(ImportRateLimitIntervalSeconds*time.Second),
-			ImportRateLimitBurst,
+			rate.Every(constants.ImportRateLimitIntervalSeconds*time.Second),
+			constants.ImportRateLimitBurst,
 		),
 	}
 }
@@ -85,7 +81,7 @@ func (s *ImportService) ImportProject(
 	}
 
 	// Wait for import to complete (10 minute default timeout)
-	finalStatus, err := s.WaitForImport(ctx, importStatus.ID, importTimeoutMinutes*time.Minute)
+	finalStatus, err := s.WaitForImport(ctx, importStatus.ID, constants.ImportTimeoutMinutes*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("import did not complete successfully: %w", err)
 	}
@@ -108,7 +104,7 @@ func (s *ImportService) WaitForImport(
 	defer cancel()
 
 	// Poll every 5 seconds
-	ticker := time.NewTicker(importPollSeconds * time.Second)
+	ticker := time.NewTicker(constants.ImportPollSeconds * time.Second)
 	defer ticker.Stop()
 
 	for {

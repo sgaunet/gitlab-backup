@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -144,7 +145,7 @@ func (m *mockProjectImportExportService) ImportStatus(pid any, options ...gitlab
 func createTestService(client GitLabClient) *Service {
 	return &Service{
 		client:               client,
-		gitlabAPIEndpoint:    GitlabAPIEndpoint,
+		gitlabAPIEndpoint:    constants.GitLabAPIEndpoint,
 		token:                "test-token",
 		rateLimitDownloadAPI: rate.NewLimiter(rate.Every(time.Second), 1),
 		rateLimitExportAPI:   rate.NewLimiter(rate.Every(time.Second), 1),
@@ -363,7 +364,7 @@ func TestNewGitlabService_CreatesCorrectDefaults(t *testing.T) {
 	// Service might be nil if no GITLAB_TOKEN is set, which is expected behavior
 	if service != nil {
 		assert.NotNil(t, service.client)
-		assert.Equal(t, GitlabAPIEndpoint, service.gitlabAPIEndpoint)
+		assert.Equal(t, constants.GitLabAPIEndpoint, service.gitlabAPIEndpoint)
 		assert.NotNil(t, service.rateLimitDownloadAPI)
 		assert.NotNil(t, service.rateLimitExportAPI)
 		
@@ -371,8 +372,8 @@ func TestNewGitlabService_CreatesCorrectDefaults(t *testing.T) {
 		downloadLimit := service.rateLimitDownloadAPI.Limit()
 		exportLimit := service.rateLimitExportAPI.Limit()
 		
-		assert.Equal(t, rate.Every(DownloadRateLimitIntervalSeconds*time.Second), downloadLimit)
-		assert.Equal(t, rate.Every(ExportRateLimitIntervalSeconds*time.Second), exportLimit)
+		assert.Equal(t, rate.Every(constants.DownloadRateLimitIntervalSeconds*time.Second), downloadLimit)
+		assert.Equal(t, rate.Every(constants.ExportRateLimitIntervalSeconds*time.Second), exportLimit)
 	}
 }
 

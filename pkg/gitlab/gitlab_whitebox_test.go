@@ -2,6 +2,8 @@ package gitlab
 
 import (
 	"testing"
+
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 )
 
 // Note: getNextLink tests removed since function was removed
@@ -13,8 +15,8 @@ func TestNewGitlabService(t *testing.T) {
 	if service == nil {
 		t.Error("expected service to be created, got nil")
 	}
-	if service.gitlabAPIEndpoint != GitlabAPIEndpoint {
-		t.Errorf("expected default endpoint %s, got %s", GitlabAPIEndpoint, service.gitlabAPIEndpoint)
+	if service.gitlabAPIEndpoint != constants.GitLabAPIEndpoint {
+		t.Errorf("expected default endpoint %s, got %s", constants.GitLabAPIEndpoint, service.gitlabAPIEndpoint)
 	}
 	if service.client == nil {
 		t.Error("expected GitLab client to be initialized")

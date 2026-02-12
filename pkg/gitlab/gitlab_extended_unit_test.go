@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -29,7 +30,7 @@ func TestService_RateLimiting_Behavior(t *testing.T) {
 	// Create service with very restrictive rate limiting for testing
 	service := &Service{
 		client:               client,
-		gitlabAPIEndpoint:    GitlabAPIEndpoint,
+		gitlabAPIEndpoint:    constants.GitLabAPIEndpoint,
 		token:                "test-token",
 		rateLimitDownloadAPI: rate.NewLimiter(rate.Every(100*time.Millisecond), 1),
 		rateLimitExportAPI:   rate.NewLimiter(rate.Every(100*time.Millisecond), 1),
@@ -69,8 +70,8 @@ func TestService_RateLimiting_Configuration(t *testing.T) {
 	downloadLimit := service.rateLimitDownloadAPI.Limit()
 	exportLimit := service.rateLimitExportAPI.Limit()
 	
-	expectedDownloadLimit := rate.Every(DownloadRateLimitIntervalSeconds * time.Second)
-	expectedExportLimit := rate.Every(ExportRateLimitIntervalSeconds * time.Second)
+	expectedDownloadLimit := rate.Every(constants.DownloadRateLimitIntervalSeconds * time.Second)
+	expectedExportLimit := rate.Every(constants.ExportRateLimitIntervalSeconds * time.Second)
 	
 	assert.Equal(t, expectedDownloadLimit, downloadLimit, "Download rate limit should match expected value")
 	assert.Equal(t, expectedExportLimit, exportLimit, "Export rate limit should match expected value")
@@ -79,8 +80,8 @@ func TestService_RateLimiting_Configuration(t *testing.T) {
 	downloadBurst := service.rateLimitDownloadAPI.Burst()
 	exportBurst := service.rateLimitExportAPI.Burst()
 	
-	assert.Equal(t, DownloadRateLimitBurst, downloadBurst, "Download burst should match expected value")
-	assert.Equal(t, ExportRateLimitBurst, exportBurst, "Export burst should match expected value")
+	assert.Equal(t, constants.DownloadRateLimitBurst, downloadBurst, "Download burst should match expected value")
+	assert.Equal(t, constants.ExportRateLimitBurst, exportBurst, "Export burst should match expected value")
 }
 
 func TestService_RateLimiting_Integration(t *testing.T) {

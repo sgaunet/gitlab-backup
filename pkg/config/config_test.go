@@ -663,7 +663,7 @@ func TestConfigValidate_S3Region(t *testing.T) {
 			region:     "a",
 			bucketPath: "backups",
 			shouldFail: true,
-			errMsg:     "region name too short",
+			errMsg:     "region must be between",
 		},
 	}
 

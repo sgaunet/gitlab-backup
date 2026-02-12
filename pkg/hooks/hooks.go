@@ -51,14 +51,20 @@ func execute(command string) error {
 	if command == "" {
 		return nil
 	}
-	commandSplitter, _ := splitter.NewSplitter(' ', splitter.SingleQuotes, splitter.DoubleQuotes)
+	commandSplitter, err := splitter.NewSplitter(' ', splitter.SingleQuotes, splitter.DoubleQuotes)
+	if err != nil {
+		return fmt.Errorf("failed to create command splitter: %w", err)
+	}
 	trimmer := splitter.Trim("'\"")
-	splitCmd, _ := commandSplitter.Split(command, trimmer)
+	splitCmd, err := commandSplitter.Split(command, trimmer)
+	if err != nil {
+		return fmt.Errorf("failed to parse command '%s': %w", command, err)
+	}
 	if len(splitCmd) == 0 {
 		return nil
 	}
 	//nolint:gosec,noctx // G204: Command execution with user input is intentional for hook functionality
-	_, err := exec.Command(splitCmd[0], splitCmd[1:]...).CombinedOutput()
+	_, err = exec.Command(splitCmd[0], splitCmd[1:]...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to execute %s: %w", command, err)
 	}

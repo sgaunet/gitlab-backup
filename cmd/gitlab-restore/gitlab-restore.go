@@ -218,7 +218,11 @@ func (a *s3StorageAdapter) Get(ctx context.Context, key string) (string, error) 
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer func() {
-		_ = tempFile.Close()
+		if closeErr := tempFile.Close(); closeErr != nil {
+			// Log but don't fail - file is already downloaded successfully
+			fmt.Fprintf(os.Stderr, "Warning: failed to close temp file %s: %v\n",
+				tempFile.Name(), closeErr)
+		}
 	}()
 
 	// Use S3Storage's GetFile method

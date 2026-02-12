@@ -1,3 +1,41 @@
+// Package gitlab provides GitLab API client functionality with rate limiting.
+//
+// The package implements a Service layer that wraps the official GitLab Go client
+// with additional features:
+//   - Per-endpoint rate limiting (download: 5/min, export: 6/min, import: 6/min)
+//   - Project and group operations (list, get, create)
+//   - Export/import workflow with polling and status tracking
+//   - Project emptiness validation for safe restore
+//
+// Rate Limiting:
+// The Service enforces GitLab API rate limits per endpoint using token buckets:
+//   - Download API: 5 requests/minute (repository files)
+//   - Export API: 6 requests/minute (project export)
+//   - Import API: 6 requests/minute (project import)
+//
+// Key Interfaces:
+//   - Client: GitLab API operations (implemented by Service)
+//   - RateLimiter: Token bucket rate limiter
+//
+// Architecture:
+//
+//	Service
+//	    ├─> gitlab.Client (official client)
+//	    ├─> downloadLimiter (5 req/min)
+//	    ├─> exportLimiter (6 req/min)
+//	    └─> importLimiter (6 req/min)
+//
+// Example usage:
+//
+//	service := gitlab.NewService(baseURL, token, logger)
+//
+//	// Export project
+//	exportID, err := service.ExportProject(ctx, projectID)
+//	status, err := service.WaitForExportCompletion(ctx, projectID, exportID, timeout)
+//
+//	// Import project
+//	importID, err := service.ImportProject(ctx, namespace, projectPath, archivePath)
+//	status, err := service.WaitForImportCompletion(ctx, projectID, timeout)
 package gitlab
 
 import (

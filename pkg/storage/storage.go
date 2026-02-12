@@ -1,4 +1,3 @@
-// Package storage defines the interface for backup storage backends.
 package storage
 
 import (

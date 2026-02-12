@@ -1,4 +1,3 @@
-// Package gitlab provides GitLab API client functionality.
 package gitlab
 
 import (

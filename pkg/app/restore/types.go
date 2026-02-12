@@ -1,4 +1,3 @@
-// Package restore provides types and orchestration for GitLab project restoration.
 package restore
 
 import (

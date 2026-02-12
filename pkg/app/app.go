@@ -1,4 +1,55 @@
-// Package app provides the main application logic for GitLab backup.
+// Package app orchestrates GitLab project backup and restore operations.
+//
+// This package serves as the main application layer, coordinating between:
+//   - GitLab API client (pkg/gitlab)
+//   - Storage backends (pkg/storage)
+//   - Configuration management (pkg/config)
+//   - Hooks execution (pkg/hooks)
+//
+// The package implements two main workflows:
+//
+// 1. Backup (App.BackupProjects):
+//   - Exports projects using GitLab Export API
+//   - Stores archives to local or S3 storage
+//   - Executes pre/post backup hooks
+//   - Supports concurrent group exports
+//
+// 2. Restore (restore subpackage):
+//   - Validates target project is empty
+//   - Downloads archives from storage
+//   - Imports projects via GitLab Import API
+//   - Reports progress and handles interruption
+//
+// Architecture follows clean architecture principles:
+//
+//	Command Layer (cmd/)
+//	     ↓
+//	Application Layer (pkg/app)
+//	     ↓
+//	Domain Layer (pkg/gitlab, pkg/storage)
+//	     ↓
+//	Infrastructure Layer (GitLab API, AWS SDK)
+//
+// Rate Limiting:
+//   - Download API: 5 requests/minute
+//   - Export API: 6 requests/minute
+//   - Import API: 6 requests/minute
+//
+// Example usage:
+//
+//	cfg, err := config.Load("config.yaml")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	app, err := app.New(cfg)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	if err := app.BackupProjects(ctx); err != nil {
+//	    log.Fatal(err)
+//	}
 package app
 
 import (

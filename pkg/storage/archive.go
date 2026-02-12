@@ -1,3 +1,41 @@
+// Package storage provides an abstraction layer for backup archive storage.
+//
+// The package supports two storage backends:
+//   - Local filesystem (localstorage)
+//   - AWS S3 (s3storage)
+//
+// Storage Interface:
+//
+//	type Storage interface {
+//	    SaveFile(ctx context.Context, srcFilename, dstFilename string) error
+//	    Get(ctx context.Context, archiveName string) (string, error)
+//	    CreateBucket(ctx context.Context) error
+//	}
+//
+// Archive operations:
+//   - ValidateArchive: Verify tar.gz format
+//   - ExtractArchive: Extract archive to temporary directory (with path traversal protection)
+//
+// Archives created by gitlab-backup contain:
+//   - project.tar.gz - GitLab native export (includes repo, wiki, issues, MRs, labels)
+//
+// Backward compatibility:
+//   - Old archives with labels.json/issues.json are silently ignored
+//   - Migration to GitLab native export completed in v2.0.0
+//
+// Example usage:
+//
+//	// Local storage
+//	storage, err := localstorage.New("/backup/path")
+//
+//	// S3 storage
+//	storage, err := s3storage.New("my-bucket", "us-east-1", cfg)
+//
+//	// Validate and extract
+//	if err := ValidateArchive(archivePath); err != nil {
+//	    log.Fatal(err)
+//	}
+//	contents, err := ExtractArchive(archivePath)
 package storage
 
 import (

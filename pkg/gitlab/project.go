@@ -35,7 +35,32 @@ type Project struct {
 	ExportStatus string `json:"export_status"`
 }
 
-// askExport asks gitlab to export the project.
+// askExport requests GitLab to schedule a project export via the Export API.
+//
+// This function initiates the export workflow by calling GitLab's
+// ProjectImportExport.ScheduleExport endpoint. It does not wait for export
+// completion - use waitForExport for polling the export status.
+//
+// The function checks the HTTP status code to determine if GitLab accepted
+// the export request (HTTP 202 Accepted). If GitLab is already processing
+// an export for this project, it may return a different status code.
+//
+// Context cancellation is respected - if ctx is cancelled, the API call
+// will be interrupted and return an error.
+//
+// Parameters:
+//   - ctx: Request context for cancellation and timeout control
+//   - projectID: GitLab project ID to export
+//
+// Returns:
+//   - bool: true if GitLab accepted the export request (HTTP 202), false otherwise
+//   - error: API communication errors or context cancellation
+//
+// This function is rate-limited by ExportRateLimitBurst (6 requests/minute).
+// The rate limiting is enforced by the caller (ExportProject).
+//
+// GitLab API Reference:
+// https://docs.gitlab.com/ee/api/project_import_export.html#schedule-an-export
 func (s *Service) askExport(ctx context.Context, projectID int64) (bool, error) {
 	resp, err := s.client.ProjectImportExport().ScheduleExport(projectID, nil, gitlab.WithContext(ctx))
 	if err != nil {
@@ -46,7 +71,45 @@ func (s *Service) askExport(ctx context.Context, projectID int64) (bool, error) 
 	return resp.StatusCode == http.StatusAccepted, nil
 }
 
-// waitForExport waits for gitlab to finish the export.
+// waitForExport polls GitLab's export status until the export completes or fails.
+//
+// This function implements the polling loop for export workflow. It checks the
+// export status every ExportCheckIntervalSeconds (5 seconds) until one of:
+//   - Export reaches "finished" status (success)
+//   - Context timeout expires (returns ErrExportTimeout)
+//   - Context is cancelled (returns context error)
+//   - Maximum retries exceeded for "none" status (returns ErrExportTimeout)
+//
+// The function creates an internal timeout context based on s.exportTimeoutDuration
+// (default: 10 minutes) to prevent indefinite waiting. This is in addition to any
+// timeout set by the caller.
+//
+// Export Status Values:
+//   - "none": No export in progress (counted against MaxExportRetries)
+//   - "finished": Export completed successfully (workflow continues)
+//   - "queued", "started", "regeneration_in_progress": In progress (keep polling)
+//   - Other statuses: Continue polling
+//
+// Context Cancellation:
+// The function respects both the caller's context and the internal timeout context.
+// If either context is cancelled or times out, the function returns immediately
+// with an appropriate error message including the project ID.
+//
+// Parameters:
+//   - ctx: Caller's context for cancellation control
+//   - projectID: GitLab project ID being exported
+//
+// Returns:
+//   - error: nil on success, ErrExportTimeout on timeout, context error on cancellation
+//
+// Related Functions:
+//   - getStatusExport: Retrieves current export status from GitLab
+//   - sleepWithContext: Context-aware sleep between polling attempts
+//
+// Used by: ExportProject
+//
+// GitLab API Reference:
+// https://docs.gitlab.com/ee/api/project_import_export.html#export-status
 func (s *Service) waitForExport(ctx context.Context, projectID int64) error {
 	// Create a context with timeout to avoid waiting forever
 	timeoutCtx, cancel := context.WithTimeout(ctx, s.exportTimeoutDuration)
@@ -80,7 +143,33 @@ loop:
 	return nil
 }
 
-// sleepWithContext sleeps for the specified duration or until the context is done.
+// sleepWithContext implements a context-aware sleep that can be interrupted.
+//
+// This is a utility function for polling loops that need to respect context
+// cancellation. It blocks for the specified duration unless the context is
+// cancelled or times out, in which case it returns immediately with an error.
+//
+// Unlike time.Sleep(), this function does not ignore context cancellation,
+// making it suitable for long-running polling operations where graceful
+// shutdown is important.
+//
+// Error Messages:
+//   - Timeout: Includes project ID and timeout duration for debugging
+//   - Cancellation: Includes project ID and generic cancellation message
+//
+// Parameters:
+//   - ctx: Context to monitor for cancellation/timeout
+//   - projectID: Project ID for error messages (not used functionally)
+//   - duration: How long to sleep if context remains active
+//
+// Returns:
+//   - error: nil if sleep completed, wrapped context error if cancelled/timeout
+//
+// Implementation Note:
+// Uses select with two cases: context Done channel and time.After timer.
+// The context error is wrapped with fmt.Errorf to preserve error chain.
+//
+// Used by: waitForExport (for polling delay between status checks).
 func (s *Service) sleepWithContext(ctx context.Context, projectID int64, duration time.Duration) error {
 	select {
 	case <-ctx.Done():

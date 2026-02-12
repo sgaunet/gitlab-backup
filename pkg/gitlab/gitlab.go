@@ -13,6 +13,9 @@
 //   - Export API: 6 requests/minute (project export)
 //   - Import API: 6 requests/minute (project import)
 //
+// See "Rate Limiting" documentation block (around line 60) for comprehensive details on
+// enforcement mechanisms, consequences, tuning guidance, and recovery procedures.
+//
 // Key Interfaces:
 //   - Client: GitLab API operations (implemented by Service)
 //   - RateLimiter: Token bucket rate limiter
@@ -56,24 +59,148 @@ var (
 	ErrHTTPStatusCode = errors.New("unexpected HTTP status code")
 )
 
+// Rate Limiting
+//
+// This package enforces GitLab API rate limits using token bucket rate limiters
+// (golang.org/x/time/rate) to prevent API throttling and potential account
+// restrictions. Each API endpoint has independent rate limiting configured
+// according to GitLab's documented limits.
+//
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │ Enforcement Mechanism: Token Bucket Algorithm                       │
+// ├─────────────────────────────────────────────────────────────────────┤
+// │                                                                       │
+// │  Each rate limiter maintains a "bucket" of tokens:                   │
+// │    - Bucket capacity = Burst value (max tokens)                      │
+// │    - Refill rate = Interval / Burst (tokens per second)              │
+// │    - Each API call consumes one token                                │
+// │    - Wait() blocks until a token is available                        │
+// │                                                                       │
+// │  Example (Download API):                                             │
+// │    - Capacity: 5 tokens                                              │
+// │    - Refill: 1 token every 12 seconds (60s / 5 = 12s)               │
+// │    - Result: Maximum 5 requests per minute                           │
+// │                                                                       │
+// └─────────────────────────────────────────────────────────────────────┘
+//
+// Default Rate Limits (per user):
+//
+//	┌───────────────────┬──────────┬───────┬─────────────────────────────┐
+//	│ API Endpoint      │ Interval │ Burst │ Effective Limit             │
+//	├───────────────────┼──────────┼───────┼─────────────────────────────┤
+//	│ Download API      │ 60s      │ 5     │ 5 requests/minute           │
+//	│ Export API        │ 60s      │ 6     │ 6 requests/minute           │
+//	│ Import API        │ 60s      │ 6     │ 6 requests/minute           │
+//	└───────────────────┴──────────┴───────┴─────────────────────────────┘
+//
+// Consequences of Exceeding Limits:
+//
+//  1. HTTP 429 Response: GitLab returns "429 Too Many Requests" with:
+//     - Plain text body: "Retry later"
+//     - Retry-After header: Seconds to wait before retry
+//     - Rate limit headers (on some endpoints):
+//       - X-RateLimit-Limit: Maximum requests allowed
+//       - X-RateLimit-Remaining: Requests remaining in current window
+//       - X-RateLimit-Reset: Unix timestamp when limit resets
+//
+//  2. Request Rejection: The request is not processed by GitLab
+//
+//  3. Cooldown Period: Must wait for rate limit window to reset (up to 60 seconds)
+//
+//  4. Logging: GitLab instances log rate limit violations in auth.log
+//
+//  5. Potential Account Restrictions: Repeated violations on GitLab.com may result
+//     in account review or temporary restrictions (rare, but documented in ToS)
+//
+// Tuning Guidance:
+//
+// ⚠️  WARNING: DO NOT modify rate limit constants unless absolutely necessary.
+//
+//	The default values are based on GitLab's documented API limits and should
+//	work for all GitLab instances (gitlab.com and self-managed).
+//
+// When to Adjust (rare cases):
+//
+//	1. Self-managed GitLab with custom rate limits:
+//	   - Verify actual limits: Admin > Settings > Network > Import and export rate limits
+//	   - Reduce constants to match or stay below server limits
+//	   - NEVER increase above server limits
+//
+//	2. Aggressive rate limit enforcement:
+//	   - Reduce Burst values to be more conservative
+//	   - Increase Interval values to slow down requests
+//
+// How to Adjust:
+//
+//	Option 1: Modify constants in this file (requires recompilation):
+//	  const DownloadRateLimitBurst = 3  // Reduce from 5 to 3
+//
+//	Option 2: Create custom Service with modified rate limiters (programmatic):
+//	  service := gitlab.NewGitlabService()
+//	  service.rateLimitDownloadAPI = rate.NewLimiter(
+//	      rate.Every(60*time.Second),
+//	      3,  // Custom burst
+//	  )
+//
+// DO NOT DO:
+//
+//	❌ Increase burst values above GitLab's documented limits
+//	❌ Decrease interval values (speeds up requests)
+//	❌ Set limits to 0 or disable rate limiting (will cause HTTP 429 errors)
+//	❌ Modify rate limiters for performance without understanding consequences
+//
+// Recovery from Rate Limit Errors:
+//
+//  1. Immediate: Client receives context.DeadlineExceeded or ErrRateLimit
+//  2. Automatic: Rate limiters will automatically respect the 60-second window
+//  3. Retry: Wait for Retry-After duration from HTTP 429 response (if manual retry)
+//  4. Investigation: Check GitLab instance rate limit configuration if persistent
+//
+// Monitoring Rate Limit Health:
+//
+//	1. Enable debug logging to see rate limit Wait() calls:
+//	   gitlab.SetLogger(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
+//
+//	2. Monitor for ErrRateLimit in application error logs
+//
+//	3. Check response time increases (rate limiting adds latency)
+//
+//	4. Track HTTP 429 responses in GitLab instance logs (self-managed only)
+//
+// GitLab API Rate Limit Documentation:
+//   - Import/Export Limits: https://docs.gitlab.com/ee/administration/settings/import_export_rate_limits.html
+//   - Repository Files Limits: https://docs.gitlab.com/ee/administration/settings/files_api_rate_limits.html
+//   - General Rate Limits: https://docs.gitlab.com/security/rate_limits/
+//   - API Best Practices: https://docs.gitlab.com/ee/api/rest/#pagination
+//
+// Implementation: See NewGitlabServiceWithTimeout() for rate limiter initialization.
 const (
 	// GitlabAPIEndpoint is the default GitLab API endpoint.
 	GitlabAPIEndpoint = "https://gitlab.com/api/v4"
 
 	// DownloadRateLimitIntervalSeconds defines the rate limit interval for download API calls.
 	// Based on GitLab repository files API limit: 5 requests per minute per user.
+	// See "Rate Limiting" documentation block above for comprehensive details.
 	DownloadRateLimitIntervalSeconds = 60
 	// DownloadRateLimitBurst defines the burst limit for download API calls.
+	// Allows up to 5 requests within the 60-second interval.
+	// See "Rate Limiting" documentation block above for comprehensive details.
 	DownloadRateLimitBurst = 5
 	// ExportRateLimitIntervalSeconds defines the rate limit interval for export API calls.
 	// Based on GitLab project import/export API limit: 6 requests per minute per user.
+	// See "Rate Limiting" documentation block above for comprehensive details.
 	ExportRateLimitIntervalSeconds = 60
 	// ExportRateLimitBurst defines the burst limit for export API calls.
+	// Allows up to 6 requests within the 60-second interval.
+	// See "Rate Limiting" documentation block above for comprehensive details.
 	ExportRateLimitBurst = 6
 	// ImportRateLimitIntervalSeconds defines the rate limit interval for import API calls.
 	// Based on GitLab project import/export API limit: 6 requests per minute per user.
+	// See "Rate Limiting" documentation block above for comprehensive details.
 	ImportRateLimitIntervalSeconds = 60
 	// ImportRateLimitBurst defines the burst limit for import API calls.
+	// Allows up to 6 requests within the 60-second interval.
+	// See "Rate Limiting" documentation block above for comprehensive details.
 	ImportRateLimitBurst = 6
 	// DefaultExportTimeoutMins defines the default export timeout in minutes.
 	DefaultExportTimeoutMins = 10

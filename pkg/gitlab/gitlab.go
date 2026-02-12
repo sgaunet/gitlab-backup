@@ -50,6 +50,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 	"golang.org/x/time/rate"
 )
@@ -174,37 +175,6 @@ var (
 //   - API Best Practices: https://docs.gitlab.com/ee/api/rest/#pagination
 //
 // Implementation: See NewGitlabServiceWithTimeout() for rate limiter initialization.
-const (
-	// GitlabAPIEndpoint is the default GitLab API endpoint.
-	GitlabAPIEndpoint = "https://gitlab.com/api/v4"
-
-	// DownloadRateLimitIntervalSeconds defines the rate limit interval for download API calls.
-	// Based on GitLab repository files API limit: 5 requests per minute per user.
-	// See "Rate Limiting" documentation block above for comprehensive details.
-	DownloadRateLimitIntervalSeconds = 60
-	// DownloadRateLimitBurst defines the burst limit for download API calls.
-	// Allows up to 5 requests within the 60-second interval.
-	// See "Rate Limiting" documentation block above for comprehensive details.
-	DownloadRateLimitBurst = 5
-	// ExportRateLimitIntervalSeconds defines the rate limit interval for export API calls.
-	// Based on GitLab project import/export API limit: 6 requests per minute per user.
-	// See "Rate Limiting" documentation block above for comprehensive details.
-	ExportRateLimitIntervalSeconds = 60
-	// ExportRateLimitBurst defines the burst limit for export API calls.
-	// Allows up to 6 requests within the 60-second interval.
-	// See "Rate Limiting" documentation block above for comprehensive details.
-	ExportRateLimitBurst = 6
-	// ImportRateLimitIntervalSeconds defines the rate limit interval for import API calls.
-	// Based on GitLab project import/export API limit: 6 requests per minute per user.
-	// See "Rate Limiting" documentation block above for comprehensive details.
-	ImportRateLimitIntervalSeconds = 60
-	// ImportRateLimitBurst defines the burst limit for import API calls.
-	// Allows up to 6 requests within the 60-second interval.
-	// See "Rate Limiting" documentation block above for comprehensive details.
-	ImportRateLimitBurst = 6
-	// DefaultExportTimeoutMins defines the default export timeout in minutes.
-	DefaultExportTimeoutMins = 10
-)
 
 var log Logger
 
@@ -234,7 +204,7 @@ func init() {
 
 // NewGitlabService returns a new Service with default timeout.
 func NewGitlabService() *Service {
-	return NewGitlabServiceWithTimeout(DefaultExportTimeoutMins)
+	return NewGitlabServiceWithTimeout(constants.DefaultExportTimeoutMins)
 }
 
 // NewGitlabServiceWithTimeout returns a new Service with configurable timeout.
@@ -250,21 +220,21 @@ func NewGitlabServiceWithTimeout(timeoutMins int) *Service {
 
 	gs := &Service{
 		client:            client,
-		gitlabAPIEndpoint: GitlabAPIEndpoint,
+		gitlabAPIEndpoint: constants.GitLabAPIEndpoint,
 		token:             token,
 		exportTimeoutDuration: time.Duration(timeoutMins) * time.Minute,
 		// implement rate limiting https://docs.gitlab.com/ee/administration/settings/import_export_rate_limits.html
 		rateLimitDownloadAPI: rate.NewLimiter(
-			rate.Every(DownloadRateLimitIntervalSeconds*time.Second),
-			DownloadRateLimitBurst,
+			rate.Every(constants.DownloadRateLimitIntervalSeconds*time.Second),
+			constants.DownloadRateLimitBurst,
 		),
 		rateLimitExportAPI: rate.NewLimiter(
-			rate.Every(ExportRateLimitIntervalSeconds*time.Second),
-			ExportRateLimitBurst,
+			rate.Every(constants.ExportRateLimitIntervalSeconds*time.Second),
+			constants.ExportRateLimitBurst,
 		),
 		rateLimitImportAPI: rate.NewLimiter(
-			rate.Every(ImportRateLimitIntervalSeconds*time.Second),
-			ImportRateLimitBurst,
+			rate.Every(constants.ImportRateLimitIntervalSeconds*time.Second),
+			constants.ImportRateLimitBurst,
 		),
 	}
 	return gs
@@ -306,7 +276,7 @@ func (r *Service) SetToken(token string) {
 	// Create a new client with the new token
 	var glClient *gitlab.Client
 	var err error
-	if r.gitlabAPIEndpoint != GitlabAPIEndpoint {
+	if r.gitlabAPIEndpoint != constants.GitLabAPIEndpoint {
 		glClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(r.gitlabAPIEndpoint))
 	} else {
 		glClient, err = gitlab.NewClient(token)

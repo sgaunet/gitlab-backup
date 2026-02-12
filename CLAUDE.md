@@ -16,6 +16,7 @@ Two complementary Go CLI tools for GitLab backup and restore operations. Uses Gi
 - `cmd/` - CLI entry points (gitlab-backup, gitlab-restore)
 - `pkg/app/` - Application orchestration and business logic
 - `pkg/config/` - Configuration management (YAML/ENV)
+- `pkg/constants/` - Centralized configuration constants (rate limits, timeouts, validation rules)
 - `pkg/gitlab/` - GitLab API client with rate limiting and service interfaces
 - `pkg/storage/` - Storage abstraction (local/S3 implementations)
 - `pkg/hooks/` - Pre/post backup hook execution
@@ -72,6 +73,21 @@ Supports YAML files and environment variables with override capability. Config p
 **Key restore options**: `restoreSource` (local/S3), `restoreTargetNS`, `restoreTargetPath`, `restoreOverwrite` (skip emptiness check).
 
 See [docs/architecture.md](docs/architecture.md) for detailed configuration reference.
+
+## Constants
+
+**Centralized Configuration**: All hard-coded values, timeouts, and limits are in `pkg/constants/`:
+- `gitlab.go` - GitLab API constants (rate limits, timeouts, endpoints)
+- `storage.go` - Storage constants (buffer sizes, file permissions)
+- `validation.go` - Validation constraints (AWS limits, config boundaries)
+- `output.go` - CLI output formatting constants
+
+**Tuning**: Most constants are based on external API limits (GitLab, AWS). Before modifying, check the godoc comments for rationale and external references.
+
+**Key Constants**:
+- Rate limits: Based on GitLab documented API limits (5-6 req/min)
+- Timeouts: Default 10 minutes for export/import operations
+- Buffer sizes: 32KB for file I/O operations
 
 ## Documentation
 

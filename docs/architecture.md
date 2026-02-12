@@ -33,6 +33,11 @@ gitlab-backup is a monorepo containing two complementary CLI tools that leverage
 - `config.go` - Base configuration with YAML/ENV support
 - `restore_config.go` - Restore-specific configuration and validation
 
+**pkg/constants/** - Centralized Configuration Constants
+Single source of truth for all hard-coded values, timeouts, and limits.
+Organized by topic (GitLab, storage, validation, output) with comprehensive
+documentation and external API references.
+
 **pkg/hooks/** - Hook Execution
 - Pre/post backup hook execution
 

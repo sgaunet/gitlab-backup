@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 	"github.com/sgaunet/gitlab-backup/pkg/gitlab"
 	"github.com/stretchr/testify/assert"
 )
@@ -89,11 +90,11 @@ func TestGitlabService_Configuration_PublicAPI(t *testing.T) {
 
 func TestGitlabService_Constants_PublicAPI(t *testing.T) {
 	// Test that public constants are accessible and have expected values
-	assert.Equal(t, "https://gitlab.com/api/v4", gitlab.GitlabAPIEndpoint)
-	assert.Equal(t, 60, gitlab.DownloadRateLimitIntervalSeconds)
-	assert.Equal(t, 5, gitlab.DownloadRateLimitBurst)
-	assert.Equal(t, 60, gitlab.ExportRateLimitIntervalSeconds)
-	assert.Equal(t, 6, gitlab.ExportRateLimitBurst)
+	assert.Equal(t, "https://gitlab.com/api/v4", constants.GitLabAPIEndpoint)
+	assert.Equal(t, 60, constants.DownloadRateLimitIntervalSeconds)
+	assert.Equal(t, 5, constants.DownloadRateLimitBurst)
+	assert.Equal(t, 60, constants.ExportRateLimitIntervalSeconds)
+	assert.Equal(t, 6, constants.ExportRateLimitBurst)
 }
 
 func TestGitlabService_ErrorTypes_PublicAPI(t *testing.T) {

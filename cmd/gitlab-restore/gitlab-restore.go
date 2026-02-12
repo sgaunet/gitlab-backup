@@ -13,16 +13,10 @@ import (
 
 	"github.com/sgaunet/gitlab-backup/pkg/app/restore"
 	"github.com/sgaunet/gitlab-backup/pkg/config"
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 	"github.com/sgaunet/gitlab-backup/pkg/gitlab"
 	"github.com/sgaunet/gitlab-backup/pkg/storage/localstorage"
 	"github.com/sgaunet/gitlab-backup/pkg/storage/s3storage"
-)
-
-const (
-	s3PathParts    = 2
-	separatorWidth = 60
-	bytesPerKB     = 1024
-	bytesPerMB     = bytesPerKB * bytesPerKB
 )
 
 var (
@@ -187,15 +181,15 @@ func redactCredentials(message string, cfg *config.Config) string {
 
 	// Redact GitLab token
 	if cfg.GitlabToken != "" {
-		redacted = strings.ReplaceAll(redacted, cfg.GitlabToken, "***REDACTED***")
+		redacted = strings.ReplaceAll(redacted, cfg.GitlabToken, constants.RedactedValue)
 	}
 
 	// Redact AWS credentials if present
 	if cfg.S3cfg.AccessKey != "" {
-		redacted = strings.ReplaceAll(redacted, cfg.S3cfg.AccessKey, "***REDACTED***")
+		redacted = strings.ReplaceAll(redacted, cfg.S3cfg.AccessKey, constants.RedactedValue)
 	}
 	if cfg.S3cfg.SecretKey != "" {
-		redacted = strings.ReplaceAll(redacted, cfg.S3cfg.SecretKey, "***REDACTED***")
+		redacted = strings.ReplaceAll(redacted, cfg.S3cfg.SecretKey, constants.RedactedValue)
 	}
 
 	return redacted
@@ -212,8 +206,8 @@ func (a *s3StorageAdapter) Get(ctx context.Context, key string) (string, error) 
 	s3Key := key
 	if afterPrefix, found := strings.CutPrefix(key, "s3://"); found {
 		// Format: s3://bucket/key
-		parts := strings.SplitN(afterPrefix, "/", s3PathParts)
-		if len(parts) == s3PathParts {
+		parts := strings.SplitN(afterPrefix, "/", constants.S3PathMinParts)
+		if len(parts) == constants.S3PathMinParts {
 			s3Key = parts[1]
 		}
 	}
@@ -249,13 +243,13 @@ func (a *localStorageAdapter) Get(_ context.Context, key string) (string, error)
 
 // printRestoreResult displays the final restore outcome.
 func printRestoreResult(result *restore.Result, cfg *config.Config) {
-	fmt.Println("\n" + strings.Repeat("=", separatorWidth))
+	fmt.Println("\n" + strings.Repeat("=", constants.SeparatorWidth))
 	if result.Success {
 		fmt.Println("✓ RESTORE SUCCESSFUL")
 	} else {
 		fmt.Println("✗ RESTORE FAILED")
 	}
-	fmt.Println(strings.Repeat("=", separatorWidth))
+	fmt.Println(strings.Repeat("=", constants.SeparatorWidth))
 
 	// Print project information
 	if result.ProjectID != 0 {
@@ -268,10 +262,10 @@ func printRestoreResult(result *restore.Result, cfg *config.Config) {
 	fmt.Printf("  Duration: %ds\n", result.Metrics.DurationSeconds)
 
 	if result.Metrics.BytesDownloaded > 0 {
-		fmt.Printf("  Downloaded: %.2f MB\n", float64(result.Metrics.BytesDownloaded)/bytesPerMB)
+		fmt.Printf("  Downloaded: %.2f MB\n", float64(result.Metrics.BytesDownloaded)/float64(constants.MB))
 	}
 	if result.Metrics.BytesExtracted > 0 {
-		fmt.Printf("  Extracted: %.2f MB\n", float64(result.Metrics.BytesExtracted)/bytesPerMB)
+		fmt.Printf("  Extracted: %.2f MB\n", float64(result.Metrics.BytesExtracted)/float64(constants.MB))
 	}
 
 	// Print errors if any
@@ -294,5 +288,5 @@ func printRestoreResult(result *restore.Result, cfg *config.Config) {
 		}
 	}
 
-	fmt.Println(strings.Repeat("=", separatorWidth))
+	fmt.Println(strings.Repeat("=", constants.SeparatorWidth))
 }

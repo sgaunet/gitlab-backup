@@ -11,14 +11,9 @@ import (
 	"strings"
 
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 	"github.com/sgaunet/gitlab-backup/pkg/hooks"
 	"gopkg.in/yaml.v3"
-)
-
-const (
-	redactedValue           = "***REDACTED***"
-	maxExportTimeoutMinutes = 1440 // 24 hours
-	minRegionLength         = 2
 )
 
 // S3Config holds the configuration for S3 storage backend.
@@ -118,13 +113,13 @@ func (c *Config) String() string {
 func (c *Config) Redacted() string {
 	redacted := *c
 	if redacted.GitlabToken != "" {
-		redacted.GitlabToken = redactedValue
+		redacted.GitlabToken = constants.RedactedValue
 	}
 	if redacted.S3cfg.AccessKey != "" {
-		redacted.S3cfg.AccessKey = redactedValue
+		redacted.S3cfg.AccessKey = constants.RedactedValue
 	}
 	if redacted.S3cfg.SecretKey != "" {
-		redacted.S3cfg.SecretKey = redactedValue
+		redacted.S3cfg.SecretKey = constants.RedactedValue
 	}
 	cyaml, err := yaml.Marshal(redacted)
 	if err != nil {
@@ -237,10 +232,10 @@ func (c *Config) validateTimeout() error {
 	if c.ExportTimeoutMins < 1 {
 		return fmt.Errorf("exportTimeoutMins must be at least 1 minute, got %d", c.ExportTimeoutMins)
 	}
-	if c.ExportTimeoutMins > maxExportTimeoutMinutes {
+	if c.ExportTimeoutMins > constants.MaxExportTimeoutMinutes {
 		return fmt.Errorf(
 			"exportTimeoutMins must not exceed %d minutes (24 hours), got %d",
-			maxExportTimeoutMinutes, c.ExportTimeoutMins,
+			constants.MaxExportTimeoutMinutes, c.ExportTimeoutMins,
 		)
 	}
 	return nil
@@ -345,8 +340,9 @@ func validateS3BucketName(bucketName string) error {
 	}
 
 	// Check length (3-63 characters)
-	if len(bucketName) < 3 || len(bucketName) > 63 {
-		return fmt.Errorf("bucket name must be between 3 and 63 characters, got %d", len(bucketName))
+	if len(bucketName) < constants.S3BucketNameMinLength || len(bucketName) > constants.S3BucketNameMaxLength {
+		return fmt.Errorf("bucket name must be between %d and %d characters, got %d",
+			constants.S3BucketNameMinLength, constants.S3BucketNameMaxLength, len(bucketName))
 	}
 
 	// Check if it's all lowercase (AWS requirement)
@@ -390,8 +386,9 @@ func validateS3Region(region string) error {
 
 	// Typical AWS region pattern (e.g., us-east-1, eu-west-2)
 	// This is lenient to allow custom regions
-	if len(region) < minRegionLength {
-		return errors.New("region name too short")
+	if len(region) < constants.S3RegionMinLength || len(region) > constants.S3RegionMaxLength {
+		return fmt.Errorf("region must be between %d and %d characters",
+			constants.S3RegionMinLength, constants.S3RegionMaxLength)
 	}
 
 	return nil

@@ -23,6 +23,7 @@ import (
 
 	"github.com/sgaunet/gitlab-backup/pkg/app"
 	"github.com/sgaunet/gitlab-backup/pkg/config"
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 )
 
 var version = "development"
@@ -67,14 +68,13 @@ func loadConfiguration(cfgFile string) *config.Config {
 		}
 	} else {
 		// Try loading from environment
-		const defaultExportTimeout = 10
 		cfg, err = config.NewConfigFromEnv()
 		if err != nil {
 			// If env loading fails, start with empty config with defaults
 			cfg = &config.Config{
 				GitlabURI:         "https://gitlab.com",
 				TmpDir:            "/tmp",
-				ExportTimeoutMins: defaultExportTimeout,
+				ExportTimeoutMins: constants.DefaultExportTimeoutMins,
 			}
 		}
 	}

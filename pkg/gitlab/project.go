@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
@@ -16,13 +17,6 @@ var (
 	ErrExportTimeout = errors.New("timeout waiting for gitlab to start the export project")
 	// ErrRateLimit is returned when rate limit is exceeded.
 	ErrRateLimit = errors.New("rate limit error")
-)
-
-const (
-	// ExportCheckIntervalSeconds defines the interval between export status checks.
-	ExportCheckIntervalSeconds = 5
-	// MaxExportRetries defines the maximum number of export retries.
-	MaxExportRetries = 5
 )
 
 // Project represents a Gitlab project
@@ -117,7 +111,7 @@ func (s *Service) waitForExport(ctx context.Context, projectID int64) error {
 
 	nbTries := 0
 loop:
-	for nbTries < MaxExportRetries {
+	for nbTries < constants.MaxExportRetries {
 		exportStatus, err := s.getStatusExport(timeoutCtx, projectID)
 		if err != nil {
 			return err
@@ -133,11 +127,11 @@ loop:
 		}
 
 		// Sleep with context awareness
-		if err := s.sleepWithContext(timeoutCtx, projectID, ExportCheckIntervalSeconds*time.Second); err != nil {
+		if err := s.sleepWithContext(timeoutCtx, projectID, constants.ExportCheckIntervalSeconds*time.Second); err != nil {
 			return err
 		}
 	}
-	if nbTries == MaxExportRetries {
+	if nbTries == constants.MaxExportRetries {
 		return fmt.Errorf("%w %d", ErrExportTimeout, projectID)
 	}
 	return nil
@@ -242,8 +236,7 @@ func (s *Service) downloadProject(ctx context.Context, projectID int64, tmpFileP
 	log.Debug("downloadProject", "projectID", projectID)
 	log.Debug("downloadProject", "dataSize", len(data))
 
-	//nolint:gosec,mnd // G304: File creation is intentional for download functionality
-	err = os.WriteFile(tmpFile, data, 0644)
+	err = os.WriteFile(tmpFile, data, constants.DefaultFilePermission)
 	if err != nil {
 		return fmt.Errorf("failed to write temporary file %s: %w", tmpFile, err)
 	}

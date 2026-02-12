@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-)
 
-const (
-	// copyBufferSize is the buffer size for file copy operations (32KB).
-	copyBufferSize = 32 * 1024
+	"github.com/sgaunet/gitlab-backup/pkg/constants"
 )
 
 var (
@@ -60,7 +57,7 @@ func (s *LocalStorage) SaveFile(ctx context.Context, archiveFilePath string, dst
 // copyWithContext performs a buffered copy with periodic context cancellation checks.
 // It cleans up the destination file on error or cancellation.
 func copyWithContext(ctx context.Context, dst io.Writer, src io.Reader, dstPath string) error {
-	buf := make([]byte, copyBufferSize)
+	buf := make([]byte, constants.CopyBufferSize)
 	for {
 		// Check context before each chunk
 		if ctx.Err() != nil {

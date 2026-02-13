@@ -1,5 +1,8 @@
 package restore
 
+//go:generate moq -out mocks/storage.go -pkg mocks . Storage
+//go:generate moq -out mocks/progress.go -pkg mocks . ProgressReporter
+
 import (
 	"context"
 	"errors"

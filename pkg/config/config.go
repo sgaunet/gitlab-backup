@@ -22,7 +22,7 @@ type S3Config struct {
 	BucketName string `env:"S3BUCKETNAME"          env-default:""   yaml:"bucketName"`
 	BucketPath string `env:"S3BUCKETPATH"          env-default:""   yaml:"bucketPath"`
 	Region     string `env:"S3REGION"              env-default:""   yaml:"region"`
-	AccessKey  string `env:"AWS_ACCESS_KEY_ID"     yaml:"accessKey"`
+	AccessKey  string `env:"AWS_ACCESS_KEY_ID"     yaml:"accessKey"` //nolint:gosec // G117: intentional
 	SecretKey  string `env:"AWS_SECRET_ACCESS_KEY" yaml:"secretKey"`
 }
 

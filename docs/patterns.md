@@ -140,7 +140,7 @@ if errors.Is(err, gitlab.ErrExportTimeout) {
 
 **More sentinel errors**:
 - `pkg/storage/archive.go:13-20` - Storage errors (ErrArchiveInvalid, ErrPathTraversal)
-- `pkg/app/app.go:21-27` - App errors (ErrProjectNotEmpty)
+- `pkg/app/restore/restore.go` - Restore errors (ErrProjectHasContent)
 - `pkg/gitlab/restore.go:20-24` - Import errors
 
 ## 4. Rate Limiting with golang.org/x/time/rate and Concurrency with errgroup

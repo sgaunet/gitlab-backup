@@ -22,9 +22,9 @@
 //
 // Example usage:
 //
-//	validator := restore.NewValidator(gitlabClient, progress, projectPath)
-//	orchestrator := restore.NewOrchestrator(validator, storage, gitlabClient, ...)
-//	if err := orchestrator.Restore(ctx); err != nil {
+//	orchestrator := restore.NewOrchestrator(gitlabSvc, storage, cfg)
+//	result, err := orchestrator.Restore(ctx, cfg)
+//	if err != nil {
 //	    log.Fatal(err)
 //	}
 package restore

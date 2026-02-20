@@ -116,7 +116,7 @@ Each API endpoint has a dedicated rate limiter to prevent exceeding GitLab's lim
 - `ErrGitlabAPI` - GitLab API errors
 - `ErrExportTimeout` - Export timeout
 - `ErrImportTimeout` - Import timeout
-- `ErrProjectNotEmpty` - Restore validation failure
+- `ErrProjectHasContent` - Restore validation failure
 - `ErrArchiveInvalid` - Archive validation failure
 
 Location: `pkg/gitlab/error.go`, `pkg/app/app.go`, `pkg/storage/archive.go`

@@ -4,6 +4,7 @@
 /.task
 data-minio
 /pkg/gitlab/mocks
+/pkg/app/restore/mocks
 /.specify
 /specs
 /.claude

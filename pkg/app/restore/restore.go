@@ -1,5 +1,8 @@
 package restore
 
+//go:generate go tool github.com/matryer/moq -out mocks/storage.go -pkg mocks . Storage
+//go:generate go tool github.com/matryer/moq -out mocks/progress.go -pkg mocks . ProgressReporter
+
 import (
 	"context"
 	"errors"
@@ -21,13 +24,13 @@ type Storage interface {
 
 // Orchestrator coordinates the restore workflow across all phases.
 type Orchestrator struct {
-	gitlabClient *gitlab.Service
+	gitlabClient gitlab.GitLabService
 	storage      Storage
 	progress     ProgressReporter
 }
 
 // NewOrchestrator creates a new restore orchestrator.
-func NewOrchestrator(gitlabClient *gitlab.Service, storage Storage, cfg *config.Config) *Orchestrator {
+func NewOrchestrator(gitlabClient gitlab.GitLabService, storage Storage, cfg *config.Config) *Orchestrator {
 	// Create logger
 	var logger *slog.Logger
 	if cfg.NoLogTime {
@@ -163,9 +166,6 @@ func (r *Result) hasFatalErrors() bool {
 	}
 	return false
 }
-
-// ErrProjectNotEmpty is returned when trying to restore to a non-empty project.
-var ErrProjectNotEmpty = errors.New("target project is not empty")
 
 // ErrProjectHasContent is returned when project is not empty (has commits, issues, or labels).
 var ErrProjectHasContent = errors.New("project is not empty - use --overwrite to skip validation")

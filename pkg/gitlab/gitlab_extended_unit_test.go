@@ -1,8 +1,10 @@
 package gitlab
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"sync/atomic"
 	"testing"
@@ -201,8 +203,9 @@ func TestService_ExportWorkflow_Complete(t *testing.T) {
 				return &gitlab.ExportStatus{ExportStatus: "finished"}, &gitlab.Response{}, nil
 			}
 		},
-		exportDownloadFunc: func(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
-			return []byte("export-data"), &gitlab.Response{}, nil
+		exportDownloadStreamFunc: func(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+			_, _ = w.Write([]byte("export-data"))
+			return &gitlab.Response{}, nil
 		},
 	}
 
@@ -231,9 +234,10 @@ func TestService_ExportWorkflow_Complete(t *testing.T) {
 
 	// Test download (note: downloadProject is used internally by ExportProject)
 	// We test the downloadExport mock function directly
-	data, _, err := service.client.ProjectImportExport().ExportDownload(1, gitlab.WithContext(ctx))
+	var buf bytes.Buffer
+	_, err = service.client.ProjectImportExport().ExportDownloadStream(1, &buf, gitlab.WithContext(ctx))
 	require.NoError(t, err)
-	assert.Equal(t, []byte("export-data"), data)
+	assert.Equal(t, "export-data", buf.String())
 }
 
 func TestService_ExportWorkflow_ErrorScenarios(t *testing.T) {
@@ -276,11 +280,12 @@ func TestService_ExportWorkflow_ErrorScenarios(t *testing.T) {
 					}
 					return &gitlab.ExportStatus{ExportStatus: "finished"}, &gitlab.Response{}, nil
 				},
-				exportDownloadFunc: func(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
+				exportDownloadStreamFunc: func(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 					if tc.downloadError != nil {
-						return nil, nil, tc.downloadError
+						return nil, tc.downloadError
 					}
-					return []byte("data"), &gitlab.Response{}, nil
+					_, _ = w.Write([]byte("data"))
+					return &gitlab.Response{}, nil
 				},
 			}
 
@@ -298,7 +303,7 @@ func TestService_ExportWorkflow_ErrorScenarios(t *testing.T) {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "failed to get export status")
 			case "downloadExport":
-				_, _, err := service.client.ProjectImportExport().ExportDownload(1, gitlab.WithContext(ctx))
+				_, err := service.client.ProjectImportExport().ExportDownloadStream(1, io.Discard, gitlab.WithContext(ctx))
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "download failed")
 			}
@@ -379,9 +384,10 @@ func TestService_ContextCancellation_AllMethods(t *testing.T) {
 				time.Sleep(100 * time.Millisecond)
 				return &gitlab.ExportStatus{ExportStatus: "finished"}, &gitlab.Response{}, nil
 			},
-			exportDownloadFunc: func(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
+			exportDownloadStreamFunc: func(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
-				return []byte("data"), &gitlab.Response{}, nil
+				_, _ = w.Write([]byte("data"))
+				return &gitlab.Response{}, nil
 			},
 		},
 	}
@@ -413,7 +419,7 @@ func TestService_ContextCancellation_AllMethods(t *testing.T) {
 			return err
 		}},
 		{"downloadExport", func(ctx context.Context) error {
-			_, _, err := service.client.ProjectImportExport().ExportDownload(1, gitlab.WithContext(ctx))
+			_, err := service.client.ProjectImportExport().ExportDownloadStream(1, io.Discard, gitlab.WithContext(ctx))
 			return err
 		}},
 	}

@@ -98,11 +98,11 @@ func (m *mockProjectsService) GetProject(pid any, opt *gitlab.GetProjectOptions,
 
 // mockProjectImportExportService is a manual mock implementation of ProjectImportExportService
 type mockProjectImportExportService struct {
-	scheduleExportFunc  func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
-	exportStatusFunc    func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error)
-	exportDownloadFunc  func(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error)
-	importFromFileFunc  func(archive io.Reader, opt *gitlab.ImportFileOptions, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
-	importStatusFunc    func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
+	scheduleExportFunc        func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
+	exportStatusFunc          func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error)
+	exportDownloadStreamFunc  func(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
+	importFromFileFunc        func(archive io.Reader, opt *gitlab.ImportFileOptions, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
+	importStatusFunc          func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
 }
 
 func (m *mockProjectImportExportService) ScheduleExport(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
@@ -119,11 +119,11 @@ func (m *mockProjectImportExportService) ExportStatus(pid any, options ...gitlab
 	return nil, nil, nil
 }
 
-func (m *mockProjectImportExportService) ExportDownload(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
-	if m.exportDownloadFunc != nil {
-		return m.exportDownloadFunc(pid, options...)
+func (m *mockProjectImportExportService) ExportDownloadStream(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+	if m.exportDownloadStreamFunc != nil {
+		return m.exportDownloadStreamFunc(pid, w, options...)
 	}
-	return nil, nil, nil
+	return nil, nil
 }
 
 //nolint:ireturn // Mock method signature must match interface

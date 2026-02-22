@@ -225,20 +225,22 @@ func (s *Service) downloadProject(ctx context.Context, projectID int64, tmpFileP
 
 	tmpFile := tmpFilePath + ".tmp"
 
-	// Download the export using the official client
-	data, _, err := s.client.ProjectImportExport().ExportDownload(projectID, gitlab.WithContext(ctx))
+	f, err := os.Create(tmpFile) //nolint:gosec // G304: intentional temp file path
 	if err != nil {
-		return fmt.Errorf("failed to download export: %w", err)
+		return fmt.Errorf("failed to create temp file %s: %w", tmpFile, err)
 	}
 
 	log.Debug("downloadProject", "tmpFile", tmpFile)
 	log.Debug("downloadProject", "tmpFilePath", tmpFilePath)
 	log.Debug("downloadProject", "projectID", projectID)
-	log.Debug("downloadProject", "dataSize", len(data))
 
-	err = os.WriteFile(tmpFile, data, constants.DefaultFilePermission)
+	_, err = s.client.ProjectImportExport().ExportDownloadStream(projectID, f, gitlab.WithContext(ctx))
+	closeErr := f.Close()
 	if err != nil {
-		return fmt.Errorf("failed to write temporary file %s: %w", tmpFile, err)
+		return fmt.Errorf("failed to download export: %w", err)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("failed to close temp file %s: %w", tmpFile, closeErr)
 	}
 
 	if err = os.Rename(tmpFile, tmpFilePath); err != nil {

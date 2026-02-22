@@ -3,6 +3,7 @@ package gitlab
 import (
 	"fmt"
 	"io"
+	"net/http"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
@@ -50,7 +51,7 @@ type ProjectImportExportService interface {
 	//nolint:lll // GitLab API method signatures are inherently long
 	ScheduleExport(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
 	ExportStatus(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error)
-	ExportDownload(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error)
+	ExportDownloadStream(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
 	//nolint:lll // GitLab API method signatures are inherently long
 	ImportFromFile(archive io.Reader, opt *gitlab.ImportFileOptions, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
 	ImportStatus(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
@@ -116,7 +117,7 @@ func (w *gitlabClientWrapper) Projects() ProjectsService {
 //
 //nolint:ireturn // Interface return is intentional for dependency injection
 func (w *gitlabClientWrapper) ProjectImportExport() ProjectImportExportService {
-	return &projectImportExportServiceWrapper{service: w.client.ProjectImportExport}
+	return &projectImportExportServiceWrapper{service: w.client.ProjectImportExport, client: w.client}
 }
 
 // Labels returns the labels service.
@@ -196,6 +197,7 @@ func (w *projectsServiceWrapper) GetProject(pid any, opt *gitlab.GetProjectOptio
 // projectImportExportServiceWrapper wraps the official GitLab project import/export service.
 type projectImportExportServiceWrapper struct {
 	service gitlab.ProjectImportExportServiceInterface
+	client  *gitlab.Client
 }
 
 //nolint:lll // Wrapper method with long signature
@@ -217,12 +219,17 @@ func (w *projectImportExportServiceWrapper) ExportStatus(pid any, options ...git
 }
 
 //nolint:lll // Wrapper method with long signature
-func (w *projectImportExportServiceWrapper) ExportDownload(pid any, options ...gitlab.RequestOptionFunc) ([]byte, *gitlab.Response, error) {
-	data, resp, err := w.service.ExportDownload(pid, options...)
+func (w *projectImportExportServiceWrapper) ExportDownloadStream(pid any, writer io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+	u := fmt.Sprintf("projects/%v/export/download", pid)
+	req, err := w.client.NewRequest(http.MethodGet, u, nil, options)
 	if err != nil {
-		return nil, resp, fmt.Errorf("failed to download export for project %v: %w", pid, err)
+		return nil, fmt.Errorf("failed to create download request for project %v: %w", pid, err)
 	}
-	return data, resp, nil
+	resp, err := w.client.Do(req, writer)
+	if err != nil {
+		return resp, fmt.Errorf("failed to stream export download for project %v: %w", pid, err)
+	}
+	return resp, nil
 }
 
 //nolint:lll // Wrapper method with long signature

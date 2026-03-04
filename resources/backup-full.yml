@@ -26,7 +26,7 @@ localpath: "/backup"
 #   secretkey: ""  # Or use AWS_SECRET_ACCESS_KEY env var
 
 # Export settings
-exportTimeoutMins: 10   # CLI: --timeout
+exportTimeoutMins: 1440  # CLI: --timeout (24 hours)
 
 # Temporary directory
 tmpdir: "/tmp"          # CLI: --tmpdir

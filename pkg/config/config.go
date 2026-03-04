@@ -34,7 +34,7 @@ type Config struct {
 	GitlabURI          string      `env:"GITLAB_URI"         env-default:"https://gitlab.com" yaml:"gitlabURI"`
 	LocalPath          string      `env:"LOCALPATH"          env-default:""                   yaml:"localpath"`
 	TmpDir             string      `env:"TMPDIR"             env-default:"/tmp"               yaml:"tmpdir"`
-	ExportTimeoutMins  int         `env:"EXPORT_TIMEOUT_MIN" env-default:"10"                 yaml:"exportTimeoutMins"`
+	ExportTimeoutMins  int         `env:"EXPORT_TIMEOUT_MIN" env-default:"1440"               yaml:"exportTimeoutMins"`
 	Hooks              hooks.Hooks `yaml:"hooks"`
 	S3cfg              S3Config    `yaml:"s3cfg"`
 	NoLogTime          bool        `env:"NOLOGTIME"          env-default:"false"              yaml:"noLogTime"`

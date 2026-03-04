@@ -19,9 +19,8 @@ gitlaburi: "https://gitlab.com"
 tmpdir: "/tmp"
 
 # Export timeout in minutes (applies to import operations)
-# Default: 10 minutes
-# Increase for large projects (>1GB)
-exportTimeoutMins: 10
+# Default: 1440 minutes (24 hours)
+exportTimeoutMins: 1440
 
 # Disable log timestamps (useful for cleaner output)
 # Default: false

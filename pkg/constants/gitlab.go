@@ -62,8 +62,8 @@ const (
 
 	// DefaultExportTimeoutMins is the default timeout for export operations in minutes.
 	// Large projects may take longer. This can be overridden via configuration.
-	// Default: 10 minutes.
-	DefaultExportTimeoutMins = 10
+	// Default: 1440 minutes (24 hours).
+	DefaultExportTimeoutMins = 1440
 )
 
 // Import Operation Constants

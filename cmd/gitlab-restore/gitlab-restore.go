@@ -162,7 +162,6 @@ func validateAndLoadConfig(configFile, archive, namespace, project string, overw
 
 // initializeStorage creates the appropriate storage backend.
 // The context is used for S3 client initialization and may respect timeout/cancellation.
-//nolint:ireturn // Returning interface is intentional for abstraction
 func initializeStorage(ctx context.Context, cfg *config.Config) (restore.Storage, error) {
 	if cfg.StorageType == "s3" {
 		//nolint:lll // Function call with multiple parameters

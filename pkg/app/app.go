@@ -59,6 +59,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/sgaunet/gitlab-backup/pkg/config"
 	"github.com/sgaunet/gitlab-backup/pkg/gitlab"
@@ -159,24 +160,31 @@ func (a *App) ExportGroup(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get projects of group %d: %w", a.cfg.GitlabGroupID, err)
 	}
+	summary := newBackupSummary()
 	eg := errgroup.Group{}
 	for project := range projects {
 		if !projects[project].Archived {
 			eg.Go(func() error {
-				err = a.ExportProject(ctx, projects[project].ID)
+				start := time.Now()
+				err := a.ExportProject(ctx, projects[project].ID)
+				elapsed := time.Since(start)
 				if err != nil {
 					a.log.Error("error occurred during backup", "project name", projects[project].Name, "error", err.Error())
-					return err
+					summary.recordFailure(projects[project].Name, err, elapsed)
+				} else {
+					summary.recordSuccess(projects[project].Name, elapsed)
 				}
 				return nil
 			})
 		} else {
 			a.log.Info("project is archived, skip", "project name", projects[project].Name)
+			summary.recordSkipped(projects[project].Name)
 		}
 	}
-	err = eg.Wait()
-	if err != nil {
-		return fmt.Errorf("%w for group %d: %w", ErrBackupErrors, a.cfg.GitlabGroupID, err)
+	_ = eg.Wait()
+	summary.printSummary(a.log)
+	if summary.hasFailures() {
+		return fmt.Errorf("%w for group %d", ErrBackupErrors, a.cfg.GitlabGroupID)
 	}
 	return nil
 }

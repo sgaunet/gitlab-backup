@@ -10,7 +10,9 @@ var (
 	// ErrUnmarshalJSON is returned when JSON unmarshalling fails.
 	ErrUnmarshalJSON = errors.New("error unmarshalling json")
 	// ErrGitlabAPI is returned when GitLab API returns an error.
-	ErrGitlabAPI     = errors.New("error message from Gitlab API")
+	ErrGitlabAPI = errors.New("error message from Gitlab API")
+	// ErrRetryExhausted is returned when all retry attempts have been exhausted.
+	ErrRetryExhausted = errors.New("retry attempts exhausted")
 )
 
 // ErrorMessage is a struct that contains an error message.

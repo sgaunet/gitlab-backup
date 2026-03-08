@@ -72,6 +72,7 @@ func (v *Validator) checkCommits(ctx context.Context, projectID int64) (bool, in
 	}
 
 	commits, resp, err := v.commitsService.ListCommits(
+		ctx,
 		projectID,
 		&gitlabapi.ListCommitsOptions{
 			ListOptions: gitlabapi.ListOptions{
@@ -102,6 +103,7 @@ func (v *Validator) checkIssues(ctx context.Context, projectID int64) (bool, int
 	}
 
 	issues, resp, err := v.issuesService.ListProjectIssues(
+		ctx,
 		projectID,
 		&gitlabapi.ListProjectIssuesOptions{
 			ListOptions: gitlabapi.ListOptions{
@@ -132,6 +134,7 @@ func (v *Validator) checkLabels(ctx context.Context, projectID int64) (bool, int
 	}
 
 	labels, resp, err := v.labelsService.ListLabels(
+		ctx,
 		projectID,
 		&gitlabapi.ListLabelsOptions{
 			ListOptions: gitlabapi.ListOptions{

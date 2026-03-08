@@ -177,7 +177,7 @@ func (o *Orchestrator) validateProject(ctx context.Context, cfg *config.Config, 
 
 		// Get or create project to obtain ID
 		projectFullPath := fmt.Sprintf("%s/%s", cfg.RestoreTargetNS, cfg.RestoreTargetPath)
-		project, _, err := o.gitlabClient.Client().Projects().GetProject(projectFullPath, nil)
+		project, _, err := o.gitlabClient.Client().Projects().GetProject(ctx, projectFullPath, nil)
 
 		//nolint:nilerr // Project not existing is expected and not an error
 		if err != nil {

@@ -65,6 +65,7 @@ func (s *ImportService) ImportProject(
 
 	// Initiate import (with context support)
 	importStatus, _, err := s.importExportService.ImportFromFile(
+		ctx,
 		archive,
 		&gitlabapi.ImportFileOptions{
 			Namespace: &namespace,
@@ -114,7 +115,7 @@ func (s *ImportService) WaitForImport(
 		}
 
 		// Check import status (with context support)
-		status, _, err := s.importExportService.ImportStatus(projectID, gitlabapi.WithContext(ctx))
+		status, _, err := s.importExportService.ImportStatus(ctx, projectID, gitlabapi.WithContext(ctx))
 		if err != nil {
 			// Check if cancellation caused the error
 			if ctx.Err() != nil {

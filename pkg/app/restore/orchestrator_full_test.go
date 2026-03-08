@@ -26,28 +26,28 @@ func setupMockGitLabService(t *testing.T, customizations ...func(*gitlabMocks.Gi
 	mockClient := &gitlabMocks.GitLabClientMock{
 		ProjectsFunc: func() gitlab.ProjectsService {
 			return &gitlabMocks.ProjectsServiceMock{
-				GetProjectFunc: func(pid any, opt *gitlabAPI.GetProjectOptions, options ...gitlabAPI.RequestOptionFunc) (*gitlabAPI.Project, *gitlabAPI.Response, error) {
+				GetProjectFunc: func(_ context.Context, pid any, opt *gitlabAPI.GetProjectOptions, options ...gitlabAPI.RequestOptionFunc) (*gitlabAPI.Project, *gitlabAPI.Response, error) {
 					return nil, nil, errors.New("404 Project Not Found")
 				},
 			}
 		},
 		CommitsFunc: func() gitlab.CommitsService {
 			return &gitlabMocks.CommitsServiceMock{
-				ListCommitsFunc: func(pid any, opt *gitlabAPI.ListCommitsOptions, options ...gitlabAPI.RequestOptionFunc) ([]*gitlabAPI.Commit, *gitlabAPI.Response, error) {
+				ListCommitsFunc: func(_ context.Context, pid any, opt *gitlabAPI.ListCommitsOptions, options ...gitlabAPI.RequestOptionFunc) ([]*gitlabAPI.Commit, *gitlabAPI.Response, error) {
 					return []*gitlabAPI.Commit{}, &gitlabAPI.Response{}, nil
 				},
 			}
 		},
 		IssuesFunc: func() gitlab.IssuesService {
 			return &gitlabMocks.IssuesServiceMock{
-				ListProjectIssuesFunc: func(pid any, opt *gitlabAPI.ListProjectIssuesOptions, options ...gitlabAPI.RequestOptionFunc) ([]*gitlabAPI.Issue, *gitlabAPI.Response, error) {
+				ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlabAPI.ListProjectIssuesOptions, options ...gitlabAPI.RequestOptionFunc) ([]*gitlabAPI.Issue, *gitlabAPI.Response, error) {
 					return []*gitlabAPI.Issue{}, &gitlabAPI.Response{}, nil
 				},
 			}
 		},
 		LabelsFunc: func() gitlab.LabelsService {
 			return &gitlabMocks.LabelsServiceMock{
-				ListLabelsFunc: func(pid any, opt *gitlabAPI.ListLabelsOptions, options ...gitlabAPI.RequestOptionFunc) ([]*gitlabAPI.Label, *gitlabAPI.Response, error) {
+				ListLabelsFunc: func(_ context.Context, pid any, opt *gitlabAPI.ListLabelsOptions, options ...gitlabAPI.RequestOptionFunc) ([]*gitlabAPI.Label, *gitlabAPI.Response, error) {
 					return []*gitlabAPI.Label{}, &gitlabAPI.Response{}, nil
 				},
 			}
@@ -158,14 +158,14 @@ func TestRestore_ValidationPhase(t *testing.T) {
 		mockGitLab := setupMockGitLabService(t, func(client *gitlabMocks.GitLabClientMock) {
 			client.ProjectsFunc = func() gitlab.ProjectsService {
 				return &gitlabMocks.ProjectsServiceMock{
-					GetProjectFunc: func(pid any, _ *gitlabAPI.GetProjectOptions, _ ...gitlabAPI.RequestOptionFunc) (*gitlabAPI.Project, *gitlabAPI.Response, error) {
+					GetProjectFunc: func(_ context.Context, pid any, _ *gitlabAPI.GetProjectOptions, _ ...gitlabAPI.RequestOptionFunc) (*gitlabAPI.Project, *gitlabAPI.Response, error) {
 						return &gitlabAPI.Project{ID: 123, Name: "test-project"}, &gitlabAPI.Response{}, nil
 					},
 				}
 			}
 			client.CommitsFunc = func() gitlab.CommitsService {
 				return &gitlabMocks.CommitsServiceMock{
-					ListCommitsFunc: func(pid any, _ *gitlabAPI.ListCommitsOptions, _ ...gitlabAPI.RequestOptionFunc) ([]*gitlabAPI.Commit, *gitlabAPI.Response, error) {
+					ListCommitsFunc: func(_ context.Context, pid any, _ *gitlabAPI.ListCommitsOptions, _ ...gitlabAPI.RequestOptionFunc) ([]*gitlabAPI.Commit, *gitlabAPI.Response, error) {
 						return []*gitlabAPI.Commit{{ID: "abc123"}}, &gitlabAPI.Response{}, nil
 					},
 				}
@@ -220,7 +220,7 @@ func TestRestore_ValidationPhase(t *testing.T) {
 		mockGitLab := setupMockGitLabService(t, func(client *gitlabMocks.GitLabClientMock) {
 			client.ProjectsFunc = func() gitlab.ProjectsService {
 				return &gitlabMocks.ProjectsServiceMock{
-					GetProjectFunc: func(pid any, _ *gitlabAPI.GetProjectOptions, _ ...gitlabAPI.RequestOptionFunc) (*gitlabAPI.Project, *gitlabAPI.Response, error) {
+					GetProjectFunc: func(_ context.Context, pid any, _ *gitlabAPI.GetProjectOptions, _ ...gitlabAPI.RequestOptionFunc) (*gitlabAPI.Project, *gitlabAPI.Response, error) {
 						return &gitlabAPI.Project{ID: 123, Name: "test-project"}, &gitlabAPI.Response{}, nil
 					},
 				}
@@ -423,14 +423,14 @@ func TestRestore_ErrorCollection(t *testing.T) {
 		mockGitLab := setupMockGitLabService(t, func(client *gitlabMocks.GitLabClientMock) {
 			client.ProjectsFunc = func() gitlab.ProjectsService {
 				return &gitlabMocks.ProjectsServiceMock{
-					GetProjectFunc: func(pid any, _ *gitlabAPI.GetProjectOptions, _ ...gitlabAPI.RequestOptionFunc) (*gitlabAPI.Project, *gitlabAPI.Response, error) {
+					GetProjectFunc: func(_ context.Context, pid any, _ *gitlabAPI.GetProjectOptions, _ ...gitlabAPI.RequestOptionFunc) (*gitlabAPI.Project, *gitlabAPI.Response, error) {
 						return &gitlabAPI.Project{ID: 123}, &gitlabAPI.Response{}, nil
 					},
 				}
 			}
 			client.IssuesFunc = func() gitlab.IssuesService {
 				return &gitlabMocks.IssuesServiceMock{
-					ListProjectIssuesFunc: func(pid any, _ *gitlabAPI.ListProjectIssuesOptions, _ ...gitlabAPI.RequestOptionFunc) ([]*gitlabAPI.Issue, *gitlabAPI.Response, error) {
+					ListProjectIssuesFunc: func(_ context.Context, pid any, _ *gitlabAPI.ListProjectIssuesOptions, _ ...gitlabAPI.RequestOptionFunc) ([]*gitlabAPI.Issue, *gitlabAPI.Response, error) {
 						return []*gitlabAPI.Issue{{ID: 1}}, &gitlabAPI.Response{}, nil
 					},
 				}

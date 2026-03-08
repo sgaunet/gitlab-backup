@@ -219,7 +219,6 @@ func (a *s3StorageAdapter) Get(ctx context.Context, key string) (string, error) 
 	defer func() {
 		if closeErr := tempFile.Close(); closeErr != nil {
 			// Log but don't fail - file is already downloaded successfully
-			//nolint:gosec // G705: tempFile.Name() is from os.CreateTemp, not user input
 			fmt.Fprintf(os.Stderr, "Warning: failed to close temp file %s: %v\n",
 				tempFile.Name(), closeErr)
 		}
@@ -227,7 +226,7 @@ func (a *s3StorageAdapter) Get(ctx context.Context, key string) (string, error) 
 
 	// Use S3Storage's GetFile method
 	if err := a.GetFile(ctx, s3Key, tempFile.Name()); err != nil {
-		_ = os.Remove(tempFile.Name()) //nolint:gosec // G703: path is from os.CreateTemp, not user input
+		_ = os.Remove(tempFile.Name())
 		return "", fmt.Errorf("failed to download from S3: %w", err)
 	}
 

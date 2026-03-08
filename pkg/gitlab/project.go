@@ -56,7 +56,7 @@ type Project struct {
 // GitLab API Reference:
 // https://docs.gitlab.com/ee/api/project_import_export.html#schedule-an-export
 func (s *Service) askExport(ctx context.Context, projectID int64) (bool, error) {
-	resp, err := s.client.ProjectImportExport().ScheduleExport(projectID, nil, gitlab.WithContext(ctx))
+	resp, err := s.client.ProjectImportExport().ScheduleExport(ctx, projectID, nil, gitlab.WithContext(ctx))
 	if err != nil {
 		return false, fmt.Errorf("failed to make export request: %w", err)
 	}
@@ -179,7 +179,7 @@ func (s *Service) sleepWithContext(ctx context.Context, projectID int64, duratio
 
 // getStatusExport returns the status of the export.
 func (s *Service) getStatusExport(ctx context.Context, projectID int64) (string, error) {
-	exportStatus, _, err := s.client.ProjectImportExport().ExportStatus(projectID, gitlab.WithContext(ctx))
+	exportStatus, _, err := s.client.ProjectImportExport().ExportStatus(ctx, projectID, gitlab.WithContext(ctx))
 	if err != nil {
 		return "", fmt.Errorf("failed to get export status: %w", err)
 	}
@@ -234,7 +234,7 @@ func (s *Service) downloadProject(ctx context.Context, projectID int64, tmpFileP
 	log.Debug("downloadProject", "tmpFilePath", tmpFilePath)
 	log.Debug("downloadProject", "projectID", projectID)
 
-	_, err = s.client.ProjectImportExport().ExportDownloadStream(projectID, f, gitlab.WithContext(ctx))
+	_, err = s.client.ProjectImportExport().ExportDownloadStream(ctx, projectID, f, gitlab.WithContext(ctx))
 	closeErr := f.Close()
 	if err != nil {
 		return fmt.Errorf("failed to download export: %w", err)

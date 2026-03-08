@@ -21,7 +21,7 @@ func TestImportProject(t *testing.T) {
 	t.Run("SuccessfulImport", func(t *testing.T) {
 		// Setup mocks
 		mockProjectImportExport := &mocks.ProjectImportExportServiceMock{
-			ImportFromFileFunc: func(archive io.Reader, opt *gitlabapi.ImportFileOptions, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			ImportFromFileFunc: func(_ context.Context, archive io.Reader, opt *gitlabapi.ImportFileOptions, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
 				// Return successful import initiation
 				return &gitlabapi.ImportStatus{
 					ID:            123,
@@ -29,7 +29,7 @@ func TestImportProject(t *testing.T) {
 					ImportError: "",
 				}, &gitlabapi.Response{}, nil
 			},
-			ImportStatusFunc: func(pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			ImportStatusFunc: func(_ context.Context, pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
 				// Return finished import status
 				return &gitlabapi.ImportStatus{
 					ID:            123,
@@ -57,7 +57,7 @@ func TestImportProject(t *testing.T) {
 	t.Run("ImportInitiationFails", func(t *testing.T) {
 		// Setup mocks
 		mockProjectImportExport := &mocks.ProjectImportExportServiceMock{
-			ImportFromFileFunc: func(archive io.Reader, opt *gitlabapi.ImportFileOptions, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			ImportFromFileFunc: func(_ context.Context, archive io.Reader, opt *gitlabapi.ImportFileOptions, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
 				return nil, nil, errors.New("import initiation failed")
 			},
 		}
@@ -77,14 +77,14 @@ func TestImportProject(t *testing.T) {
 	t.Run("ImportStatusFailed", func(t *testing.T) {
 		// Setup mocks
 		mockProjectImportExport := &mocks.ProjectImportExportServiceMock{
-			ImportFromFileFunc: func(archive io.Reader, opt *gitlabapi.ImportFileOptions, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			ImportFromFileFunc: func(_ context.Context, archive io.Reader, opt *gitlabapi.ImportFileOptions, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
 				return &gitlabapi.ImportStatus{
 					ID:            123,
 					ImportStatus:  "scheduled",
 					ImportError: "",
 				}, &gitlabapi.Response{}, nil
 			},
-			ImportStatusFunc: func(pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			ImportStatusFunc: func(_ context.Context, pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
 				// Return failed import status
 				return &gitlabapi.ImportStatus{
 					ID:            123,
@@ -108,14 +108,14 @@ func TestImportProject(t *testing.T) {
 	t.Run("ImportTimeout", func(t *testing.T) {
 		// Setup mocks with delayed status
 		mockProjectImportExport := &mocks.ProjectImportExportServiceMock{
-			ImportFromFileFunc: func(archive io.Reader, opt *gitlabapi.ImportFileOptions, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			ImportFromFileFunc: func(_ context.Context, archive io.Reader, opt *gitlabapi.ImportFileOptions, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
 				return &gitlabapi.ImportStatus{
 					ID:            123,
 					ImportStatus:  "scheduled",
 					ImportError: "",
 				}, &gitlabapi.Response{}, nil
 			},
-			ImportStatusFunc: func(pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			ImportStatusFunc: func(_ context.Context, pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
 				// Always return "started" to simulate timeout
 				return &gitlabapi.ImportStatus{
 					ID:            123,
@@ -148,7 +148,7 @@ func TestWaitForImport(t *testing.T) {
 		// Setup mock that finishes immediately
 		callCount := 0
 		mockProjectImportExport := &mocks.ProjectImportExportServiceMock{
-			ImportStatusFunc: func(pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			ImportStatusFunc: func(_ context.Context, pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
 				callCount++
 				return &gitlabapi.ImportStatus{
 					ID:            123,
@@ -171,7 +171,7 @@ func TestWaitForImport(t *testing.T) {
 		// Setup mock that progresses through states
 		callCount := 0
 		mockProjectImportExport := &mocks.ProjectImportExportServiceMock{
-			ImportStatusFunc: func(pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			ImportStatusFunc: func(_ context.Context, pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
 				callCount++
 				if callCount == 1 {
 					return &gitlabapi.ImportStatus{ID: 123, ImportStatus: "scheduled"}, &gitlabapi.Response{}, nil

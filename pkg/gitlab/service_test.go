@@ -58,85 +58,85 @@ func (m *mockGitLabClient) Commits() CommitsService {
 
 // mockGroupsService is a manual mock implementation of GroupsService
 type mockGroupsService struct {
-	getGroupFunc           func(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error)
-	listSubGroupsFunc      func(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error)
-	listGroupProjectsFunc  func(gid any, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error)
+	getGroupFunc          func(ctx context.Context, gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error)
+	listSubGroupsFunc     func(ctx context.Context, gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error)
+	listGroupProjectsFunc func(ctx context.Context, gid any, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error)
 }
 
-func (m *mockGroupsService) GetGroup(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
+func (m *mockGroupsService) GetGroup(ctx context.Context, gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
 	if m.getGroupFunc != nil {
-		return m.getGroupFunc(gid, opt, options...)
+		return m.getGroupFunc(ctx, gid, opt, options...)
 	}
 	return nil, nil, nil
 }
 
-func (m *mockGroupsService) ListSubGroups(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+func (m *mockGroupsService) ListSubGroups(ctx context.Context, gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 	if m.listSubGroupsFunc != nil {
-		return m.listSubGroupsFunc(gid, opt, options...)
+		return m.listSubGroupsFunc(ctx, gid, opt, options...)
 	}
 	return nil, nil, nil
 }
 
-func (m *mockGroupsService) ListGroupProjects(gid any, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
+func (m *mockGroupsService) ListGroupProjects(ctx context.Context, gid any, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
 	if m.listGroupProjectsFunc != nil {
-		return m.listGroupProjectsFunc(gid, opt, options...)
+		return m.listGroupProjectsFunc(ctx, gid, opt, options...)
 	}
 	return nil, nil, nil
 }
 
 // mockProjectsService is a manual mock implementation of ProjectsService
 type mockProjectsService struct {
-	getProjectFunc func(pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error)
+	getProjectFunc func(ctx context.Context, pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error)
 }
 
-func (m *mockProjectsService) GetProject(pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
+func (m *mockProjectsService) GetProject(ctx context.Context, pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
 	if m.getProjectFunc != nil {
-		return m.getProjectFunc(pid, opt, options...)
+		return m.getProjectFunc(ctx, pid, opt, options...)
 	}
 	return nil, nil, nil
 }
 
 // mockProjectImportExportService is a manual mock implementation of ProjectImportExportService
 type mockProjectImportExportService struct {
-	scheduleExportFunc        func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
-	exportStatusFunc          func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error)
-	exportDownloadStreamFunc  func(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
-	importFromFileFunc        func(archive io.Reader, opt *gitlab.ImportFileOptions, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
-	importStatusFunc          func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
+	scheduleExportFunc       func(ctx context.Context, pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
+	exportStatusFunc         func(ctx context.Context, pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error)
+	exportDownloadStreamFunc func(ctx context.Context, pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error)
+	importFromFileFunc       func(ctx context.Context, archive io.Reader, opt *gitlab.ImportFileOptions, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
+	importStatusFunc         func(ctx context.Context, pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error)
 }
 
-func (m *mockProjectImportExportService) ScheduleExport(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+func (m *mockProjectImportExportService) ScheduleExport(ctx context.Context, pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 	if m.scheduleExportFunc != nil {
-		return m.scheduleExportFunc(pid, opt, options...)
+		return m.scheduleExportFunc(ctx, pid, opt, options...)
 	}
 	return nil, nil
 }
 
-func (m *mockProjectImportExportService) ExportStatus(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
+func (m *mockProjectImportExportService) ExportStatus(ctx context.Context, pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
 	if m.exportStatusFunc != nil {
-		return m.exportStatusFunc(pid, options...)
+		return m.exportStatusFunc(ctx, pid, options...)
 	}
 	return nil, nil, nil
 }
 
-func (m *mockProjectImportExportService) ExportDownloadStream(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+func (m *mockProjectImportExportService) ExportDownloadStream(ctx context.Context, pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 	if m.exportDownloadStreamFunc != nil {
-		return m.exportDownloadStreamFunc(pid, w, options...)
+		return m.exportDownloadStreamFunc(ctx, pid, w, options...)
 	}
 	return nil, nil
 }
 
 //nolint:ireturn // Mock method signature must match interface
-func (m *mockProjectImportExportService) ImportFromFile(archive io.Reader, opt *gitlab.ImportFileOptions, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error) {
+func (m *mockProjectImportExportService) ImportFromFile(ctx context.Context, archive io.Reader, opt *gitlab.ImportFileOptions, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error) {
 	if m.importFromFileFunc != nil {
-		return m.importFromFileFunc(archive, opt, options...)
+		return m.importFromFileFunc(ctx, archive, opt, options...)
 	}
 	return nil, nil, nil
 }
 
-func (m *mockProjectImportExportService) ImportStatus(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error) {
+func (m *mockProjectImportExportService) ImportStatus(ctx context.Context, pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ImportStatus, *gitlab.Response, error) {
 	if m.importStatusFunc != nil {
-		return m.importStatusFunc(pid, options...)
+		return m.importStatusFunc(ctx, pid, options...)
 	}
 	return nil, nil, nil
 }
@@ -154,7 +154,7 @@ func createTestService(client GitLabClient) *Service {
 
 func TestService_GetGroup_Success(t *testing.T) {
 	groupsService := &mockGroupsService{
-		getGroupFunc: func(gid interface{}, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
+		getGroupFunc: func(_ context.Context, gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
 			assert.Equal(t, int64(1), gid)
 			return &gitlab.Group{
 				ID:   int64(1),
@@ -177,7 +177,7 @@ func TestService_GetGroup_Success(t *testing.T) {
 
 func TestService_GetGroup_Error(t *testing.T) {
 	groupsService := &mockGroupsService{
-		getGroupFunc: func(gid interface{}, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
+		getGroupFunc: func(_ context.Context, gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
 			return nil, &gitlab.Response{}, errors.New("404 Group Not Found")
 		},
 	}
@@ -196,7 +196,7 @@ func TestService_GetGroup_Error(t *testing.T) {
 
 func TestService_GetProject_Success(t *testing.T) {
 	projectsService := &mockProjectsService{
-		getProjectFunc: func(pid interface{}, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
+		getProjectFunc: func(_ context.Context, pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
 			assert.Equal(t, int64(1), pid)
 			return &gitlab.Project{
 				ID:       int64(1),
@@ -226,7 +226,7 @@ func TestService_GetProject_Success(t *testing.T) {
 
 func TestService_askExport_Success(t *testing.T) {
 	exportService := &mockProjectImportExportService{
-		scheduleExportFunc: func(pid interface{}, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+		scheduleExportFunc: func(_ context.Context, pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 			assert.Equal(t, int64(1), pid)
 			return &gitlab.Response{
 				Response: &http.Response{
@@ -250,7 +250,7 @@ func TestService_askExport_Success(t *testing.T) {
 
 func TestService_askExport_Error(t *testing.T) {
 	exportService := &mockProjectImportExportService{
-		scheduleExportFunc: func(pid interface{}, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+		scheduleExportFunc: func(_ context.Context, pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 			return nil, errors.New("API error")
 		},
 	}
@@ -270,7 +270,7 @@ func TestService_askExport_Error(t *testing.T) {
 
 func TestService_getStatusExport_Success(t *testing.T) {
 	exportService := &mockProjectImportExportService{
-		exportStatusFunc: func(pid interface{}, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
+		exportStatusFunc: func(_ context.Context, pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
 			assert.Equal(t, int64(1), pid)
 			return &gitlab.ExportStatus{
 				ExportStatus: "finished",
@@ -293,7 +293,7 @@ func TestService_getStatusExport_Success(t *testing.T) {
 func TestService_GetSubgroups_Success(t *testing.T) {
 	callCount := 0
 	groupsService := &mockGroupsService{
-		listSubGroupsFunc: func(gid interface{}, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+		listSubGroupsFunc: func(_ context.Context, gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 			callCount++
 			if callCount == 1 {
 				// First call returns subgroups
@@ -325,7 +325,7 @@ func TestService_GetSubgroups_Success(t *testing.T) {
 
 func TestService_GetProjectsLst_Success(t *testing.T) {
 	groupsService := &mockGroupsService{
-		listGroupProjectsFunc: func(gid interface{}, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
+		listGroupProjectsFunc: func(_ context.Context, gid any, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
 			assert.Equal(t, int64(1), gid)
 			return []*gitlab.Project{
 				{
@@ -360,18 +360,18 @@ func TestService_GetProjectsLst_Success(t *testing.T) {
 
 func TestNewGitlabService_CreatesCorrectDefaults(t *testing.T) {
 	service := NewGitlabService()
-	
+
 	// Service might be nil if no GITLAB_TOKEN is set, which is expected behavior
 	if service != nil {
 		assert.NotNil(t, service.client)
 		assert.Equal(t, constants.GitLabAPIEndpoint, service.gitlabAPIEndpoint)
 		assert.NotNil(t, service.rateLimitDownloadAPI)
 		assert.NotNil(t, service.rateLimitExportAPI)
-		
+
 		// Test rate limiter configuration
 		downloadLimit := service.rateLimitDownloadAPI.Limit()
 		exportLimit := service.rateLimitExportAPI.Limit()
-		
+
 		assert.Equal(t, rate.Every(constants.DownloadRateLimitIntervalSeconds*time.Second), downloadLimit)
 		assert.Equal(t, rate.Every(constants.ExportRateLimitIntervalSeconds*time.Second), exportLimit)
 	}
@@ -385,9 +385,9 @@ func TestService_SetToken(t *testing.T) {
 
 	originalToken := service.token
 	newToken := "new-test-token"
-	
+
 	service.SetToken(newToken)
-	
+
 	assert.Equal(t, newToken, service.token)
 	assert.NotEqual(t, originalToken, service.token)
 	assert.NotNil(t, service.client)
@@ -401,9 +401,9 @@ func TestService_SetGitlabEndpoint(t *testing.T) {
 
 	originalEndpoint := service.gitlabAPIEndpoint
 	newEndpoint := "https://custom-gitlab.example.com/api/v4"
-	
+
 	service.SetGitlabEndpoint(newEndpoint)
-	
+
 	assert.Equal(t, newEndpoint, service.gitlabAPIEndpoint)
 	assert.NotEqual(t, originalEndpoint, service.gitlabAPIEndpoint)
 	assert.NotNil(t, service.client)

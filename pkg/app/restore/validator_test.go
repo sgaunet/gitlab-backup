@@ -18,21 +18,21 @@ func TestValidateProjectEmpty(t *testing.T) {
 	t.Run("EmptyProject", func(t *testing.T) {
 		// Setup mocks
 		mockCommitsService := &mocks.CommitsServiceMock{
-			ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+			ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 				// Return empty commits list
 				return []*gitlab.Commit{}, &gitlab.Response{}, nil
 			},
 		}
 
 		mockIssuesService := &mocks.IssuesServiceMock{
-			ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+			ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 				// Return empty issues list
 				return []*gitlab.Issue{}, &gitlab.Response{}, nil
 			},
 		}
 
 		mockLabelsService := &mocks.LabelsServiceMock{
-			ListLabelsFunc: func(pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
+			ListLabelsFunc: func(_ context.Context, pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
 				// Return empty labels list
 				return []*gitlab.Label{}, &gitlab.Response{}, nil
 			},
@@ -58,7 +58,7 @@ func TestValidateProjectEmpty(t *testing.T) {
 	t.Run("ProjectWithCommits", func(t *testing.T) {
 		// Setup mocks
 		mockCommitsService := &mocks.CommitsServiceMock{
-			ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+			ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 				// Return commits
 				return []*gitlab.Commit{
 					{ID: "abc123", Message: "Initial commit"},
@@ -67,13 +67,13 @@ func TestValidateProjectEmpty(t *testing.T) {
 		}
 
 		mockIssuesService := &mocks.IssuesServiceMock{
-			ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+			ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 				return []*gitlab.Issue{}, &gitlab.Response{}, nil
 			},
 		}
 
 		mockLabelsService := &mocks.LabelsServiceMock{
-			ListLabelsFunc: func(pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
+			ListLabelsFunc: func(_ context.Context, pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
 				return []*gitlab.Label{}, &gitlab.Response{}, nil
 			},
 		}
@@ -94,13 +94,13 @@ func TestValidateProjectEmpty(t *testing.T) {
 	t.Run("ProjectWithIssues", func(t *testing.T) {
 		// Setup mocks
 		mockCommitsService := &mocks.CommitsServiceMock{
-			ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+			ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 				return []*gitlab.Commit{}, &gitlab.Response{}, nil
 			},
 		}
 
 		mockIssuesService := &mocks.IssuesServiceMock{
-			ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+			ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 				// Return issues
 				return []*gitlab.Issue{
 					{ID: 1, Title: "Test issue"},
@@ -109,7 +109,7 @@ func TestValidateProjectEmpty(t *testing.T) {
 		}
 
 		mockLabelsService := &mocks.LabelsServiceMock{
-			ListLabelsFunc: func(pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
+			ListLabelsFunc: func(_ context.Context, pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
 				return []*gitlab.Label{}, &gitlab.Response{}, nil
 			},
 		}
@@ -130,19 +130,19 @@ func TestValidateProjectEmpty(t *testing.T) {
 	t.Run("ProjectWithLabels", func(t *testing.T) {
 		// Setup mocks
 		mockCommitsService := &mocks.CommitsServiceMock{
-			ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+			ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 				return []*gitlab.Commit{}, &gitlab.Response{}, nil
 			},
 		}
 
 		mockIssuesService := &mocks.IssuesServiceMock{
-			ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+			ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 				return []*gitlab.Issue{}, &gitlab.Response{}, nil
 			},
 		}
 
 		mockLabelsService := &mocks.LabelsServiceMock{
-			ListLabelsFunc: func(pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
+			ListLabelsFunc: func(_ context.Context, pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
 				// Return labels
 				return []*gitlab.Label{
 					{ID: 1, Name: "bug", Color: "#FF0000"},
@@ -166,7 +166,7 @@ func TestValidateProjectEmpty(t *testing.T) {
 	t.Run("APIError", func(t *testing.T) {
 		// Setup mocks with error
 		mockCommitsService := &mocks.CommitsServiceMock{
-			ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+			ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 				return nil, nil, errors.New("API error")
 			},
 		}
@@ -189,12 +189,12 @@ func TestValidateProjectEmpty_IssuesError(t *testing.T) {
 	ctx := context.Background()
 
 	mockCommitsService := &mocks.CommitsServiceMock{
-		ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+		ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 			return []*gitlab.Commit{}, &gitlab.Response{}, nil
 		},
 	}
 	mockIssuesService := &mocks.IssuesServiceMock{
-		ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+		ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 			return nil, nil, errors.New("issues API error")
 		},
 	}
@@ -212,17 +212,17 @@ func TestValidateProjectEmpty_LabelsError(t *testing.T) {
 	ctx := context.Background()
 
 	mockCommitsService := &mocks.CommitsServiceMock{
-		ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+		ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 			return []*gitlab.Commit{}, &gitlab.Response{}, nil
 		},
 	}
 	mockIssuesService := &mocks.IssuesServiceMock{
-		ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+		ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 			return []*gitlab.Issue{}, &gitlab.Response{}, nil
 		},
 	}
 	mockLabelsService := &mocks.LabelsServiceMock{
-		ListLabelsFunc: func(pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
+		ListLabelsFunc: func(_ context.Context, pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
 			return nil, nil, errors.New("labels API error")
 		},
 	}
@@ -259,12 +259,12 @@ func TestValidateProjectEmpty_ContextCancelledDuringIssues(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mockCommitsService := &mocks.CommitsServiceMock{
-		ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+		ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 			return []*gitlab.Commit{}, &gitlab.Response{}, nil
 		},
 	}
 	mockIssuesService := &mocks.IssuesServiceMock{
-		ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+		ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 			cancel()
 			return nil, nil, context.Canceled
 		},
@@ -310,7 +310,7 @@ func TestValidateProjectEmpty_PartialFailures(t *testing.T) {
 			ctx := context.Background()
 
 			mockCommitsService := &mocks.CommitsServiceMock{
-				ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+				ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 					if tt.commitsErr != nil {
 						return nil, nil, tt.commitsErr
 					}
@@ -318,7 +318,7 @@ func TestValidateProjectEmpty_PartialFailures(t *testing.T) {
 				},
 			}
 			mockIssuesService := &mocks.IssuesServiceMock{
-				ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+				ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 					if tt.issuesErr != nil {
 						return nil, nil, tt.issuesErr
 					}
@@ -326,7 +326,7 @@ func TestValidateProjectEmpty_PartialFailures(t *testing.T) {
 				},
 			}
 			mockLabelsService := &mocks.LabelsServiceMock{
-				ListLabelsFunc: func(pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
+				ListLabelsFunc: func(_ context.Context, pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
 					if tt.labelsErr != nil {
 						return nil, nil, tt.labelsErr
 					}
@@ -348,17 +348,17 @@ func TestValidateProjectEmpty_TotalItemsFromResponse(t *testing.T) {
 	ctx := context.Background()
 
 	mockCommitsService := &mocks.CommitsServiceMock{
-		ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+		ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 			return []*gitlab.Commit{{ID: "abc"}}, &gitlab.Response{TotalItems: 42}, nil
 		},
 	}
 	mockIssuesService := &mocks.IssuesServiceMock{
-		ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+		ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 			return []*gitlab.Issue{{ID: 1}}, &gitlab.Response{TotalItems: 15}, nil
 		},
 	}
 	mockLabelsService := &mocks.LabelsServiceMock{
-		ListLabelsFunc: func(pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
+		ListLabelsFunc: func(_ context.Context, pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
 			return []*gitlab.Label{{ID: 1}}, &gitlab.Response{TotalItems: 7}, nil
 		},
 	}
@@ -381,17 +381,17 @@ func TestValidateProjectEmpty_NilResponse(t *testing.T) {
 	ctx := context.Background()
 
 	mockCommitsService := &mocks.CommitsServiceMock{
-		ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+		ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 			return []*gitlab.Commit{{ID: "abc"}}, nil, nil
 		},
 	}
 	mockIssuesService := &mocks.IssuesServiceMock{
-		ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+		ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 			return []*gitlab.Issue{}, nil, nil
 		},
 	}
 	mockLabelsService := &mocks.LabelsServiceMock{
-		ListLabelsFunc: func(pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
+		ListLabelsFunc: func(_ context.Context, pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
 			return []*gitlab.Label{}, nil, nil
 		},
 	}
@@ -413,17 +413,17 @@ func TestValidateProjectEmpty_AllNonEmpty(t *testing.T) {
 	ctx := context.Background()
 
 	mockCommitsService := &mocks.CommitsServiceMock{
-		ListCommitsFunc: func(pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
+		ListCommitsFunc: func(_ context.Context, pid any, opt *gitlab.ListCommitsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Commit, *gitlab.Response, error) {
 			return []*gitlab.Commit{{ID: "abc"}}, &gitlab.Response{TotalItems: 100}, nil
 		},
 	}
 	mockIssuesService := &mocks.IssuesServiceMock{
-		ListProjectIssuesFunc: func(pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
+		ListProjectIssuesFunc: func(_ context.Context, pid any, opt *gitlab.ListProjectIssuesOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Issue, *gitlab.Response, error) {
 			return []*gitlab.Issue{{ID: 1}}, &gitlab.Response{TotalItems: 50}, nil
 		},
 	}
 	mockLabelsService := &mocks.LabelsServiceMock{
-		ListLabelsFunc: func(pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
+		ListLabelsFunc: func(_ context.Context, pid any, opt *gitlab.ListLabelsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Label, *gitlab.Response, error) {
 			return []*gitlab.Label{{ID: 1}}, &gitlab.Response{TotalItems: 25}, nil
 		},
 	}

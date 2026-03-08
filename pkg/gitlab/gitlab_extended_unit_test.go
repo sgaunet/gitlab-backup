@@ -23,7 +23,7 @@ func TestService_RateLimiting_Behavior(t *testing.T) {
 	// Test rate limiting behavior
 	client := &mockGitLabClient{
 		projectImportExportService: &mockProjectImportExportService{
-			scheduleExportFunc: func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+			scheduleExportFunc: func(_ context.Context, pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 				return &gitlab.Response{Response: &http.Response{StatusCode: http.StatusAccepted}}, nil
 			},
 		},
@@ -44,14 +44,14 @@ func TestService_RateLimiting_Behavior(t *testing.T) {
 	start := time.Now()
 	result1, err1 := service.askExport(ctx, 1)
 	duration1 := time.Since(start)
-	
+
 	require.NoError(t, err1)
 	assert.True(t, result1)
 	assert.Less(t, duration1, 50*time.Millisecond, "First call should be immediate")
 
 	// Second call should also succeed
 	result2, err2 := service.askExport(ctx, 2)
-	
+
 	require.NoError(t, err2)
 	assert.True(t, result2)
 	// Both calls should complete successfully (rate limiting is tested separately)
@@ -71,17 +71,17 @@ func TestService_RateLimiting_Configuration(t *testing.T) {
 	// Test rate limiter configuration values
 	downloadLimit := service.rateLimitDownloadAPI.Limit()
 	exportLimit := service.rateLimitExportAPI.Limit()
-	
+
 	expectedDownloadLimit := rate.Every(constants.DownloadRateLimitIntervalSeconds * time.Second)
 	expectedExportLimit := rate.Every(constants.ExportRateLimitIntervalSeconds * time.Second)
-	
+
 	assert.Equal(t, expectedDownloadLimit, downloadLimit, "Download rate limit should match expected value")
 	assert.Equal(t, expectedExportLimit, exportLimit, "Export rate limit should match expected value")
 
 	// Test burst values
 	downloadBurst := service.rateLimitDownloadAPI.Burst()
 	exportBurst := service.rateLimitExportAPI.Burst()
-	
+
 	assert.Equal(t, constants.DownloadRateLimitBurst, downloadBurst, "Download burst should match expected value")
 	assert.Equal(t, constants.ExportRateLimitBurst, exportBurst, "Export burst should match expected value")
 }
@@ -90,7 +90,7 @@ func TestService_RateLimiting_Integration(t *testing.T) {
 	// Test rate limiting integration with actual service methods
 	client := &mockGitLabClient{
 		projectImportExportService: &mockProjectImportExportService{
-			scheduleExportFunc: func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+			scheduleExportFunc: func(_ context.Context, pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 				return &gitlab.Response{Response: &http.Response{StatusCode: http.StatusAccepted}}, nil
 			},
 		},
@@ -112,7 +112,7 @@ func TestService_Pagination_Comprehensive(t *testing.T) {
 	// Test comprehensive pagination scenarios
 	callCount := 0
 	groupsService := &mockGroupsService{
-		listSubGroupsFunc: func(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+		listSubGroupsFunc: func(_ context.Context, gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 			callCount++
 			switch callCount {
 			case 1:
@@ -146,7 +146,7 @@ func TestService_Pagination_Comprehensive(t *testing.T) {
 	assert.Len(t, result, 4, "Should collect all groups from all pages")
 	// Note: The actual call count may be higher due to recursive subgroup fetching
 	assert.GreaterOrEqual(t, callCount, 3, "Should make at least 3 API calls for pagination")
-	
+
 	expected := []Group{
 		{ID: 1, Name: "group1"},
 		{ID: 2, Name: "group2"},
@@ -160,7 +160,7 @@ func TestService_Pagination_ErrorHandling(t *testing.T) {
 	// Test pagination with errors
 	callCount := 0
 	groupsService := &mockGroupsService{
-		listSubGroupsFunc: func(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+		listSubGroupsFunc: func(_ context.Context, gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 			callCount++
 			if callCount == 1 {
 				// First page succeeds
@@ -187,10 +187,10 @@ func TestService_ExportWorkflow_Complete(t *testing.T) {
 	// Test complete export workflow with different status transitions
 	statusCallCount := 0
 	exportService := &mockProjectImportExportService{
-		scheduleExportFunc: func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+		scheduleExportFunc: func(_ context.Context, pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 			return &gitlab.Response{Response: &http.Response{StatusCode: http.StatusAccepted}}, nil
 		},
-		exportStatusFunc: func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
+		exportStatusFunc: func(_ context.Context, pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
 			statusCallCount++
 			switch statusCallCount {
 			case 1:
@@ -203,7 +203,7 @@ func TestService_ExportWorkflow_Complete(t *testing.T) {
 				return &gitlab.ExportStatus{ExportStatus: "finished"}, &gitlab.Response{}, nil
 			}
 		},
-		exportDownloadStreamFunc: func(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+		exportDownloadStreamFunc: func(_ context.Context, pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 			_, _ = w.Write([]byte("export-data"))
 			return &gitlab.Response{}, nil
 		},
@@ -235,7 +235,7 @@ func TestService_ExportWorkflow_Complete(t *testing.T) {
 	// Test download (note: downloadProject is used internally by ExportProject)
 	// We test the downloadExport mock function directly
 	var buf bytes.Buffer
-	_, err = service.client.ProjectImportExport().ExportDownloadStream(1, &buf, gitlab.WithContext(ctx))
+	_, err = service.client.ProjectImportExport().ExportDownloadStream(ctx, 1, &buf, gitlab.WithContext(ctx))
 	require.NoError(t, err)
 	assert.Equal(t, "export-data", buf.String())
 }
@@ -268,19 +268,19 @@ func TestService_ExportWorkflow_ErrorScenarios(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			exportService := &mockProjectImportExportService{
-				scheduleExportFunc: func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+				scheduleExportFunc: func(_ context.Context, pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 					if tc.scheduleError != nil {
 						return nil, tc.scheduleError
 					}
 					return &gitlab.Response{Response: &http.Response{StatusCode: http.StatusAccepted}}, nil
 				},
-				exportStatusFunc: func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
+				exportStatusFunc: func(_ context.Context, pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
 					if tc.statusError != nil {
 						return nil, nil, tc.statusError
 					}
 					return &gitlab.ExportStatus{ExportStatus: "finished"}, &gitlab.Response{}, nil
 				},
-				exportDownloadStreamFunc: func(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+				exportDownloadStreamFunc: func(_ context.Context, pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 					if tc.downloadError != nil {
 						return nil, tc.downloadError
 					}
@@ -303,7 +303,7 @@ func TestService_ExportWorkflow_ErrorScenarios(t *testing.T) {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "failed to get export status")
 			case "downloadExport":
-				_, err := service.client.ProjectImportExport().ExportDownloadStream(1, io.Discard, gitlab.WithContext(ctx))
+				_, err := service.client.ProjectImportExport().ExportDownloadStream(ctx, 1, io.Discard, gitlab.WithContext(ctx))
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "download failed")
 			}
@@ -333,7 +333,7 @@ func TestService_HTTPStatusCode_Handling(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			exportService := &mockProjectImportExportService{
-				scheduleExportFunc: func(pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+				scheduleExportFunc: func(_ context.Context, pid any, opt *gitlab.ScheduleExportOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 					return &gitlab.Response{
 						Response: &http.Response{StatusCode: tc.statusCode},
 					}, nil
@@ -360,31 +360,31 @@ func TestService_ContextCancellation_AllMethods(t *testing.T) {
 	// Test context cancellation for all service methods
 	client := &mockGitLabClient{
 		groupsService: &mockGroupsService{
-			getGroupFunc: func(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
+			getGroupFunc: func(_ context.Context, gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond) // Simulate slow response
 				return &gitlab.Group{ID: 1}, &gitlab.Response{}, nil
 			},
-			listSubGroupsFunc: func(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+			listSubGroupsFunc: func(_ context.Context, gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
 				return []*gitlab.Group{}, &gitlab.Response{}, nil
 			},
-			listGroupProjectsFunc: func(gid any, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
+			listGroupProjectsFunc: func(_ context.Context, gid any, opt *gitlab.ListGroupProjectsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
 				return []*gitlab.Project{}, &gitlab.Response{}, nil
 			},
 		},
 		projectsService: &mockProjectsService{
-			getProjectFunc: func(pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
+			getProjectFunc: func(_ context.Context, pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
 				return &gitlab.Project{ID: 1}, &gitlab.Response{}, nil
 			},
 		},
 		projectImportExportService: &mockProjectImportExportService{
-			exportStatusFunc: func(pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
+			exportStatusFunc: func(_ context.Context, pid any, options ...gitlab.RequestOptionFunc) (*gitlab.ExportStatus, *gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
 				return &gitlab.ExportStatus{ExportStatus: "finished"}, &gitlab.Response{}, nil
 			},
-			exportDownloadStreamFunc: func(pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
+			exportDownloadStreamFunc: func(_ context.Context, pid any, w io.Writer, options ...gitlab.RequestOptionFunc) (*gitlab.Response, error) {
 				time.Sleep(100 * time.Millisecond)
 				_, _ = w.Write([]byte("data"))
 				return &gitlab.Response{}, nil
@@ -419,7 +419,7 @@ func TestService_ContextCancellation_AllMethods(t *testing.T) {
 			return err
 		}},
 		{"downloadExport", func(ctx context.Context) error {
-			_, err := service.client.ProjectImportExport().ExportDownloadStream(1, io.Discard, gitlab.WithContext(ctx))
+			_, err := service.client.ProjectImportExport().ExportDownloadStream(ctx, 1, io.Discard, gitlab.WithContext(ctx))
 			return err
 		}},
 	}
@@ -442,7 +442,7 @@ func TestService_EdgeCases_DataValidation(t *testing.T) {
 	// Test edge cases and data validation
 	client := &mockGitLabClient{
 		groupsService: &mockGroupsService{
-			getGroupFunc: func(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
+			getGroupFunc: func(_ context.Context, gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
 				// Return group with unusual but valid data
 				return &gitlab.Group{
 					ID:   0, // Edge case: ID = 0
@@ -451,7 +451,7 @@ func TestService_EdgeCases_DataValidation(t *testing.T) {
 			},
 		},
 		projectsService: &mockProjectsService{
-			getProjectFunc: func(pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
+			getProjectFunc: func(_ context.Context, pid any, opt *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
 				// Return project with edge case data
 				return &gitlab.Project{
 					ID:       0,
@@ -485,7 +485,7 @@ func TestService_ConcurrentOperations_Safety(t *testing.T) {
 	var callCount int32
 	client := &mockGitLabClient{
 		groupsService: &mockGroupsService{
-			getGroupFunc: func(gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
+			getGroupFunc: func(_ context.Context, gid any, opt *gitlab.GetGroupOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Group, *gitlab.Response, error) {
 				atomic.AddInt32(&callCount, 1)
 				time.Sleep(10 * time.Millisecond) // Small delay to encourage race conditions
 				// Convert gid to int64 - it could be int or int64 depending on the caller
@@ -555,9 +555,9 @@ func TestService_ConcurrentOperations_Safety(t *testing.T) {
 func TestService_LargeDataSets_Handling(t *testing.T) {
 	// Test handling of large datasets (simplified to avoid recursion issues)
 	const largePageSize = 100 // Reduced size for test performance
-	
+
 	groupsService := &mockGroupsService{
-		listSubGroupsFunc: func(gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+		listSubGroupsFunc: func(_ context.Context, gid any, opt *gitlab.ListSubGroupsOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
 			// Only return data for the root group (ID 1) to avoid infinite recursion
 			// Handle both int and int64 types
 			var id int64

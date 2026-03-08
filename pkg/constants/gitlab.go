@@ -66,6 +66,24 @@ const (
 	DefaultExportTimeoutMins = 1440
 )
 
+// API Retry Constants
+//
+// These control retry behavior for transient GitLab API failures (HTTP 5xx, 429, network errors).
+// Retry uses exponential backoff with jitter to avoid thundering herd effects.
+const (
+	// RetryMaxAttempts is the number of retry attempts after an initial failure.
+	// Total attempts = 1 (initial) + RetryMaxAttempts (retries) = 4.
+	RetryMaxAttempts = 3
+
+	// RetryBaseDelayMs is the base delay in milliseconds for exponential backoff.
+	// Delays: 1s, 2s, 4s (before jitter).
+	RetryBaseDelayMs = 1000
+
+	// RetryMaxDelayMs is the maximum delay in milliseconds between retries.
+	// Caps the exponential growth to prevent excessive waits.
+	RetryMaxDelayMs = 30000
+)
+
 // Import Operation Constants
 //
 // These control the behavior of project import polling logic.

@@ -1,8 +1,6 @@
 module github.com/sgaunet/gitlab-backup
 
-go 1.24.0
-
-toolchain go1.24.3
+go 1.25.0
 
 tool github.com/matryer/moq
 
@@ -17,7 +15,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.40.0
 	gitlab.com/gitlab-org/api/client-go v1.45.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/time v0.14.0
+	golang.org/x/time v0.15.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

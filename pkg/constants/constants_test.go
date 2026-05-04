@@ -60,8 +60,14 @@ func TestTimeoutConstants(t *testing.T) {
 	if constants.MaxExportTimeoutMinutes > 24*60 {
 		t.Error("MaxExportTimeoutMinutes should not exceed 24 hours")
 	}
-	if constants.ImportTimeoutMinutes < 1 {
-		t.Error("ImportTimeoutMinutes should be at least 1 minute")
+	if constants.DefaultImportTimeoutMins < 1 {
+		t.Error("DefaultImportTimeoutMins should be at least 1 minute")
+	}
+	if constants.ImportRateLimitGracePeriodSeconds <= 0 {
+		t.Error("ImportRateLimitGracePeriodSeconds should be positive")
+	}
+	if constants.ImportRateLimitGracePeriodSeconds >= 60 {
+		t.Error("ImportRateLimitGracePeriodSeconds should be less than 60 seconds")
 	}
 }
 

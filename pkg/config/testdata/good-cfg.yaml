@@ -1,6 +1,7 @@
 gitlabProjectID: 456
 localpath: /data/gitlab
 tmpdir: /tmp
+importTimeoutMins: 90
 s3cfg:
   endpoint: myendpoint
   bucketName: mybucket

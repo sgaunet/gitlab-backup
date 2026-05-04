@@ -27,6 +27,7 @@ func TestNewConfigFromFile(t *testing.T) {
 		require.Equal(t, false, cfg.NoLogTime)
 		require.Equal(t, "echo prebackup", cfg.Hooks.PreBackup)
 		require.Equal(t, "echo postbackup", cfg.Hooks.PostBackup)
+		require.Equal(t, 90, cfg.ImportTimeoutMins)
 	})
 	t.Run("file not found", func(t *testing.T) {
 		_, err := config.NewConfigFromFile("testdata/unknown.yaml")
@@ -382,6 +383,7 @@ func TestConfigValidate_Success(t *testing.T) {
 		LocalPath:         "/tmp",
 		TmpDir:            "/tmp",
 		ExportTimeoutMins: 10,
+		ImportTimeoutMins: 60,
 	}
 
 	err := cfg.Validate()
@@ -396,6 +398,7 @@ func TestConfigValidate_S3Storage(t *testing.T) {
 		GitlabURI:         "https://gitlab.example.com",
 		TmpDir:            "/tmp",
 		ExportTimeoutMins: 30,
+		ImportTimeoutMins: 60,
 		S3cfg: config.S3Config{
 			BucketName: "my-backup-bucket",
 			BucketPath: "backups",
@@ -414,6 +417,7 @@ func TestConfigValidate_MissingGroupAndProject(t *testing.T) {
 		LocalPath:         "/tmp",
 		TmpDir:            "/tmp",
 		ExportTimeoutMins: 10,
+		ImportTimeoutMins: 60,
 	}
 
 	err := cfg.Validate()
@@ -428,6 +432,7 @@ func TestConfigValidate_MissingToken(t *testing.T) {
 		LocalPath:         "/tmp",
 		TmpDir:            "/tmp",
 		ExportTimeoutMins: 10,
+		ImportTimeoutMins: 60,
 	}
 
 	err := cfg.Validate()
@@ -442,6 +447,7 @@ func TestConfigValidate_NoStorage(t *testing.T) {
 		GitlabURI:         "https://gitlab.com",
 		TmpDir:            "/tmp",
 		ExportTimeoutMins: 10,
+		ImportTimeoutMins: 60,
 	}
 
 	err := cfg.Validate()
@@ -457,6 +463,7 @@ func TestConfigValidate_TimeoutTooLow(t *testing.T) {
 		LocalPath:         "/tmp",
 		TmpDir:            "/tmp",
 		ExportTimeoutMins: 0,
+		ImportTimeoutMins: 60,
 	}
 
 	err := cfg.Validate()
@@ -472,11 +479,44 @@ func TestConfigValidate_TimeoutTooHigh(t *testing.T) {
 		LocalPath:         "/tmp",
 		TmpDir:            "/tmp",
 		ExportTimeoutMins: 1500,
+		ImportTimeoutMins: 60,
 	}
 
 	err := cfg.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "exportTimeoutMins must not exceed 1440 minutes")
+}
+
+func TestConfigValidate_ImportTimeoutTooLow(t *testing.T) {
+	cfg := &config.Config{
+		GitlabGroupID:     123,
+		GitlabToken:       "test-token",
+		GitlabURI:         "https://gitlab.com",
+		LocalPath:         "/tmp",
+		TmpDir:            "/tmp",
+		ExportTimeoutMins: 10,
+		ImportTimeoutMins: 0,
+	}
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "importTimeoutMins must be at least 1 minute")
+}
+
+func TestConfigValidate_ImportTimeoutTooHigh(t *testing.T) {
+	cfg := &config.Config{
+		GitlabGroupID:     123,
+		GitlabToken:       "test-token",
+		GitlabURI:         "https://gitlab.com",
+		LocalPath:         "/tmp",
+		TmpDir:            "/tmp",
+		ExportTimeoutMins: 10,
+		ImportTimeoutMins: 1500,
+	}
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "importTimeoutMins must not exceed 1440 minutes")
 }
 
 func TestConfigValidate_TmpDirNotExists(t *testing.T) {
@@ -487,6 +527,7 @@ func TestConfigValidate_TmpDirNotExists(t *testing.T) {
 		LocalPath:         "/tmp",
 		TmpDir:            "/nonexistent/directory",
 		ExportTimeoutMins: 10,
+		ImportTimeoutMins: 60,
 	}
 
 	err := cfg.Validate()
@@ -527,6 +568,7 @@ func TestConfigValidate_InvalidGitlabURI(t *testing.T) {
 				LocalPath:         "/tmp",
 				TmpDir:            "/tmp",
 				ExportTimeoutMins: 10,
+				ImportTimeoutMins: 60,
 			}
 
 			err := cfg.Validate()
@@ -599,6 +641,7 @@ func TestConfigValidate_S3BucketName(t *testing.T) {
 				GitlabURI:         "https://gitlab.com",
 				TmpDir:            "/tmp",
 				ExportTimeoutMins: 10,
+				ImportTimeoutMins: 60,
 				S3cfg: config.S3Config{
 					BucketName: tc.bucketName,
 					BucketPath: "backups",
@@ -675,6 +718,7 @@ func TestConfigValidate_S3Region(t *testing.T) {
 				GitlabURI:         "https://gitlab.com",
 				TmpDir:            "/tmp",
 				ExportTimeoutMins: 10,
+				ImportTimeoutMins: 60,
 				S3cfg: config.S3Config{
 					BucketName: "my-bucket",
 					BucketPath: tc.bucketPath,
@@ -740,6 +784,7 @@ func TestConfigValidate_PathTraversal(t *testing.T) {
 				GitlabURI:         "https://gitlab.com",
 				TmpDir:            "/tmp",
 				ExportTimeoutMins: 10,
+				ImportTimeoutMins: 60,
 			}
 
 			if tc.pathType == "local" {
@@ -773,6 +818,7 @@ func TestValidate_MutualExclusivity(t *testing.T) {
 			LocalPath:         "/backup",
 			TmpDir:            "/tmp",
 			ExportTimeoutMins: 10,
+			ImportTimeoutMins: 60,
 		}
 
 		err := cfg.Validate()
@@ -789,6 +835,7 @@ func TestValidate_MutualExclusivity(t *testing.T) {
 			LocalPath:         "/backup",
 			TmpDir:            "/tmp",
 			ExportTimeoutMins: 10,
+			ImportTimeoutMins: 60,
 		}
 
 		err := cfg.Validate()
@@ -805,6 +852,7 @@ func TestValidate_MutualExclusivity(t *testing.T) {
 			LocalPath:         "/backup",
 			TmpDir:            "/tmp",
 			ExportTimeoutMins: 10,
+			ImportTimeoutMins: 60,
 		}
 
 		err := cfg.Validate()
@@ -820,6 +868,7 @@ func TestValidate_MutualExclusivity(t *testing.T) {
 			LocalPath:         "/backup",
 			TmpDir:            "/tmp",
 			ExportTimeoutMins: 10,
+			ImportTimeoutMins: 60,
 		}
 
 		err := cfg.Validate()

@@ -88,13 +88,21 @@ const (
 //
 // These control the behavior of project import polling logic.
 const (
-	// ImportTimeoutMinutes is the maximum time to wait for an import operation to complete.
-	// Large projects (>1GB) may need longer timeouts.
-	// Default: 10 minutes (matches export timeout for symmetry).
-	ImportTimeoutMinutes = 10
+	// DefaultImportTimeoutMins is the default maximum time to wait for an import
+	// operation to complete. Large projects (>1GB) routinely need longer than the
+	// historical 10-minute default. Configurable via importTimeoutMins / IMPORT_TIMEOUT_MIN.
+	// Default: 60 minutes.
+	DefaultImportTimeoutMins = 60
 
 	// ImportPollSeconds is the interval between import status checks when polling GitLab.
 	// Lower values provide more responsive feedback but increase API load.
 	// Default: 5 seconds (matches export polling interval).
 	ImportPollSeconds = 5
+
+	// ImportRateLimitGracePeriodSeconds is the slack used inside the import polling
+	// loop to discriminate a real rate-limit failure from a deadline-exceeded
+	// situation. golang.org/x/time/rate.Wait returns "would exceed context deadline"
+	// proactively, before ctx.Err() is set; if the import context's remaining time
+	// is within this window, we treat the failure as a timeout instead.
+	ImportRateLimitGracePeriodSeconds = 15
 )

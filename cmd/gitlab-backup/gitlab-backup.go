@@ -75,6 +75,7 @@ func loadConfiguration(cfgFile string) *config.Config {
 				GitlabURI:         "https://gitlab.com",
 				TmpDir:            "/tmp",
 				ExportTimeoutMins: constants.DefaultExportTimeoutMins,
+				ImportTimeoutMins: constants.DefaultImportTimeoutMins,
 			}
 		}
 	}

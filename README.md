@@ -32,7 +32,8 @@ localpath: "/backup"
 gitlabtoken:
 # gitlaburi: https://gitlab.com
 # tmpdir: /tmp
-# exportTimeoutMins: 10  # Export timeout in minutes (default: 10, increase for large projects)
+# exportTimeoutMins: 10  # Export timeout in minutes (default: 1440, increase for large projects)
+# importTimeoutMins: 60  # Import timeout in minutes for gitlab-restore (default: 60, max: 1440)
 hooks:
     prebackup: ""
     postbackup: ""
@@ -131,7 +132,9 @@ These settings must be provided via one of the configuration methods:
   AWS_ACCESS_KEY_ID string
   AWS_SECRET_ACCESS_KEY string
   EXPORT_TIMEOUT_MIN int
-         (default "10")
+         (default "1440")
+  IMPORT_TIMEOUT_MIN int
+         (default "60")
   GITLABGROUPID int
          (default "0")
   GITLABPROJECTID int
@@ -212,7 +215,8 @@ The restore tool uses the same configuration file as `gitlab-backup`:
 gitlabtoken: "your-gitlab-token"
 gitlaburi: "https://gitlab.com"
 tmpdir: "/tmp"
-exportTimeoutMins: 10
+exportTimeoutMins: 1440
+importTimeoutMins: 60   # max wait for the GitLab import to finish; bump for large projects (max 1440)
 
 # For S3 restores
 s3cfg:
@@ -221,6 +225,10 @@ s3cfg:
   bucketPath: "gitlab-backups"
   region: "us-east-1"
 ```
+
+> Tip: if the import takes longer than `importTimeoutMins`, `gitlab-restore` exits with a clear timeout
+> message pointing at the project URL. The import may still finish on the GitLab side — check the web UI
+> before retrying. Override via `IMPORT_TIMEOUT_MIN=120` (env) or `importTimeoutMins: 120` (YAML).
 
 **Configuration can be overridden by environment variables**
 

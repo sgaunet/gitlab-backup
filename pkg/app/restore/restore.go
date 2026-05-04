@@ -107,9 +107,11 @@ func (o *Orchestrator) Restore(ctx context.Context, cfg *config.Config) (*Result
 
 	// Phase 4: Import
 	o.progress.StartPhase(PhaseImport)
+	importTimeout := time.Duration(cfg.ImportTimeoutMins) * time.Minute
 	importService := gitlab.NewImportServiceWithRateLimiters(
 		o.gitlabClient.Client().ProjectImportExport(),
 		o.gitlabClient.RateLimitImportAPI(),
+		importTimeout,
 	)
 
 	archiveFile, err := os.Open(archiveContents.ProjectExportPath)
@@ -122,15 +124,21 @@ func (o *Orchestrator) Restore(ctx context.Context, cfg *config.Config) (*Result
 		_ = archiveFile.Close()
 	}()
 
+	projectURL := fmt.Sprintf("%s/%s/%s", cfg.GitlabURI, cfg.RestoreTargetNS, cfg.RestoreTargetPath)
 	importStatus, err := importService.ImportProject(ctx, archiveFile, cfg.RestoreTargetNS, cfg.RestoreTargetPath)
 	if err != nil {
+		// On timeout, enrich the error with the project URL so the user knows
+		// where to look — the import may still finish server-side.
+		if errors.Is(err, gitlab.ErrImportTimeout) {
+			err = fmt.Errorf("%w — check %s in a few minutes", err, projectURL)
+		}
 		o.progress.FailPhase(PhaseImport, err)
 		result.addError(PhaseImport, "GitLabImport", err.Error())
 		return result, fmt.Errorf("import failed: %w", err)
 	}
 
 	result.ProjectID = importStatus.ID
-	result.ProjectURL = fmt.Sprintf("%s/%s/%s", cfg.GitlabURI, cfg.RestoreTargetNS, cfg.RestoreTargetPath)
+	result.ProjectURL = projectURL
 	o.progress.CompletePhase(PhaseImport)
 
 	// Phase 5: Cleanup (moved from phase 7, now runs in defer at top of function)

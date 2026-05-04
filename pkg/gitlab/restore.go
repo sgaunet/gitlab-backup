@@ -86,13 +86,18 @@ func (s *ImportService) ImportProject(
 		return nil, fmt.Errorf("rate limit wait failed: %w", err)
 	}
 
-	// Initiate import (with context support)
+	// Initiate import. We set both Path and Name to projectPath so the display
+	// name reflects the user-provided -project flag instead of leaking the
+	// original project name from the archive metadata (which would otherwise
+	// trigger "Name has already been taken" when the archive's source project
+	// name collides with another project in the target namespace).
 	importStatus, _, err := s.importExportService.ImportFromFile(
 		ctx,
 		archive,
 		&gitlabapi.ImportFileOptions{
 			Namespace: &namespace,
 			Path:      &projectPath,
+			Name:      &projectPath,
 		},
 		gitlabapi.WithContext(ctx),
 	)

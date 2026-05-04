@@ -19,10 +19,11 @@ func TestImportProject(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("SuccessfulImport", func(t *testing.T) {
-		// Setup mocks
+		// Capture the options passed to ImportFromFile so we can assert on them.
+		var capturedOpts *gitlabapi.ImportFileOptions
 		mockProjectImportExport := &mocks.ProjectImportExportServiceMock{
 			ImportFromFileFunc: func(_ context.Context, archive io.Reader, opt *gitlabapi.ImportFileOptions, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
-				// Return successful import initiation
+				capturedOpts = opt
 				return &gitlabapi.ImportStatus{
 					ID:            123,
 					ImportStatus:  "scheduled",
@@ -30,7 +31,6 @@ func TestImportProject(t *testing.T) {
 				}, &gitlabapi.Response{}, nil
 			},
 			ImportStatusFunc: func(_ context.Context, pid any, options ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
-				// Return finished import status
 				return &gitlabapi.ImportStatus{
 					ID:            123,
 					ImportStatus:  "finished",
@@ -52,6 +52,17 @@ func TestImportProject(t *testing.T) {
 		require.NotNil(t, status, "Status should not be nil")
 		assert.Equal(t, int64(123), status.ID, "Project ID should match")
 		assert.Equal(t, "finished", status.ImportStatus, "Import should be finished")
+
+		// The user-provided projectPath must be forwarded as both Path and Name,
+		// otherwise GitLab uses the archive's original project name and may
+		// reject the import with "Name has already been taken".
+		require.NotNil(t, capturedOpts, "ImportFromFile should have been called")
+		require.NotNil(t, capturedOpts.Path, "Path should be set")
+		require.NotNil(t, capturedOpts.Name, "Name should be set so the display name matches -project")
+		assert.Equal(t, "project-path", *capturedOpts.Path)
+		assert.Equal(t, "project-path", *capturedOpts.Name)
+		require.NotNil(t, capturedOpts.Namespace)
+		assert.Equal(t, "namespace", *capturedOpts.Namespace)
 	})
 
 	t.Run("ImportInitiationFails", func(t *testing.T) {

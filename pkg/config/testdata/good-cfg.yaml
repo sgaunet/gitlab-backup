@@ -10,4 +10,8 @@ s3cfg:
 hooks:
   prebackup: "echo prebackup"
   postbackup: "echo postbackup"
+age:
+  recipients:
+    - "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+  armor: true
 noLogTime: false

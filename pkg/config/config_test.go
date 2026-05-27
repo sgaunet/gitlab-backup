@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/sgaunet/gitlab-backup/pkg/config"
@@ -28,6 +29,11 @@ func TestNewConfigFromFile(t *testing.T) {
 		require.Equal(t, "echo prebackup", cfg.Hooks.PreBackup)
 		require.Equal(t, "echo postbackup", cfg.Hooks.PostBackup)
 		require.Equal(t, 90, cfg.ImportTimeoutMins)
+		require.Equal(t,
+			[]string{"age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"},
+			cfg.Age.Recipients)
+		require.True(t, cfg.Age.Armor)
+		require.True(t, cfg.IsAgeEnabled())
 	})
 	t.Run("file not found", func(t *testing.T) {
 		_, err := config.NewConfigFromFile("testdata/unknown.yaml")
@@ -53,6 +59,8 @@ func TestNewConfigFromEnv(t *testing.T) {
 		t.Setenv("AWS_ACCESS_KEY_ID", "myaccesskey")
 		t.Setenv("AWS_SECRET_ACCESS_KEY", "mysecretkey")
 		t.Setenv("NOLOGTIME", "true")
+		t.Setenv("AGE_RECIPIENTS", "age1qqqq,age1rrrr")
+		t.Setenv("AGE_ARMOR", "true")
 
 		cfg, err := config.NewConfigFromEnv()
 		require.NoError(t, err)
@@ -70,6 +78,8 @@ func TestNewConfigFromEnv(t *testing.T) {
 		require.Equal(t, "myaccesskey", cfg.S3cfg.AccessKey)
 		require.Equal(t, "mysecretkey", cfg.S3cfg.SecretKey)
 		require.Equal(t, true, cfg.NoLogTime)
+		require.Equal(t, []string{"age1qqqq", "age1rrrr"}, cfg.Age.Recipients)
+		require.True(t, cfg.Age.Armor)
 	})
 }
 
@@ -209,6 +219,72 @@ func TestIsConfigValid(t *testing.T) {
 			},
 		}
 		require.False(t, cfg.IsConfigValid())
+	})
+}
+
+func TestIsAgeEnabled(t *testing.T) {
+	t.Run("disabled by default", func(t *testing.T) {
+		cfg := &config.Config{}
+		require.False(t, cfg.IsAgeEnabled())
+	})
+
+	t.Run("enabled by inline recipients", func(t *testing.T) {
+		cfg := &config.Config{
+			Age: config.AgeConfig{
+				Recipients: []string{"age1qqqq"},
+			},
+		}
+		require.True(t, cfg.IsAgeEnabled())
+	})
+
+	t.Run("enabled by recipients file", func(t *testing.T) {
+		cfg := &config.Config{
+			Age: config.AgeConfig{
+				RecipientsFile: "/etc/age/recipients.txt",
+			},
+		}
+		require.True(t, cfg.IsAgeEnabled())
+	})
+}
+
+func TestValidate_AgeRecipientsFile(t *testing.T) {
+	baseCfg := func() *config.Config {
+		return &config.Config{
+			GitlabProjectID:   1,
+			GitlabToken:       "mytoken",
+			GitlabURI:         "https://gitlab.com",
+			LocalPath:         "/tmp",
+			TmpDir:            "/tmp",
+			ExportTimeoutMins: 10,
+			ImportTimeoutMins: 10,
+		}
+	}
+
+	t.Run("missing file fails validation", func(t *testing.T) {
+		cfg := baseCfg()
+		cfg.Age.RecipientsFile = "/tmp/does-not-exist-recipients.txt"
+		err := cfg.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "age recipients file")
+	})
+
+	t.Run("directory instead of file fails validation", func(t *testing.T) {
+		cfg := baseCfg()
+		cfg.Age.RecipientsFile = t.TempDir()
+		err := cfg.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "age recipients file")
+	})
+
+	t.Run("existing readable file passes", func(t *testing.T) {
+		dir := t.TempDir()
+		path := dir + "/recipients.txt"
+		require.NoError(t, os.WriteFile(path, []byte("age1qqqq\n"), 0o600))
+		cfg := baseCfg()
+		cfg.Age.RecipientsFile = path
+		// Validate may still fail on storage etc.; we just check the age branch passed:
+		// our scenario has LocalPath set so storage validation succeeds.
+		require.NoError(t, cfg.Validate())
 	})
 }
 

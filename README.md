@@ -16,6 +16,7 @@ This tool can be used to export project or every projects of a gitlab group. It 
 * Export GitLab projects or entire groups using GitLab's native export API
 * Two storage options: local folder or S3
 * Pre/post backup hooks support
+* Native [age](https://age-encryption.org) encryption of archives (optional, recipient public keys)
 * Configurable rate limiting for GitLab API
 * Concurrent project exports for groups
 
@@ -37,6 +38,13 @@ gitlabtoken:
 hooks:
     prebackup: ""
     postbackup: ""
+# Optional: encrypt archives with age before upload. Recipients are PUBLIC keys.
+# The matching private identity must stay offline and is only used for restore.
+# age:
+#   recipients:
+#     - age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+#   recipientsFile: /etc/age/recipients.txt   # alternative to inline list
+#   armor: false                              # true → PEM/ASCII output
 s3cfg:
   endpoint: "http://localhost:9090"
   bucketName: "ephemeralfiles"
@@ -158,7 +166,78 @@ These settings must be provided via one of the configuration methods:
          (default "")
   TMPDIR string
          (default "/tmp")
+  AGE_RECIPIENTS string
+         (comma-separated public keys: age1..., ssh-ed25519 ..., ssh-rsa ...)
+  AGE_RECIPIENTS_FILE string
+         (path to a file containing one recipient per line, # for comments)
+  AGE_ARMOR bool
+         (default "false"; true → ASCII-armored .age output)
 ```
+
+# Archive encryption with age
+
+`gitlab-backup` can encrypt every produced archive in place using the [age](https://age-encryption.org)
+file encryption format. Encryption happens **after** the postbackup hook runs and **before** the
+archive is uploaded to S3 or written to local storage, so the file at rest is always encrypted.
+
+age is asymmetric: the *recipient* (public key) lives wherever the backup runs, and the *identity*
+(private key) stays offline. A compromised backup runner can produce new encrypted archives but
+cannot read past ones.
+
+## Generating a key pair
+
+Use the `age-keygen` CLI from the [age release](https://github.com/FiloSottile/age/releases):
+
+```bash
+age-keygen -o backup-key.txt
+# backup-key.txt contains a line like:
+#   # public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+# followed by the private identity AGE-SECRET-KEY-1...
+```
+
+Store `backup-key.txt` somewhere offline (password manager, vault). Copy the
+`# public key:` line into the configuration of the backup runner.
+
+## Enabling encryption
+
+Either YAML:
+
+```yaml
+age:
+  recipients:
+    - age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+  armor: false
+```
+
+Or env vars (multiple recipients comma-separated, no spaces):
+
+```bash
+export AGE_RECIPIENTS="age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p,age1xxxxx..."
+# or, for a mounted recipients file:
+export AGE_RECIPIENTS_FILE=/etc/age/recipients.txt
+```
+
+SSH public keys (`ssh-ed25519`, `ssh-rsa` ≥ 2048 bits) also work as recipients.
+
+Multiple recipients are encrypted to as a list — *any one* of them can decrypt. Useful for a
+primary key + an offline recovery key.
+
+## Restoring an encrypted archive
+
+The encrypted archive still has the same `.tar.gz` filename — only the bytes change.
+Decrypt locally with your offline identity:
+
+```bash
+# binary (default) output:
+age -d -i backup-key.txt -o myproject-42.tar.gz s3-downloaded-archive
+tar tzf myproject-42.tar.gz | head
+
+# ASCII-armored output (AGE_ARMOR=true) works the same way:
+age -d -i backup-key.txt -o myproject-42.tar.gz armored-archive
+```
+
+`gitlab-restore` does **not** decrypt automatically — decrypt first, then pass the plaintext
+archive to `gitlab-restore --archive`.
 
 # gitlab-restore
 
@@ -276,10 +355,12 @@ brew install sgaunet/tools/gitlab-restore
 
 # Extended project
 
-[Another project can be used to encrypt archives of exported project and send them to s3. It's gitlab-backup2s3](https://github.com/sgaunet/gitlab-backup2s3) which is using two softwares:
+[gitlab-backup2s3](https://github.com/sgaunet/gitlab-backup2s3) wraps this tool in a container
+image with extra tooling and a Helm chart for running scheduled backups in Kubernetes. It bundles:
 
-* gitlab-backup (this project)
-* [gocrypt](https://github.com/sgaunet/gocrypt)
+* `gitlab-backup` (this project) — native age encryption support
+* [age](https://github.com/FiloSottile/age) — recommended encryption tool
+* [gocrypt](https://github.com/sgaunet/gocrypt) — kept for backward compatibility with existing setups
 
 # Installation
 

@@ -16,6 +16,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// errAgeRecipientsFileIsDir is returned when AgeConfig.RecipientsFile points at a directory.
+var errAgeRecipientsFileIsDir = errors.New("path is a directory, not a file")
+
 // S3Config holds the configuration for S3 storage backend.
 type S3Config struct {
 	Endpoint   string `env:"S3ENDPOINT"            env-default:""   yaml:"endpoint"`
@@ -24,6 +27,18 @@ type S3Config struct {
 	Region     string `env:"S3REGION"              env-default:""   yaml:"region"`
 	AccessKey  string `env:"AWS_ACCESS_KEY_ID"     yaml:"accessKey"`
 	SecretKey  string `env:"AWS_SECRET_ACCESS_KEY" yaml:"secretKey"`
+}
+
+// AgeConfig holds the configuration for age archive encryption.
+//
+// Recipients are PUBLIC keys (age1..., or ssh-ed25519/ssh-rsa lines). The
+// matching private identity must stay offline and is only used for restore.
+// Set Recipients (inline, comma-separated env var) or RecipientsFile (path).
+// At least one must be provided to enable encryption.
+type AgeConfig struct {
+	Recipients     []string `env:"AGE_RECIPIENTS"      env-separator:","   yaml:"recipients"`
+	RecipientsFile string   `env:"AGE_RECIPIENTS_FILE" env-default:""      yaml:"recipientsFile"`
+	Armor          bool     `env:"AGE_ARMOR"           env-default:"false" yaml:"armor"`
 }
 
 // Config holds the application configuration.
@@ -38,6 +53,7 @@ type Config struct {
 	ImportTimeoutMins  int         `env:"IMPORT_TIMEOUT_MIN" env-default:"60"                 yaml:"importTimeoutMins"`
 	Hooks              hooks.Hooks `yaml:"hooks"`
 	S3cfg              S3Config    `yaml:"s3cfg"`
+	Age                AgeConfig   `yaml:"age"`
 	NoLogTime          bool        `env:"NOLOGTIME"          env-default:"false"              yaml:"noLogTime"`
 	// Restore-specific fields (set via CLI flags, not config file)
 	RestoreSource      string `yaml:"-"` // Archive path (local or s3://)
@@ -102,6 +118,12 @@ func (c *Config) IsConfigValid() bool {
 	return (c.IsS3ConfigValid() || c.IsLocalConfigValid()) && valid && len(c.GitlabToken) > 0
 }
 
+// IsAgeEnabled reports whether age encryption is configured.
+// Age is enabled when at least one inline recipient or a recipients file is set.
+func (c *Config) IsAgeEnabled() bool {
+	return len(c.Age.Recipients) > 0 || c.Age.RecipientsFile != ""
+}
+
 func (c *Config) String() string {
 	cyaml, err := yaml.Marshal(c)
 	if err != nil {
@@ -157,6 +179,30 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate age encryption configuration if enabled
+	if err := c.validateAgeConfig(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateAgeConfig fails fast if AgeConfig.RecipientsFile is set but the
+// file is missing or unreadable. Recipient *content* is validated lazily at
+// encryption time so this stays cheap.
+//
+//nolint:funcorder // grouped with Validate()
+func (c *Config) validateAgeConfig() error {
+	if c.Age.RecipientsFile == "" {
+		return nil
+	}
+	stat, err := os.Stat(c.Age.RecipientsFile)
+	if err != nil {
+		return fmt.Errorf("age recipients file %s: %w", c.Age.RecipientsFile, err)
+	}
+	if stat.IsDir() {
+		return fmt.Errorf("age recipients file %s: %w", c.Age.RecipientsFile, errAgeRecipientsFileIsDir)
+	}
 	return nil
 }
 

@@ -41,6 +41,15 @@ documentation and external API references.
 **pkg/hooks/** - Hook Execution
 - Pre/post backup hook execution
 
+**pkg/encryption/** - age Archive Encryption
+- Optional in-place encryption of project archives using the
+  [age](https://age-encryption.org) file encryption format
+- Public-key (X25519) crypto: recipient keys are safe to keep on the backup
+  runner; the matching private identity stays offline and is only used for restore
+- Runs after the postbackup hook and before storage upload, so archives at
+  rest (S3 or local) are always encrypted
+- See `pkg/encryption/age.go` and `Config.Age` (AgeConfig)
+
 ## Key Interfaces
 
 ### GitLabClient Interface

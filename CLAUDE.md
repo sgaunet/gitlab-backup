@@ -20,6 +20,7 @@ Two complementary Go CLI tools for GitLab backup and restore operations. Uses Gi
 - `pkg/gitlab/` - GitLab API client with rate limiting and service interfaces
 - `pkg/storage/` - Storage abstraction (local/S3 implementations)
 - `pkg/hooks/` - Pre/post backup hook execution
+- `pkg/encryption/` - Optional in-place age encryption of archives before upload
 
 **Key Patterns**:
 - Interface-based dependency injection (`GitLabClient`, `Storage`)

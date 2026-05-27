@@ -61,7 +61,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"filippo.io/age"
 	"github.com/sgaunet/gitlab-backup/pkg/config"
+	"github.com/sgaunet/gitlab-backup/pkg/encryption"
 	"github.com/sgaunet/gitlab-backup/pkg/gitlab"
 	"github.com/sgaunet/gitlab-backup/pkg/storage"
 	"github.com/sgaunet/gitlab-backup/pkg/storage/localstorage"
@@ -213,6 +215,11 @@ func (a *App) ExportProject(ctx context.Context, projectID int64) error {
 		return err
 	}
 
+	// encrypt archive in place with age (recipient public keys), if configured
+	if err := a.encryptArchive(archivePath); err != nil {
+		return err
+	}
+
 	err = a.StoreArchive(ctx, archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to store archive %s: %w", archivePath, err)
@@ -256,4 +263,56 @@ func (a *App) executePostBackupHook(archivePath string) error {
 		}
 	}
 	return nil
+}
+
+// encryptArchive encrypts the archive at archivePath in place with the
+// configured age recipients. No-op when age is not configured. The archive
+// path is preserved on success so downstream upload logic is unaffected.
+func (a *App) encryptArchive(archivePath string) error {
+	if !a.cfg.IsAgeEnabled() {
+		return nil
+	}
+
+	recipients, err := a.loadAgeRecipients()
+	if err != nil {
+		return fmt.Errorf("age encryption: %w", err)
+	}
+
+	a.log.Info("encrypting archive with age",
+		"archivePath", archivePath,
+		"recipients", len(recipients),
+		"armor", a.cfg.Age.Armor,
+	)
+	if encErr := encryption.EncryptFileInPlace(archivePath, recipients, a.cfg.Age.Armor); encErr != nil {
+		return fmt.Errorf("age encryption: %w", encErr)
+	}
+	return nil
+}
+
+// loadAgeRecipients merges inline recipients (Recipients) and recipients
+// loaded from RecipientsFile. Either source may be empty; the result must
+// contain at least one recipient (guarded by IsAgeEnabled at the caller).
+func (a *App) loadAgeRecipients() ([]age.Recipient, error) {
+	var recipients []age.Recipient
+
+	if len(a.cfg.Age.Recipients) > 0 {
+		inline, err := encryption.ParseRecipients(a.cfg.Age.Recipients)
+		if err != nil {
+			return nil, fmt.Errorf("inline recipients: %w", err)
+		}
+		recipients = append(recipients, inline...)
+	}
+
+	if a.cfg.Age.RecipientsFile != "" {
+		fromFile, err := encryption.ParseRecipientsFile(a.cfg.Age.RecipientsFile)
+		if err != nil {
+			return nil, fmt.Errorf("recipients file: %w", err)
+		}
+		recipients = append(recipients, fromFile...)
+	}
+
+	if len(recipients) == 0 {
+		return nil, encryption.ErrNoRecipients
+	}
+	return recipients, nil
 }

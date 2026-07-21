@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/sgaunet/gitlab-backup/pkg/config"
@@ -31,5 +33,51 @@ func TestNewApp_AppliesGitlabConfig(t *testing.T) {
 	}
 	if got := app.gitlabService.GitlabEndpoint(); got != cfg.GitlabURI {
 		t.Errorf("expected endpoint %q to be applied from config, got %q", cfg.GitlabURI, got)
+	}
+}
+
+// TestNewApp_HonorsConfiguredToken verifies that the gitlabToken from the
+// resolved config is loaded into the GitLab client and actually sent on API
+// requests (as the PRIVATE-TOKEN header), targeting the configured gitlabURI.
+// It complements TestNewApp_AppliesGitlabConfig (which only checks the stored
+// endpoint) by exercising the real request path end-to-end against a stub
+// server, so the token half of the config wiring cannot silently regress.
+func TestNewApp_HonorsConfiguredToken(t *testing.T) {
+	const wantToken = "cfg-token"
+
+	var (
+		hit      bool
+		gotToken string
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hit = true
+		gotToken = r.Header.Get("PRIVATE-TOKEN")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer srv.Close()
+
+	cfg := &config.Config{
+		LocalPath:         t.TempDir(),
+		GitlabToken:       wantToken,
+		GitlabURI:         srv.URL,
+		ExportTimeoutMins: constants.DefaultExportTimeoutMins,
+	}
+
+	app, err := NewApp(context.Background(), cfg, nil)
+	if err != nil {
+		t.Fatalf("NewApp returned error: %v", err)
+	}
+
+	// Drive a real request through the app's GitLab service and inspect the wire.
+	// The returned error is irrelevant here: we only care that the request was
+	// sent to the configured endpoint carrying the configured token.
+	_, _ = app.gitlabService.GetGroup(context.Background(), 42)
+
+	if !hit {
+		t.Fatal("expected the request to reach the configured gitlabURI, but the stub server was never called")
+	}
+	if gotToken != wantToken {
+		t.Errorf("expected PRIVATE-TOKEN header %q loaded from config, got %q", wantToken, gotToken)
 	}
 }

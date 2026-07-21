@@ -408,3 +408,22 @@ func TestService_SetGitlabEndpoint(t *testing.T) {
 	assert.NotEqual(t, originalEndpoint, service.gitlabAPIEndpoint)
 	assert.NotNil(t, service.client)
 }
+
+// TestSetToken_LoadsAndPreservesConfigToken verifies that SetToken loads the
+// configured token into the service, and that a subsequent SetGitlabEndpoint
+// preserves it. This mirrors the exact call order NewApp uses when wiring
+// gitlabToken/gitlabURI from config (SetToken then SetGitlabEndpoint) and guards
+// the token half of that wiring against regression.
+func TestSetToken_LoadsAndPreservesConfigToken(t *testing.T) {
+	service := NewGitlabServiceWithTimeout(constants.DefaultExportTimeoutMins)
+	require.NotNil(t, service)
+
+	service.SetToken("cfg-token")
+	require.Equal(t, "cfg-token", service.token, "SetToken must load the configured token")
+	require.NotNil(t, service.client)
+
+	// A later endpoint change (as NewApp does) must not drop the token.
+	service.SetGitlabEndpoint("https://gitlab.example.com/api/v4")
+	require.Equal(t, "cfg-token", service.token, "SetGitlabEndpoint must preserve the token")
+	require.NotNil(t, service.client)
+}

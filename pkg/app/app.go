@@ -78,6 +78,8 @@ var (
 	ErrBackupErrors = errors.New("errors occurred during backup")
 	// ErrNotDirectory is returned when a path is not a directory.
 	ErrNotDirectory = errors.New("path is not a directory")
+	// ErrGitlabClientInit is returned when the GitLab client cannot be initialized.
+	ErrGitlabClientInit = errors.New("failed to initialize gitlab client")
 )
 
 // App represents the main application structure.
@@ -96,16 +98,36 @@ type Logger interface {
 	Info(msg string, args ...any)
 }
 
-// NewApp returns a new App struct.
+// NewApp returns a new App struct fully configured from cfg.
+//
+// The GitLab connection settings (token and endpoint) are applied from cfg here,
+// so callers cannot forget to wire them up. Without this the client would
+// silently fall back to the GITLAB_TOKEN environment variable and the default
+// https://gitlab.com endpoint, ignoring the gitlabToken/gitlabURI values from a
+// config file, the environment, or the --gitlab-url flag.
+//
+// The logger is applied before the client is built so that any client
+// construction error is reported through it; pass nil to discard logs.
 // The context is used for S3 client initialization and may respect timeout/cancellation.
-func NewApp(ctx context.Context, cfg *config.Config) (*App, error) {
+func NewApp(ctx context.Context, cfg *config.Config, log Logger) (*App, error) {
 	var err error
+	if log == nil {
+		log = slog.New(slog.DiscardHandler)
+	}
+	gitlab.SetLogger(log)
+
+	gitlabService := gitlab.NewGitlabServiceWithTimeout(cfg.ExportTimeoutMins)
+	if gitlabService == nil {
+		return nil, ErrGitlabClientInit
+	}
+	gitlabService.SetToken(cfg.GitlabToken)
+	gitlabService.SetGitlabEndpoint(cfg.GitlabURI)
+
 	app := &App{
 		cfg:           cfg,
-		gitlabService: gitlab.NewGitlabServiceWithTimeout(cfg.ExportTimeoutMins),
-		log:           slog.New(slog.DiscardHandler),
+		gitlabService: gitlabService,
+		log:           log,
 	}
-	gitlab.SetLogger(app.log)
 	if cfg.IsS3ConfigValid() {
 		app.storage, err = s3storage.NewS3Storage(
 			ctx,

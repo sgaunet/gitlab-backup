@@ -192,15 +192,17 @@ func main() {
 	// Create context for app initialization and execution
 	ctx := context.Background()
 
-	// Initialize app
-	app, err := app.NewApp(ctx, cfg)
+	// Build the logger first so NewApp can report any client-construction error.
+	l := initTrace(os.Getenv("DEBUGLEVEL"), cfg.NoLogTime)
+
+	// Initialize app. NewApp applies the GitLab token and endpoint from the
+	// resolved configuration, so no separate wiring is needed here.
+	app, err := app.NewApp(ctx, cfg, l)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 
-	l := initTrace(os.Getenv("DEBUGLEVEL"), cfg.NoLogTime)
-	app.SetLogger(l)
 	err = app.Run(ctx)
 
 	if err != nil {

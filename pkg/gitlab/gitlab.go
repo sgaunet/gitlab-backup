@@ -265,6 +265,14 @@ func (r *Service) SetGitlabEndpoint(gitlabAPIEndpoint string) {
 	r.client = NewGitLabClientWrapper(glClient)
 }
 
+// GitlabEndpoint returns the currently configured Gitlab API endpoint.
+func (r *Service) GitlabEndpoint() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.gitlabAPIEndpoint
+}
+
 // SetToken sets the Gitlab API token
 // default: GITLAB_TOKEN env variable
 func (r *Service) SetToken(token string) {

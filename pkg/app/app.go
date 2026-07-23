@@ -85,7 +85,7 @@ var (
 // App represents the main application structure.
 type App struct {
 	cfg           *config.Config
-	gitlabService *gitlab.Service
+	gitlabService gitlab.BackupService
 	storage       storage.Storage
 	log           Logger
 }
@@ -149,6 +149,23 @@ func NewApp(ctx context.Context, cfg *config.Config, log Logger) (*App, error) {
 		}
 	}
 	return app, nil
+}
+
+// NewAppWithService builds an App from already-constructed dependencies. Unlike
+// NewApp it performs no GitLab client or storage construction and no connection
+// wiring: the caller supplies a ready BackupService and Storage. It is intended
+// for testing and advanced wiring. A nil logger discards logs.
+func NewAppWithService(cfg *config.Config, svc gitlab.BackupService, store storage.Storage, log Logger) *App {
+	if log == nil {
+		log = slog.New(slog.DiscardHandler)
+	}
+	gitlab.SetLogger(log)
+	return &App{
+		cfg:           cfg,
+		gitlabService: svc,
+		storage:       store,
+		log:           log,
+	}
 }
 
 // SetLogger sets the logger.

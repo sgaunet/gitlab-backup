@@ -46,10 +46,22 @@ func NewOrchestrator(gitlabClient gitlab.GitLabService, storage Storage, cfg *co
 		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 	}
 
+	return NewOrchestratorWithProgress(gitlabClient, storage, NewConsoleProgressReporter(logger))
+}
+
+// NewOrchestratorWithProgress creates a restore orchestrator with an explicit
+// progress reporter. It is intended for testing and custom progress UIs: pass
+// NewNoOpProgressReporter() to silence console output, or a mock to assert phase
+// transitions. Unlike NewOrchestrator it builds no logger and reads no config.
+func NewOrchestratorWithProgress(
+	gitlabClient gitlab.GitLabService,
+	storage Storage,
+	progress ProgressReporter,
+) *Orchestrator {
 	return &Orchestrator{
 		gitlabClient: gitlabClient,
 		storage:      storage,
-		progress:     NewConsoleProgressReporter(logger),
+		progress:     progress,
 	}
 }
 

@@ -1,21 +1,19 @@
-package localstorage
+package localstorage_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/sgaunet/gitlab-backup/pkg/storage/localstorage"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSaveFile(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir, err := os.MkdirTemp("/tmp", "localstorage_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	// Create a temporary source file
 	srcFile, err := os.CreateTemp(tempDir, "source")
@@ -32,7 +30,7 @@ func TestSaveFile(t *testing.T) {
 	srcFile.Close()
 
 	// Initialize LocalStorage
-	storage := NewLocalStorage(tempDir)
+	storage := localstorage.NewLocalStorage(tempDir)
 
 	// Define the destination filename
 	dstFilename := "dstFile"
@@ -56,28 +54,24 @@ func TestSaveFile(t *testing.T) {
 }
 
 func TestSaveFileWithEmptySource(t *testing.T) {
-	tempDir, err := os.MkdirTemp("/tmp", "localstorage_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 	// Initialize LocalStorage
-	storage := NewLocalStorage(tempDir)
+	storage := localstorage.NewLocalStorage(tempDir)
 
 	dstFilename := "dstFile"
 
 	// Call SaveFile
-	err = storage.SaveFile(context.Background(), "file-that-does-not-exist", dstFilename)
+	err := storage.SaveFile(context.Background(), "file-that-does-not-exist", dstFilename)
 	require.Error(t, err)
 }
 
 func TestSaveFileWithWrontDestinationFolder(t *testing.T) {
 	// Initialize LocalStorage
-	storage := NewLocalStorage("/tmp-does-not-exist")
+	storage := localstorage.NewLocalStorage("/tmp-does-not-exist")
 	dstFilename := "dstFile"
 
-	// Create temp file in /tmp
-	srcFile, err := os.CreateTemp("/tmp", "source")
+	// Create temp file
+	srcFile, err := os.CreateTemp(t.TempDir(), "source")
 	require.NoError(t, err)
 	defer os.Remove(srcFile.Name())
 
@@ -86,12 +80,32 @@ func TestSaveFileWithWrontDestinationFolder(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestSaveFile_LargeFile copies a source larger than the copy buffer so the
+// multi-iteration copy loop and the EOF-break path are exercised.
+func TestSaveFile_LargeFile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Well over the 32KB copy buffer to force several read/write iterations.
+	content := make([]byte, 256*1024)
+	for i := range content {
+		content[i] = byte(i % 251)
+	}
+
+	srcPath := filepath.Join(tempDir, "large-source")
+	require.NoError(t, os.WriteFile(srcPath, content, 0o600))
+
+	storage := localstorage.NewLocalStorage(tempDir)
+	dstFilename := "large-dst"
+	require.NoError(t, storage.SaveFile(context.Background(), srcPath, dstFilename))
+
+	got, err := os.ReadFile(filepath.Join(tempDir, dstFilename))
+	require.NoError(t, err)
+	require.True(t, bytes.Equal(content, got), "copied content should match source")
+}
+
 // TestSaveFile_ContextCancellation verifies that SaveFile respects context cancellation.
 func TestSaveFile_ContextCancellation(t *testing.T) {
-	// Create a temporary directory for testing
-	tempDir, err := os.MkdirTemp("/tmp", "localstorage_test_cancel")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	// Create a temporary source file with some content
 	srcFile, err := os.CreateTemp(tempDir, "source_large")
@@ -108,7 +122,7 @@ func TestSaveFile_ContextCancellation(t *testing.T) {
 	srcFile.Close()
 
 	// Initialize LocalStorage
-	storage := NewLocalStorage(tempDir)
+	storage := localstorage.NewLocalStorage(tempDir)
 
 	// Create a cancelled context
 	ctx, cancel := context.WithCancel(context.Background())

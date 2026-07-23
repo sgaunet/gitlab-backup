@@ -1,11 +1,13 @@
-package restore
+package restore_test
 
 import (
+	"bytes"
 	"errors"
 	"log/slog"
 	"os"
 	"testing"
 
+	"github.com/sgaunet/gitlab-backup/pkg/app/restore"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,77 +22,77 @@ func TestConsoleProgressReporter_AllPhases(t *testing.T) {
 		},
 	}))
 
-	reporter := NewConsoleProgressReporter(logger)
+	reporter := restore.NewConsoleProgressReporter(logger)
 
 	// Test all phase operations - verify no panics
 	t.Run("StartPhase", func(t *testing.T) {
 		assert.NotPanics(t, func() {
-			reporter.StartPhase(PhaseValidation)
-			reporter.StartPhase(PhaseDownload)
-			reporter.StartPhase(PhaseExtraction)
-			reporter.StartPhase(PhaseImport)
-			reporter.StartPhase(PhaseCleanup)
+			reporter.StartPhase(restore.PhaseValidation)
+			reporter.StartPhase(restore.PhaseDownload)
+			reporter.StartPhase(restore.PhaseExtraction)
+			reporter.StartPhase(restore.PhaseImport)
+			reporter.StartPhase(restore.PhaseCleanup)
 		})
 	})
 
 	t.Run("UpdatePhase", func(t *testing.T) {
 		assert.NotPanics(t, func() {
-			reporter.UpdatePhase(PhaseImport, 5, 10)
-			reporter.UpdatePhase(PhaseExtraction, 100, 200)
+			reporter.UpdatePhase(restore.PhaseImport, 5, 10)
+			reporter.UpdatePhase(restore.PhaseExtraction, 100, 200)
 		})
 	})
 
 	t.Run("CompletePhase", func(t *testing.T) {
 		assert.NotPanics(t, func() {
-			reporter.CompletePhase(PhaseValidation)
-			reporter.CompletePhase(PhaseDownload)
-			reporter.CompletePhase(PhaseExtraction)
-			reporter.CompletePhase(PhaseImport)
+			reporter.CompletePhase(restore.PhaseValidation)
+			reporter.CompletePhase(restore.PhaseDownload)
+			reporter.CompletePhase(restore.PhaseExtraction)
+			reporter.CompletePhase(restore.PhaseImport)
 		})
 	})
 
 	t.Run("FailPhase", func(t *testing.T) {
 		testErr := errors.New("test error")
 		assert.NotPanics(t, func() {
-			reporter.FailPhase(PhaseValidation, testErr)
-			reporter.FailPhase(PhaseImport, testErr)
+			reporter.FailPhase(restore.PhaseValidation, testErr)
+			reporter.FailPhase(restore.PhaseImport, testErr)
 		})
 	})
 
 	t.Run("SkipPhase", func(t *testing.T) {
 		assert.NotPanics(t, func() {
-			reporter.SkipPhase(PhaseValidation, "overwrite flag set")
-			reporter.SkipPhase(PhaseDownload, "local restore")
+			reporter.SkipPhase(restore.PhaseValidation, "overwrite flag set")
+			reporter.SkipPhase(restore.PhaseDownload, "local restore")
 		})
 	})
 
 	t.Run("CompleteWorkflow", func(t *testing.T) {
 		// Simulate complete workflow
 		assert.NotPanics(t, func() {
-			reporter.StartPhase(PhaseValidation)
-			reporter.CompletePhase(PhaseValidation)
+			reporter.StartPhase(restore.PhaseValidation)
+			reporter.CompletePhase(restore.PhaseValidation)
 
-			reporter.StartPhase(PhaseExtraction)
-			reporter.UpdatePhase(PhaseExtraction, 50, 100)
-			reporter.CompletePhase(PhaseExtraction)
+			reporter.StartPhase(restore.PhaseExtraction)
+			reporter.UpdatePhase(restore.PhaseExtraction, 50, 100)
+			reporter.CompletePhase(restore.PhaseExtraction)
 
-			reporter.StartPhase(PhaseImport)
-			reporter.CompletePhase(PhaseImport)
+			reporter.StartPhase(restore.PhaseImport)
+			reporter.CompletePhase(restore.PhaseImport)
 		})
 	})
 }
 
 func TestNoOpProgressReporter_NoOutput(t *testing.T) {
-	reporter := NewNoOpProgressReporter()
+	reporter := restore.NewNoOpProgressReporter()
 
 	// All operations should complete without panics or side effects
 	t.Run("AllOperationsNoOp", func(t *testing.T) {
 		assert.NotPanics(t, func() {
-			reporter.StartPhase(PhaseValidation)
-			reporter.UpdatePhase(PhaseImport, 1, 10)
-			reporter.CompletePhase(PhaseValidation)
-			reporter.FailPhase(PhaseImport, errors.New("test error"))
-			reporter.SkipPhase(PhaseDownload, "reason")
+			reporter.StartPhase(restore.PhaseValidation)
+			reporter.UpdatePhase(restore.PhaseImport, 1, 10)
+			reporter.CompletePhase(restore.PhaseValidation)
+			reporter.FailPhase(restore.PhaseImport, errors.New("test error"))
+			reporter.SkipPhase(restore.PhaseDownload, "reason")
 		})
 	})
 
@@ -98,62 +100,75 @@ func TestNoOpProgressReporter_NoOutput(t *testing.T) {
 		assert.NotPanics(t, func() {
 			// Call each method multiple times
 			for i := 0; i < 100; i++ {
-				reporter.StartPhase(PhaseValidation)
-				reporter.UpdatePhase(PhaseImport, i, 100)
-				reporter.CompletePhase(PhaseValidation)
-				reporter.FailPhase(PhaseImport, errors.New("error"))
-				reporter.SkipPhase(PhaseDownload, "skip")
+				reporter.StartPhase(restore.PhaseValidation)
+				reporter.UpdatePhase(restore.PhaseImport, i, 100)
+				reporter.CompletePhase(restore.PhaseValidation)
+				reporter.FailPhase(restore.PhaseImport, errors.New("error"))
+				reporter.SkipPhase(restore.PhaseDownload, "skip")
 			}
 		})
 	})
 }
 
-func TestGetPhaseStartMessage_AllPhases(t *testing.T) {
+// TestConsoleProgressReporter_PhaseMessages verifies the human-readable message
+// emitted for each phase. It is the black-box replacement for the previous
+// white-box test of the unexported getPhaseStartMessage: the message is asserted
+// through StartPhase's logged output captured from a buffer.
+func TestConsoleProgressReporter_PhaseMessages(t *testing.T) {
 	tests := []struct {
-		phase           Phase
+		phase           restore.Phase
 		expectedMessage string
 	}{
-		{PhaseValidation, "Validating project emptiness"},
-		{PhaseDownload, "Downloading archive from S3"},
-		{PhaseExtraction, "Extracting archive"},
-		{PhaseImport, "Importing repository"},
-		{PhaseCleanup, "Cleaning up temporary files"},
-		{PhaseComplete, "Restore complete"},
+		{restore.PhaseValidation, "Validating project emptiness"},
+		{restore.PhaseDownload, "Downloading archive from S3"},
+		{restore.PhaseExtraction, "Extracting archive"},
+		{restore.PhaseImport, "Importing repository"},
+		{restore.PhaseCleanup, "Cleaning up temporary files"},
+		{restore.PhaseComplete, "Restore complete"},
 	}
 
 	for _, tt := range tests {
 		t.Run(string(tt.phase), func(t *testing.T) {
-			message := getPhaseStartMessage(tt.phase)
-			assert.Equal(t, tt.expectedMessage, message, "Phase message should match expected")
+			var buf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(&buf, nil))
+			reporter := restore.NewConsoleProgressReporter(logger)
+
+			reporter.StartPhase(tt.phase)
+
+			assert.Contains(t, buf.String(), tt.expectedMessage, "Phase message should match expected")
 		})
 	}
 
 	t.Run("UnknownPhase", func(t *testing.T) {
-		unknownPhase := Phase("unknown")
-		message := getPhaseStartMessage(unknownPhase)
-		assert.Equal(t, "unknown", message, "Unknown phase should return phase string")
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, nil))
+		reporter := restore.NewConsoleProgressReporter(logger)
+
+		reporter.StartPhase(restore.Phase("unknown"))
+
+		assert.Contains(t, buf.String(), "unknown", "Unknown phase should log the phase string")
 	})
 }
 
 func TestConsoleProgressReporter_Creation(t *testing.T) {
 	t.Run("WithLogger", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-		reporter := NewConsoleProgressReporter(logger)
+		reporter := restore.NewConsoleProgressReporter(logger)
 
 		assert.NotNil(t, reporter, "Reporter should not be nil")
 		assert.NotPanics(t, func() {
-			reporter.StartPhase(PhaseValidation)
+			reporter.StartPhase(restore.PhaseValidation)
 		})
 	})
 }
 
 func TestNoOpProgressReporter_Creation(t *testing.T) {
 	t.Run("Creation", func(t *testing.T) {
-		reporter := NewNoOpProgressReporter()
+		reporter := restore.NewNoOpProgressReporter()
 
 		assert.NotNil(t, reporter, "Reporter should not be nil")
 		assert.NotPanics(t, func() {
-			reporter.StartPhase(PhaseValidation)
+			reporter.StartPhase(restore.PhaseValidation)
 		})
 	})
 }

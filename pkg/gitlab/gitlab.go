@@ -196,6 +196,7 @@ type Service struct {
 	rateLimitExportAPI    *rate.Limiter
 	rateLimitImportAPI    *rate.Limiter
 	exportTimeoutDuration time.Duration
+	exportCheckInterval   time.Duration
 }
 
 func init() {
@@ -237,6 +238,72 @@ func NewGitlabServiceWithTimeout(timeoutMins int) *Service {
 			rate.Every(constants.ImportRateLimitIntervalSeconds*time.Second),
 			constants.ImportRateLimitBurst,
 		),
+	}
+	return gs
+}
+
+// ServiceOption configures a Service built by NewServiceWithClient.
+type ServiceOption func(*Service)
+
+// WithExportTimeout overrides the export-polling timeout. A non-positive value is ignored.
+func WithExportTimeout(d time.Duration) ServiceOption {
+	return func(s *Service) {
+		if d > 0 {
+			s.exportTimeoutDuration = d
+		}
+	}
+}
+
+// WithExportCheckInterval overrides the delay between export-status polls.
+// A non-positive value is ignored. It is intended to keep tests fast.
+func WithExportCheckInterval(d time.Duration) ServiceOption {
+	return func(s *Service) {
+		if d > 0 {
+			s.exportCheckInterval = d
+		}
+	}
+}
+
+// WithRateLimiters overrides the download, export and import rate limiters.
+// Nil limiters are ignored, keeping the corresponding default.
+func WithRateLimiters(download, export, importer *rate.Limiter) ServiceOption {
+	return func(s *Service) {
+		if download != nil {
+			s.rateLimitDownloadAPI = download
+		}
+		if export != nil {
+			s.rateLimitExportAPI = export
+		}
+		if importer != nil {
+			s.rateLimitImportAPI = importer
+		}
+	}
+}
+
+// NewServiceWithClient builds a Service around an injected GitLabClient for
+// testing and advanced wiring. It reads no environment and creates no HTTP
+// client. SetToken/SetGitlabEndpoint would replace the injected client and
+// should not be called on services built this way.
+func NewServiceWithClient(client GitLabClient, opts ...ServiceOption) *Service {
+	gs := &Service{
+		client:                client,
+		gitlabAPIEndpoint:     constants.GitLabAPIEndpoint,
+		exportTimeoutDuration: constants.DefaultExportTimeoutMins * time.Minute,
+		rateLimitDownloadAPI: rate.NewLimiter(
+			rate.Every(constants.DownloadRateLimitIntervalSeconds*time.Second),
+			constants.DownloadRateLimitBurst,
+		),
+		rateLimitExportAPI: rate.NewLimiter(
+			rate.Every(constants.ExportRateLimitIntervalSeconds*time.Second),
+			constants.ExportRateLimitBurst,
+		),
+		rateLimitImportAPI: rate.NewLimiter(
+			rate.Every(constants.ImportRateLimitIntervalSeconds*time.Second),
+			constants.ImportRateLimitBurst,
+		),
+	}
+	for _, opt := range opts {
+		opt(gs)
 	}
 	return gs
 }

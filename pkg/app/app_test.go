@@ -8,6 +8,7 @@ import (
 
 	"github.com/sgaunet/gitlab-backup/pkg/config"
 	"github.com/sgaunet/gitlab-backup/pkg/constants"
+	"github.com/sgaunet/gitlab-backup/pkg/gitlab"
 )
 
 // TestNewApp_AppliesGitlabConfig is a regression test for the bug where the
@@ -31,7 +32,13 @@ func TestNewApp_AppliesGitlabConfig(t *testing.T) {
 	if app.gitlabService == nil {
 		t.Fatal("expected gitlabService to be initialized")
 	}
-	if got := app.gitlabService.GitlabEndpoint(); got != cfg.GitlabURI {
+	// NewApp builds a concrete *gitlab.Service; GitlabEndpoint is not part of the
+	// injectable BackupService interface, so reach it via a type assertion.
+	svc, ok := app.gitlabService.(*gitlab.Service)
+	if !ok {
+		t.Fatalf("expected gitlabService to be *gitlab.Service, got %T", app.gitlabService)
+	}
+	if got := svc.GitlabEndpoint(); got != cfg.GitlabURI {
 		t.Errorf("expected endpoint %q to be applied from config, got %q", cfg.GitlabURI, got)
 	}
 }
@@ -71,8 +78,14 @@ func TestNewApp_HonorsConfiguredToken(t *testing.T) {
 
 	// Drive a real request through the app's GitLab service and inspect the wire.
 	// The returned error is irrelevant here: we only care that the request was
-	// sent to the configured endpoint carrying the configured token.
-	_, _ = app.gitlabService.GetGroup(context.Background(), 42)
+	// sent to the configured endpoint carrying the configured token. GetGroup is
+	// not on the injectable BackupService interface, so reach it via the concrete
+	// service NewApp built.
+	svc, ok := app.gitlabService.(*gitlab.Service)
+	if !ok {
+		t.Fatalf("expected gitlabService to be *gitlab.Service, got %T", app.gitlabService)
+	}
+	_, _ = svc.GetGroup(context.Background(), 42)
 
 	if !hit {
 		t.Fatal("expected the request to reach the configured gitlabURI, but the stub server was never called")

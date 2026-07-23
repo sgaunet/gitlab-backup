@@ -1,25 +1,26 @@
-package restore
+package restore_test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/sgaunet/gitlab-backup/pkg/app/restore"
 	"github.com/stretchr/testify/assert"
 )
 
 // TestPhaseConstants tests that phase constants are correctly defined.
 func TestPhaseConstants(t *testing.T) {
-	phases := []Phase{
-		PhaseValidation,
-		PhaseDownload,
-		PhaseExtraction,
-		PhaseImport,
-		PhaseCleanup,
-		PhaseComplete,
+	phases := []restore.Phase{
+		restore.PhaseValidation,
+		restore.PhaseDownload,
+		restore.PhaseExtraction,
+		restore.PhaseImport,
+		restore.PhaseCleanup,
+		restore.PhaseComplete,
 	}
 
 	// Verify all phases are unique
-	phaseMap := make(map[Phase]bool)
+	phaseMap := make(map[restore.Phase]bool)
 	for _, phase := range phases {
 		assert.False(t, phaseMap[phase], "Phase %s should be unique", phase)
 		phaseMap[phase] = true
@@ -32,15 +33,15 @@ func TestPhaseConstants(t *testing.T) {
 // TestErrorStructure tests the Error type.
 func TestErrorStructure(t *testing.T) {
 	now := time.Now()
-	err := Error{
-		Phase:     PhaseImport,
+	err := restore.Error{
+		Phase:     restore.PhaseImport,
 		Component: "GitLabImport",
 		Message:   "import failed",
 		Fatal:     true,
 		Timestamp: now,
 	}
 
-	assert.Equal(t, PhaseImport, err.Phase)
+	assert.Equal(t, restore.PhaseImport, err.Phase)
 	assert.Equal(t, "GitLabImport", err.Component)
 	assert.Equal(t, "import failed", err.Message)
 	assert.True(t, err.Fatal)
@@ -49,7 +50,7 @@ func TestErrorStructure(t *testing.T) {
 
 // TestMetricsStructure tests the Metrics type.
 func TestMetricsStructure(t *testing.T) {
-	metrics := Metrics{
+	metrics := restore.Metrics{
 		BytesDownloaded: 1024,
 		BytesExtracted:  2048,
 		DurationSeconds: 60,
@@ -63,7 +64,7 @@ func TestMetricsStructure(t *testing.T) {
 // TestEmptinessChecks_IsEmpty tests the IsEmpty method.
 func TestEmptinessChecks_IsEmpty(t *testing.T) {
 	t.Run("EmptyProject", func(t *testing.T) {
-		checks := &EmptinessChecks{
+		checks := &restore.EmptinessChecks{
 			HasCommits: false,
 			HasIssues:  false,
 			HasLabels:  false,
@@ -72,7 +73,7 @@ func TestEmptinessChecks_IsEmpty(t *testing.T) {
 	})
 
 	t.Run("ProjectWithCommits", func(t *testing.T) {
-		checks := &EmptinessChecks{
+		checks := &restore.EmptinessChecks{
 			HasCommits:  true,
 			HasIssues:   false,
 			HasLabels:   false,
@@ -82,7 +83,7 @@ func TestEmptinessChecks_IsEmpty(t *testing.T) {
 	})
 
 	t.Run("ProjectWithMultipleItems", func(t *testing.T) {
-		checks := &EmptinessChecks{
+		checks := &restore.EmptinessChecks{
 			HasCommits:  true,
 			HasIssues:   true,
 			HasLabels:   true,

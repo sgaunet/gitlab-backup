@@ -12,6 +12,7 @@ import (
 	"github.com/sgaunet/gitlab-backup/pkg/gitlab/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 	gitlabapi "gitlab.com/gitlab-org/api/client-go"
 )
 
@@ -244,4 +245,56 @@ func TestNewImportService_ZeroTimeoutFallsBackToDefault(t *testing.T) {
 	// Negative also falls back.
 	service = gitlab.NewImportService(mock, -1*time.Second)
 	require.NotNil(t, service, "Service should be created with negative timeout")
+}
+
+func TestNewImportServiceWithRateLimiters_Success(t *testing.T) {
+	mock := &mocks.ProjectImportExportServiceMock{
+		ImportFromFileFunc: func(_ context.Context, _ io.Reader, _ *gitlabapi.ImportFileOptions, _ ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			return &gitlabapi.ImportStatus{ID: 7, ImportStatus: "scheduled"}, &gitlabapi.Response{}, nil
+		},
+		ImportStatusFunc: func(_ context.Context, _ any, _ ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			return &gitlabapi.ImportStatus{ID: 7, ImportStatus: "finished"}, &gitlabapi.Response{}, nil
+		},
+	}
+
+	// An unlimited limiter keeps the test fast while exercising the custom-limiter constructor.
+	service := gitlab.NewImportServiceWithRateLimiters(mock, rate.NewLimiter(rate.Inf, 1), 10*time.Minute)
+	require.NotNil(t, service)
+
+	status, err := service.ImportProject(context.Background(), bytes.NewReader([]byte("data")), "ns", "proj")
+	require.NoError(t, err)
+	assert.Equal(t, "finished", status.ImportStatus)
+}
+
+func TestWaitForImport_StatusDeadlineIsTimeout(t *testing.T) {
+	// ImportStatus returns a context.DeadlineExceeded error, which the
+	// importTimeoutClassifier.isTimeout must classify as a timeout (mapping to
+	// ErrImportTimeout) rather than a generic status-check failure.
+	mock := &mocks.ProjectImportExportServiceMock{
+		ImportStatusFunc: func(_ context.Context, _ any, _ ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			return nil, &gitlabapi.Response{}, context.DeadlineExceeded
+		},
+	}
+	service := gitlab.NewImportServiceWithRateLimiters(mock, rate.NewLimiter(rate.Inf, 1), 10*time.Minute)
+
+	_, err := service.WaitForImport(context.Background(), 123, 10*time.Minute)
+	require.Error(t, err)
+	require.ErrorIs(t, err, gitlab.ErrImportTimeout)
+}
+
+func TestImportProject_UnexpectedStatus(t *testing.T) {
+	mock := &mocks.ProjectImportExportServiceMock{
+		ImportFromFileFunc: func(_ context.Context, _ io.Reader, _ *gitlabapi.ImportFileOptions, _ ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			return &gitlabapi.ImportStatus{ID: 9, ImportStatus: "scheduled"}, &gitlabapi.Response{}, nil
+		},
+		ImportStatusFunc: func(_ context.Context, _ any, _ ...gitlabapi.RequestOptionFunc) (*gitlabapi.ImportStatus, *gitlabapi.Response, error) {
+			return &gitlabapi.ImportStatus{ID: 9, ImportStatus: "some_bogus_state"}, &gitlabapi.Response{}, nil
+		},
+	}
+
+	service := gitlab.NewImportServiceWithRateLimiters(mock, rate.NewLimiter(rate.Inf, 1), 10*time.Minute)
+	_, err := service.ImportProject(context.Background(), bytes.NewReader([]byte("data")), "ns", "proj")
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, gitlab.ErrUnexpectedImportStatus)
 }

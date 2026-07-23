@@ -126,8 +126,13 @@ loop:
 			log.Info("wait after gitlab to get the archive", "projectID", projectID)
 		}
 
-		// Sleep with context awareness
-		if err := s.sleepWithContext(timeoutCtx, projectID, constants.ExportCheckIntervalSeconds*time.Second); err != nil {
+		// Sleep with context awareness. The interval is configurable (defaulting to
+		// the documented constant) so tests can drive the polling loop quickly.
+		checkInterval := s.exportCheckInterval
+		if checkInterval <= 0 {
+			checkInterval = constants.ExportCheckIntervalSeconds * time.Second
+		}
+		if err := s.sleepWithContext(timeoutCtx, projectID, checkInterval); err != nil {
 			return err
 		}
 	}

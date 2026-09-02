@@ -8,3 +8,4 @@ data-minio
 /.specify
 /specs
 /.claude
+/govulncheck.sarif

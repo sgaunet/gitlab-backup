@@ -9,8 +9,6 @@ import (
 	"io"
 	"os"
 
-	// "github.com/minio/minio-go/v7/pkg/credentials".
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -19,7 +17,6 @@ import (
 
 // S3Storage implements storage interface for AWS S3.
 type S3Storage struct {
-	// s3Client *minio.Client
 	s3Client *s3.Client
 	endpoint string
 	region   string
@@ -47,7 +44,6 @@ func NewS3Storage(ctx context.Context, region string, endpoint string, bucket st
 
 // CreateBucket creates the bucket.
 func (s *S3Storage) CreateBucket(ctx context.Context) error {
-	// return s.s3Client.MakeBucket(ctx, s.bucket, minio.MakeBucketOptions{Region: s.region})
 	_, err := s.s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket: aws.String(s.bucket),
 	})
@@ -151,7 +147,7 @@ func (s *S3Storage) initClient(ctx context.Context) error {
 		staticResolver := aws.EndpointResolverFunc(func(_, _ string) (aws.Endpoint, error) {
 			return aws.Endpoint{ //nolint:staticcheck // SA1019: aws.Endpoint is deprecated but still needed for custom endpoints
 				PartitionID:       "aws",
-				URL:               s.endpoint, // or where ever you ran minio
+				URL:               s.endpoint, // custom S3-compatible endpoint
 				SigningRegion:     s.region,
 				HostnameImmutable: true,
 			}, nil

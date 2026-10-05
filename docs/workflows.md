@@ -72,7 +72,7 @@ func TestPublicAPI(t *testing.T) { ... }
 
 ### Integration Tests
 - **Location**: `tests/integration/`
-- **Framework**: testcontainers-go for GitLab/MinIO containers
+- **Framework**: testcontainers-go for GitLab/RustFS containers
 - **Coverage**: End-to-end restore scenarios (local, S3, overwrite)
 - **Run**: `task test` or `go test -count=2 -race ./...`
 
@@ -207,9 +207,11 @@ export LOG_LEVEL=debug
 tar -tzf backup-archive.tar.gz
 ```
 
-**Test S3 locally** with MinIO:
+**Test S3 locally** with RustFS:
 ```bash
-# See tests/integration/ for testcontainers examples
+docker compose -f deployment/rustfs/docker-compose.yml up -d
+export AWS_ACCESS_KEY_ID=rustfsadmin AWS_SECRET_ACCESS_KEY=rustfsadmin
+# S3 endpoint: http://localhost:9090 — console: http://localhost:9001
 ```
 
 ## Pre-commit Checklist

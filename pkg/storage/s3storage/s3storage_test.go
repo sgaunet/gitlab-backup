@@ -11,51 +11,57 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func TestS3Storage_SaveFile(t *testing.T) {
+// rustfsImage is the S3-compatible server used for integration tests.
+const rustfsImage = "rustfs/rustfs:1.0.1"
+
+// s3Endpoint is the URL of the shared RustFS instance started in TestMain.
+var s3Endpoint string
+
+// TestMain starts a single RustFS container shared by all S3 tests and benchmarks.
+func TestMain(m *testing.M) {
 	ctx := context.Background()
-	// req := testcontainers.ContainerRequest{
-	//     Image:        "redis:latest",
-	//     ExposedPorts: []string{"6379/tcp"},
-	//     WaitingFor:   wait.ForLog("Ready to accept connections"),
-	// }
-	// redisC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-	//     ContainerRequest: req,
-	//     Started:          true,
-	// })
+
 	req := testcontainers.ContainerRequest{
-		Image:        "minio/minio:RELEASE.2023-04-13T03-08-07Z.fips",
+		Image:        rustfsImage,
 		ExposedPorts: []string{"9000/tcp"},
-		// ExposedPorts: []string{"9000/tcp", "8080/tcp"},
-		WaitingFor: wait.ForLog("Console: http://0.0.0.0:8080"),
+		WaitingFor:   wait.ForHTTP("/health").WithPort("9000/tcp"),
 		Env: map[string]string{
-			"MINIO_ROOT_USER":     "minioadminn",
-			"MINIO_ROOT_PASSWORD": "minioadminn",
-			"MINIO_BUCKET":        "tests",
+			"RUSTFS_ACCESS_KEY": "rustfsadmin",
+			"RUSTFS_SECRET_KEY": "rustfsadmin",
 		},
-		Cmd: []string{"server", "/export", "--console-address", "0.0.0.0:8080"},
 	}
-	minio, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	rustfs, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Failed to start RustFS container: %v\n", err)
+		os.Exit(1)
 	}
-	defer func() {
-		if err := minio.Terminate(ctx); err != nil {
-			panic(err)
-		}
-	}()
 
-	endpoint, err := minio.Endpoint(ctx, "")
+	endpoint, err := rustfs.Endpoint(ctx, "")
 	if err != nil {
-		t.Error(err)
+		fmt.Fprintf(os.Stderr, "Failed to get RustFS endpoint: %v\n", err)
+		_ = rustfs.Terminate(ctx)
+		os.Exit(1)
 	}
+	s3Endpoint = "http://" + endpoint
 
-	os.Setenv("AWS_ACCESS_KEY_ID", "minioadminn")
-	os.Setenv("AWS_SECRET_ACCESS_KEY", "minioadminn")
+	os.Setenv("AWS_ACCESS_KEY_ID", "rustfsadmin")
+	os.Setenv("AWS_SECRET_ACCESS_KEY", "rustfsadmin")
 
-	s3, err := s3storage.NewS3Storage(ctx, "us-east-1", fmt.Sprintf("http://%s", endpoint), "tests", "tests")
+	code := m.Run()
+
+	if err := rustfs.Terminate(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to terminate RustFS container: %v\n", err)
+	}
+	os.Exit(code)
+}
+
+func TestS3Storage_SaveFile(t *testing.T) {
+	ctx := context.Background()
+
+	s3, err := s3storage.NewS3Storage(ctx, "us-east-1", s3Endpoint, "tests", "tests")
 	if err != nil {
 		t.Errorf("error: %v", err)
 	}
@@ -136,41 +142,8 @@ func TestNewS3Storage_ContextAccepted(t *testing.T) {
 func TestS3Storage_SaveFile_SingleOpen(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup MinIO container
-	req := testcontainers.ContainerRequest{
-		Image:        "minio/minio:RELEASE.2023-04-13T03-08-07Z.fips",
-		ExposedPorts: []string{"9000/tcp"},
-		WaitingFor:   wait.ForLog("Console: http://0.0.0.0:8080"),
-		Env: map[string]string{
-			"MINIO_ROOT_USER":     "minioadminn",
-			"MINIO_ROOT_PASSWORD": "minioadminn",
-			"MINIO_BUCKET":        "tests",
-		},
-		Cmd: []string{"server", "/export", "--console-address", "0.0.0.0:8080"},
-	}
-	minio, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		t.Fatalf("Failed to start MinIO container: %v", err)
-	}
-	defer func() {
-		if err := minio.Terminate(ctx); err != nil {
-			t.Errorf("Failed to terminate MinIO container: %v", err)
-		}
-	}()
-
-	endpoint, err := minio.Endpoint(ctx, "")
-	if err != nil {
-		t.Fatalf("Failed to get MinIO endpoint: %v", err)
-	}
-
-	os.Setenv("AWS_ACCESS_KEY_ID", "minioadminn")
-	os.Setenv("AWS_SECRET_ACCESS_KEY", "minioadminn")
-
 	// Create S3Storage
-	s3, err := s3storage.NewS3Storage(ctx, "us-east-1", fmt.Sprintf("http://%s", endpoint), "tests", "tests")
+	s3, err := s3storage.NewS3Storage(ctx, "us-east-1", s3Endpoint, "tests-singleopen", "tests-singleopen")
 	if err != nil {
 		t.Fatalf("Failed to create S3Storage: %v", err)
 	}
@@ -227,41 +200,8 @@ func TestS3Storage_SaveFile_SingleOpen(t *testing.T) {
 func BenchmarkSaveFile(b *testing.B) {
 	ctx := context.Background()
 
-	// Setup MinIO container
-	req := testcontainers.ContainerRequest{
-		Image:        "minio/minio:RELEASE.2023-04-13T03-08-07Z.fips",
-		ExposedPorts: []string{"9000/tcp"},
-		WaitingFor:   wait.ForLog("Console: http://0.0.0.0:8080"),
-		Env: map[string]string{
-			"MINIO_ROOT_USER":     "minioadminn",
-			"MINIO_ROOT_PASSWORD": "minioadminn",
-			"MINIO_BUCKET":        "bench",
-		},
-		Cmd: []string{"server", "/export", "--console-address", "0.0.0.0:8080"},
-	}
-	minio, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		b.Fatalf("Failed to start MinIO container: %v", err)
-	}
-	defer func() {
-		if err := minio.Terminate(ctx); err != nil {
-			b.Errorf("Failed to terminate MinIO container: %v", err)
-		}
-	}()
-
-	endpoint, err := minio.Endpoint(ctx, "")
-	if err != nil {
-		b.Fatalf("Failed to get MinIO endpoint: %v", err)
-	}
-
-	os.Setenv("AWS_ACCESS_KEY_ID", "minioadminn")
-	os.Setenv("AWS_SECRET_ACCESS_KEY", "minioadminn")
-
 	// Create S3Storage
-	s3, err := s3storage.NewS3Storage(ctx, "us-east-1", fmt.Sprintf("http://%s", endpoint), "bench", "bench")
+	s3, err := s3storage.NewS3Storage(ctx, "us-east-1", s3Endpoint, "bench", "bench")
 	if err != nil {
 		b.Fatalf("Failed to create S3Storage: %v", err)
 	}

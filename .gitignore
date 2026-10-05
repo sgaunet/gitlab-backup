@@ -2,7 +2,7 @@
 /gitlab-backup
 /gitlab-restore
 /.task
-data-minio
+data-rustfs
 /pkg/gitlab/mocks
 /pkg/app/restore/mocks
 /.specify

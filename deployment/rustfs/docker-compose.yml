@@ -1,0 +1,16 @@
+services:
+  rustfs:
+    image: rustfs/rustfs:1.0.1
+    ports:
+      - 9090:9000 # S3 API
+      - 9001:9001 # Console
+    environment:
+      - RUSTFS_ACCESS_KEY=rustfsadmin
+      - RUSTFS_SECRET_KEY=rustfsadmin
+    volumes:
+      - ./data-rustfs:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

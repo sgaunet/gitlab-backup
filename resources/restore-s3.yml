@@ -31,7 +31,7 @@ noLogTime: false
 s3cfg:
   # S3 endpoint URL
   # For AWS S3: use default AWS endpoint
-  # For MinIO or custom S3: specify full URL (e.g., "http://localhost:9000")
+  # For RustFS or other S3-compatible servers: specify full URL (e.g., "http://localhost:9000")
   endpoint: "https://s3.amazonaws.com"
 
   # S3 bucket name

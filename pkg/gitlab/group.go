@@ -22,8 +22,8 @@ func (s *Service) GetSubgroups(ctx context.Context, groupID int64) ([]Group, err
 		ListOptions: gitlab.ListOptions{
 			PerPage: 20, //nolint:mnd // GitLab API pagination default
 		},
-		OrderBy: gitlab.Ptr("id"),
-		Sort:    gitlab.Ptr("asc"),
+		OrderBy: new("id"),
+		Sort:    new("asc"),
 	}
 	
 	var allSubgroups []Group
@@ -103,8 +103,8 @@ func (s *Service) GetProjectsLst(ctx context.Context, groupID int64) ([]Project,
 		ListOptions: gitlab.ListOptions{
 			PerPage: 20, //nolint:mnd // GitLab API pagination default
 		},
-		OrderBy: gitlab.Ptr("id"),
-		Sort:    gitlab.Ptr("asc"),
+		OrderBy: new("id"),
+		Sort:    new("asc"),
 	}
 	
 	var allProjects []Project

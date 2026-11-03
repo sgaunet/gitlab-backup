@@ -75,10 +75,8 @@ func (v *Validator) checkCommits(ctx context.Context, projectID int64) (bool, in
 		ctx,
 		projectID,
 		&gitlabapi.ListCommitsOptions{
-			ListOptions: gitlabapi.ListOptions{
-				PerPage: 1, // Only need to know if any exist
-				Page:    1,
-			},
+			PerPage: 1, // Only need to know if any exist
+			Page:    1,
 		},
 		gitlabapi.WithContext(ctx),
 	)
@@ -106,10 +104,8 @@ func (v *Validator) checkIssues(ctx context.Context, projectID int64) (bool, int
 		ctx,
 		projectID,
 		&gitlabapi.ListProjectIssuesOptions{
-			ListOptions: gitlabapi.ListOptions{
-				PerPage: 1, // Only need to know if any exist
-				Page:    1,
-			},
+			PerPage: 1, // Only need to know if any exist
+			Page:    1,
 		},
 		gitlabapi.WithContext(ctx),
 	)
@@ -137,10 +133,8 @@ func (v *Validator) checkLabels(ctx context.Context, projectID int64) (bool, int
 		ctx,
 		projectID,
 		&gitlabapi.ListLabelsOptions{
-			ListOptions: gitlabapi.ListOptions{
-				PerPage: 1, // Only need to know if any exist
-				Page:    1,
-			},
+			PerPage: 1, // Only need to know if any exist
+			Page:    1,
 		},
 		gitlabapi.WithContext(ctx),
 	)

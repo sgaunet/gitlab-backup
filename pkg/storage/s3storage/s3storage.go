@@ -143,27 +143,20 @@ func (s *S3Storage) GetFile(ctx context.Context, key string, localPath string) (
 // initClient initializes the s3 client with context support.
 func (s *S3Storage) initClient(ctx context.Context) error {
 	if os.Getenv("AWS_ACCESS_KEY_ID") != "" {
-		//nolint:staticcheck // SA1019: Using deprecated AWS endpoint resolver for compatibility
-		staticResolver := aws.EndpointResolverFunc(func(_, _ string) (aws.Endpoint, error) {
-			return aws.Endpoint{ //nolint:staticcheck // SA1019: aws.Endpoint is deprecated but still needed for custom endpoints
-				PartitionID:       "aws",
-				URL:               s.endpoint, // custom S3-compatible endpoint
-				SigningRegion:     s.region,
-				HostnameImmutable: true,
-			}, nil
-		})
-
 		cfg := aws.Config{
-			Region:           s.region,
+			Region: s.region,
 			Credentials: credentials.NewStaticCredentialsProvider(
 				os.Getenv("AWS_ACCESS_KEY_ID"),
 				os.Getenv("AWS_SECRET_ACCESS_KEY"),
 				"",
 			),
-			EndpointResolver: staticResolver,
 		}
 		s.s3Client = s3.NewFromConfig(cfg, func(o *s3.Options) {
+			// Custom S3-compatible endpoint. Path-style addressing keeps the
+			// hostname unchanged (bucket in the path), as required by most
+			// S3-compatible servers (RustFS, MinIO, ...).
 			o.BaseEndpoint = aws.String(s.endpoint)
+			o.UsePathStyle = true
 		})
 		return nil
 	}
